@@ -126,7 +126,7 @@ export const Waveform = forwardRef<Player | null, WaveformProps>(
       const store = createAnnotations({ document: initialAnnotations.current, rules: annotationRules });
       const off = store.onCommit((document, change) => callbacks.current.onAnnotationsCommit?.(document, change));
       setLocalAnnotations(store);
-      return () => { off(); store.dispose(); };
+      return () => { view.current?.update({ annotations: null }); off(); store.dispose(); };
     }, [Boolean(annotations), annotationStore]);
     const [slots, setSlots] = useState<Array<{ key: number; element: HTMLElement; region: Region }>>([]);
     const slotKey = useRef(0);

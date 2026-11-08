@@ -155,3 +155,29 @@ it('renders React-owned custom region labels and receives controlled keyboard pr
   expect(onCommit.mock.calls[0][0].regions[0].end).toBeCloseTo(4.1)
   expect(host.querySelector<HTMLElement>('.ravl-region')!.style.width).toBe('20%')
 })
+
+it('focuses a clicked resize handle and preserves focus after committing a keyboard edit', async () => {
+  const test = await annotationView()
+  const handle = host.querySelector<HTMLElement>('.ravl-region-handle-end')!
+  pointer(handle, 'pointerdown', 400); pointer(test.viewport, 'pointerup', 400)
+  expect(document.activeElement).toBe(handle)
+  handle.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowRight', bubbles: true }))
+  expect(document.activeElement?.classList.contains('ravl-region-handle-end')).toBe(true)
+  expect(test.store.getSnapshot().document.regions[0].end).toBeCloseTo(4.1)
+  test.cleanup()
+})
+
+it('supports React-owned default annotations through Strict Mode remount and cleanup', async () => {
+  let player: Player | null = null
+  const onCommit = vi.fn()
+  root = createRoot(host)
+  await act(async () => root!.render(<StrictMode><Waveform source={source} onPlayer={value => { player = value }} defaultAnnotations={annotations} onAnnotationsCommit={onCommit} /></StrictMode>))
+  const active = player as unknown as Player
+  await act(async () => { mock.ready(active.getMediaElement()!); flushFrame() })
+  await act(async () => host.querySelector('.ravl-region-handle-end')!.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowRight', bubbles: true })))
+  expect(onCommit).toHaveBeenCalledOnce()
+  expect(parseFloat(host.querySelector<HTMLElement>('.ravl-region')!.style.width)).toBeCloseTo(21)
+  await act(async () => root!.unmount()); root = undefined
+  expect(host.children).toHaveLength(0)
+  expect(frames.size).toBe(0)
+})
