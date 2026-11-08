@@ -3,9 +3,9 @@
 A TypeScript waveform player with ordinary DOM styling, a functional JavaScript
 API, and a React component backed by the same controller and Canvas renderer.
 
-**Phase 3 is implemented.** The examples use real components, playable audio,
+**Phase 4 is implemented.** The examples use real components, playable audio,
 and editable annotations. This is a local development package, not a published
-release. [Open the annotation editor](http://127.0.0.1:4173/#annotations/react).
+release. [Open the scale lab](http://127.0.0.1:4173/#scale/vanilla) or [the annotation editor](http://127.0.0.1:4173/#annotations/react).
 
 ## Try the interactive examples
 
@@ -268,17 +268,20 @@ Build entry points: `ravl`, `ravl/core`, `ravl/dom`, `ravl/react`,
   playback backend. Full-recording and best-effort region looping are implemented.
 - Finite recordings only. Live/infinite streams are not supported.
 - URL waveform generation downloads and decodes the full recording. Prefer supplied
-  peaks for long recordings. This foundation has not been benchmarked at scale.
+  peaks for long recordings. The [scale checkpoint](docs/PHASE-4.md) measures a
+  two-hour supplied-peaks fixture, not full-file decoding.
 - Request headers apply to waveform fetching, not native media playback. Custom
   authenticated playback can use an application-fetched Blob. Remote decoding
   requires appropriate CORS responses.
 - Loading phases are exposed; byte-level progress, worker processing, reusable
   decoder pools, and multi-resolution caches are future work.
-- Annotation virtualization, label collision avoidance, and drag edge auto-scroll
-  are not implemented. Undo/redo and advanced snapping remain later modules.
-- Browser smoke checks cover the available in-app browser. A full cross-browser,
-  mobile, accessibility, and performance matrix remains Phase 4 work.
+- Annotation overlays are culled to the visible time range; the list is paginated.
+  Fit-width views still mount all visible regions. Label collision avoidance and
+  drag edge auto-scroll are not implemented. Undo/redo and advanced snapping remain later modules.
+- Browser measurements cover Chromium 156 on macOS. Safari, Firefox, mobile and
+  comprehensive screen-reader certification remain unverified. See the documented
+  budgets, memory limits, and release checklist in the Phase 4 checkpoint.
 
-See [Phase 3 checkpoint](docs/PHASE-3.md), [Phase 2 checkpoint](docs/PHASE-2.md), [roadmap](docs/ROADMAP.md), and the
+See [Phase 4 checkpoint](docs/PHASE-4.md), [Phase 3 checkpoint](docs/PHASE-3.md), [Phase 2 checkpoint](docs/PHASE-2.md), [roadmap](docs/ROADMAP.md), and the
 [original API design](docs/design/api.md). Each phase ends for review before the
 next starts.

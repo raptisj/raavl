@@ -1,9 +1,13 @@
 // Proposed syntax only. This module supplies the review page and Markdown guide.
 export const workflows = [
   {
-    id: 'url', title: '01 / Play a URL', phase: 2,
-    intent: 'The shortest path to playback. Loading the waveform and preparing audio have independent status.',
-    contract: 'setSource resolves after metadata is available. Handle rejected loading and play promises. Waveform errors remain observable separately. Dispose both the view and owned player when leaving the page.',
+    id: "url",
+    title: "01 / Play a URL",
+    phase: 2,
+    intent:
+      "The shortest path to playback. Loading the waveform and preparing audio have independent status.",
+    contract:
+      "setSource resolves after metadata is available. Handle rejected loading and play promises. Waveform errors remain observable separately. Dispose both the view and owned player when leaving the page.",
     vanilla: `import { createPlayer, mountWaveform } from 'ravl'
 
 const player = createPlayer()
@@ -39,9 +43,13 @@ function AudioPlayer() {
 }`,
   },
   {
-    id: 'file', title: '02 / Open a local file', phase: 2,
-    intent: 'Accept a File directly. The library owns and revokes any object URL it creates.',
-    contract: 'Choosing another file cancels the previous load. Cancellation is normal control flow. The application creates a new source identity for each chosen asset.',
+    id: "file",
+    title: "02 / Open a local file",
+    phase: 2,
+    intent:
+      "Accept a File directly. The library owns and revokes any object URL it creates.",
+    contract:
+      "Choosing another file cancels the previous load. Cancellation is normal control flow. The application creates a new source identity for each chosen asset.",
     vanilla: `fileInput.onchange = async () => {
   const file = fileInput.files?.[0]
   if (!file) return
@@ -64,9 +72,13 @@ function AudioPlayer() {
 }`,
   },
   {
-    id: 'peaks', title: '03 / Long recording with peaks', phase: 2,
-    intent: 'Supply visualization data without decoding the entire audio file in the browser.',
-    contract: 'waveformData follows the versioned min/max bucket format, belongs to interview-1, and declares its duration. Audio and waveform data must describe the same asset. A peaks mismatch affects the waveform, not otherwise valid playback.',
+    id: "peaks",
+    title: "03 / Long recording with peaks",
+    phase: 2,
+    intent:
+      "Supply visualization data without decoding the entire audio file in the browser.",
+    contract:
+      "waveformData follows the versioned min/max bucket format, belongs to interview-1, and declares its duration. Audio and waveform data must describe the same asset. A peaks mismatch affects the waveform, not otherwise valid playback.",
     vanilla: `const source = {
   kind: 'url',
   id: 'interview-1',
@@ -87,9 +99,13 @@ function Interview() {
 }`,
   },
   {
-    id: 'regions', title: '04 / Create and persist regions', phase: 3,
-    intent: 'Keep annotation data independent of DOM and audio loading. Persist only committed edits.',
-    contract: 'This store owns its document. Regions can be declared before metadata loads. JSON import validates version, IDs, numbers, and source identity. Handle storage errors in application code.',
+    id: "regions",
+    title: "04 / Create and persist regions",
+    phase: 3,
+    intent:
+      "Keep annotation data independent of DOM and audio loading. Persist only committed edits.",
+    contract:
+      "This store owns its document. Regions can be declared before metadata loads. JSON import validates version, IDs, numbers, and source identity. Handle storage errors in application code.",
     vanilla: `import { createAnnotations } from 'ravl/regions'
 
 const annotations = createAnnotations({
@@ -116,9 +132,13 @@ function AnnotatedPlayer() {
 }`,
   },
   {
-    id: 'controlled', title: '05 / Controlled annotation editor', phase: 3,
-    intent: 'The application owns committed annotations; the library owns transient drag previews.',
-    contract: 'Publish the next value synchronously to accept an edit; persist it asynchronously. If the host does not accept, the preview reverts. An external revision change cancels a gesture in progress. Default and controlled values cannot be combined.',
+    id: "controlled",
+    title: "05 / Controlled annotation editor",
+    phase: 3,
+    intent:
+      "The application owns committed annotations; the library owns transient drag previews.",
+    contract:
+      "Publish the next value synchronously to accept an edit; persist it asynchronously. If the host does not accept, the preview reverts. An external revision change cancels a gesture in progress. Default and controlled values cannot be combined.",
     vanilla: `let revision = 0
 let document = initialDocument
 function onCommit(next, change) {
@@ -144,9 +164,13 @@ view.update({ annotations: { value: document, revision, onCommit } })`,
 }`,
   },
   {
-    id: 'styling', title: '06 / Customize the presentation', phase: 2,
-    intent: 'Use ordinary CSS for DOM appearance and a small view API for canvas shape. Region label slots arrive in Phase 3.',
-    contract: 'Theme CSS is optional. Canvas colors are read from theme tokens when the view renders; call refreshTheme after changing an external stylesheet or ancestor theme. This redraw never reloads audio.',
+    id: "styling",
+    title: "06 / Customize the presentation",
+    phase: 2,
+    intent:
+      "Use ordinary CSS for DOM appearance and a small view API for canvas shape. Region label slots arrive in Phase 3.",
+    contract:
+      "Theme CSS is optional. Canvas colors are read from theme tokens when the view renders; call refreshTheme after changing an external stylesheet or ancestor theme. This redraw never reloads audio.",
     vanilla: `container.classList.add('podcast-wave')
 view.update({
   appearance: { style: 'bars', barWidth: 3, barGap: 2 },
@@ -174,9 +198,13 @@ view.refreshTheme()
 // Same CSS tokens and classes as the vanilla view.`,
   },
   {
-    id: 'external', title: '07 / Attach to existing media', phase: 2,
-    intent: 'Reuse playback owned by the application, including a native audio or video element.',
-    contract: 'The descriptor does not assign media.src. The library borrows the element and detaches on disposal without pausing, removing, or resetting it. Supplying peaks is explicit; there is no hidden full-file fetch.',
+    id: "external",
+    title: "07 / Attach to existing media",
+    phase: 2,
+    intent:
+      "Reuse playback owned by the application, including a native audio or video element.",
+    contract:
+      "The descriptor does not assign media.src. The library borrows the element and detaches on disposal without pausing, removing, or resetting it. Supplying peaks is explicit; there is no hidden full-file fetch.",
     vanilla: `const media = document.querySelector('audio')
 await player.setSource({
   kind: 'media', id: 'episode-1', element: media,
@@ -196,4 +224,4 @@ await player.setSource({
   </>
 }`,
   },
-]
+];

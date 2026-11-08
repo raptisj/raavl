@@ -15,7 +15,7 @@ owned media, and two players. Check lifecycle and loading behavior.
 
 Phase 2 results and verification: [checkpoint](PHASE-2.md).
 
-## Phase 3 — Annotation workflow (complete; awaiting review)
+## Phase 3 — Annotation workflow (complete)
 
 Implement regions, markers, selection, controlled ownership, labels, keyboard
 editing, and JSON persistence. Add paired annotation examples and validate
@@ -23,12 +23,15 @@ gesture commits, bounds policies, and source switching.
 
 Phase 3 results and verification: [checkpoint](PHASE-3.md).
 
-## Phase 4 — Robustness and scale (not started)
+## Phase 4 — Robustness and scale (complete; awaiting review)
 
 Benchmark long files and dense annotations; exercise interrupted loads,
 repeated mounting, external media, browser differences, and memory ownership.
 Add multi-resolution/worker optimizations where measurements justify them.
 Publish measured budgets and supported-browser results.
+
+Phase 4 results and verification: [checkpoint](PHASE-4.md). Chromium measured;
+other browser/device certification remains a documented release requirement.
 
 ## Phase 5 — Optional modules
 

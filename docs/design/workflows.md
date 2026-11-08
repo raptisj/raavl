@@ -20,20 +20,22 @@ setSource resolves after metadata is available. Handle rejected loading and play
 ### Vanilla JavaScript
 
 ```js
-import { createPlayer, mountWaveform } from 'ravl'
+import { createPlayer, mountWaveform } from "ravl";
 
-const player = createPlayer()
-const view = mountWaveform(container, { player })
+const player = createPlayer();
+const view = mountWaveform(container, { player });
 const unsubscribe = player.subscribe(() => {
-  const state = player.getSnapshot()
-  showStatus(state.source, state.waveform)
-})
+  const state = player.getSnapshot();
+  showStatus(state.source, state.waveform);
+});
 
 try {
-  await player.setSource({ kind: 'url', id: 'episode-1', url: '/audio.mp3' })
-} catch (error) { showError(error) }
+  await player.setSource({ kind: "url", id: "episode-1", url: "/audio.mp3" });
+} catch (error) {
+  showError(error);
+}
 
-playButton.onclick = () => player.play().catch(showError)
+playButton.onclick = () => player.play().catch(showError);
 // On page teardown:
 // unsubscribe(); view.dispose(); player.dispose()
 ```
@@ -41,22 +43,24 @@ playButton.onclick = () => player.play().catch(showError)
 ### React
 
 ```jsx
-import { useRef } from 'react'
-import { Waveform } from 'ravl/react'
+import { useRef } from "react";
+import { Waveform } from "ravl/react";
 
 function AudioPlayer() {
-  const player = useRef(null)
-  return <>
-    <Waveform
-      ref={player}
-      source={{ kind: 'url', id: 'episode-1', url: '/audio.mp3' }}
-      onError={showError}
-      aria-label="Episode waveform"
-    />
-    <button onClick={() => player.current?.play().catch(showError)}>
-      Play
-    </button>
-  </>
+  const player = useRef(null);
+  return (
+    <>
+      <Waveform
+        ref={player}
+        source={{ kind: "url", id: "episode-1", url: "/audio.mp3" }}
+        onError={showError}
+        aria-label="Episode waveform"
+      />
+      <button onClick={() => player.current?.play().catch(showError)}>
+        Play
+      </button>
+    </>
+  );
 }
 ```
 
@@ -72,29 +76,35 @@ Choosing another file cancels the previous load. Cancellation is normal control 
 
 ```js
 fileInput.onchange = async () => {
-  const file = fileInput.files?.[0]
-  if (!file) return
+  const file = fileInput.files?.[0];
+  if (!file) return;
   try {
-    await player.setSource({ kind: 'file', id: crypto.randomUUID(), file })
+    await player.setSource({ kind: "file", id: crypto.randomUUID(), file });
   } catch (error) {
-    if (error.code !== 'CANCELLED') showError(error)
+    if (error.code !== "CANCELLED") showError(error);
   }
-}
+};
 ```
 
 ### React
 
 ```jsx
 function LocalAudio() {
-  const [source, setSource] = useState(null)
-  return <>
-    <input type="file" accept="audio/*" aria-label="Choose audio"
-      onChange={event => {
-        const file = event.target.files?.[0]
-        if (file) setSource({ kind: 'file', id: crypto.randomUUID(), file })
-      }} />
-    <Waveform source={source} onError={showError} />
-  </>
+  const [source, setSource] = useState(null);
+  return (
+    <>
+      <input
+        type="file"
+        accept="audio/*"
+        aria-label="Choose audio"
+        onChange={(event) => {
+          const file = event.target.files?.[0];
+          if (file) setSource({ kind: "file", id: crypto.randomUUID(), file });
+        }}
+      />
+      <Waveform source={source} onError={showError} />
+    </>
+  );
 }
 ```
 
@@ -110,12 +120,12 @@ waveformData follows the versioned min/max bucket format, belongs to interview-1
 
 ```js
 const source = {
-  kind: 'url',
-  id: 'interview-1',
-  url: '/interview.mp3',
-  waveform: { kind: 'peaks', data: waveformData },
-}
-await player.setSource(source)
+  kind: "url",
+  id: "interview-1",
+  url: "/interview.mp3",
+  waveform: { kind: "peaks", data: waveformData },
+};
+await player.setSource(source);
 // Keep waveformData stable; never mutate buffers after passing them in.
 ```
 
@@ -124,13 +134,20 @@ await player.setSource(source)
 ```jsx
 // Define outside the component or memoize the asset descriptor.
 const source = {
-  kind: 'url', id: 'interview-1', url: '/interview.mp3',
-  waveform: { kind: 'peaks', data: waveformData },
-}
+  kind: "url",
+  id: "interview-1",
+  url: "/interview.mp3",
+  waveform: { kind: "peaks", data: waveformData },
+};
 
 function Interview() {
-  return <Waveform source={source} onError={showError}
-    viewport={{ zoom: 30, follow: 'visible' }} />
+  return (
+    <Waveform
+      source={source}
+      onError={showError}
+      viewport={{ zoom: 30, follow: "visible" }}
+    />
+  );
 }
 ```
 
@@ -145,17 +162,19 @@ This store owns its document. Regions can be declared before metadata loads. JSO
 ### Vanilla JavaScript
 
 ```js
-import { createAnnotations } from 'ravl/regions'
+import { createAnnotations } from "ravl/regions";
 
 const annotations = createAnnotations({
   document: {
-    version: 1, sourceId: 'episode-1', markers: [],
-    regions: [{ id: 'intro', start: 0, end: 12, label: 'Introduction' }],
+    version: 1,
+    sourceId: "episode-1",
+    markers: [],
+    regions: [{ id: "intro", start: 0, end: 12, label: "Introduction" }],
   },
-})
-view.update({ annotations })
-const offCommit = annotations.onCommit(document => saveDocument(document))
-annotations.addRegion({ id: 'quote', start: 20, end: 28, label: 'Quote' })
+});
+view.update({ annotations });
+const offCommit = annotations.onCommit((document) => saveDocument(document));
+annotations.addRegion({ id: "quote", start: 20, end: 28, label: "Quote" });
 // On teardown: offCommit(); annotations.dispose()
 ```
 
@@ -163,16 +182,21 @@ annotations.addRegion({ id: 'quote', start: 20, end: 28, label: 'Quote' })
 
 ```jsx
 const initialDocument = {
-  version: 1, sourceId: 'episode-1', markers: [],
-  regions: [{ id: 'intro', start: 0, end: 12, label: 'Introduction' }],
-}
+  version: 1,
+  sourceId: "episode-1",
+  markers: [],
+  regions: [{ id: "intro", start: 0, end: 12, label: "Introduction" }],
+};
 
 function AnnotatedPlayer() {
-  return <Waveform source={episodeSource}
-    defaultAnnotations={initialDocument}
-    onAnnotationsCommit={saveDocument}
-    renderRegionLabel={region => <strong>{region.label}</strong>}
-  />
+  return (
+    <Waveform
+      source={episodeSource}
+      defaultAnnotations={initialDocument}
+      onAnnotationsCommit={saveDocument}
+      renderRegionLabel={(region) => <strong>{region.label}</strong>}
+    />
+  );
 }
 ```
 
@@ -187,33 +211,36 @@ Publish the next value synchronously to accept an edit; persist it asynchronousl
 ### Vanilla JavaScript
 
 ```js
-let revision = 0
-let document = initialDocument
+let revision = 0;
+let document = initialDocument;
 function onCommit(next, change) {
-  if (change.baseRevision !== revision) return
-  document = next
-  revision += 1
-  view.update({ annotations: { value: document, revision, onCommit } })
-  saveDocument(document)
+  if (change.baseRevision !== revision) return;
+  document = next;
+  revision += 1;
+  view.update({ annotations: { value: document, revision, onCommit } });
+  saveDocument(document);
 }
-view.update({ annotations: { value: document, revision, onCommit } })
+view.update({ annotations: { value: document, revision, onCommit } });
 ```
 
 ### React
 
 ```jsx
 function Editor() {
-  const [state, setState] = useState({ value: initialDocument, revision: 0 })
-  return <Waveform source={episodeSource}
-    annotations={state.value}
-    annotationsRevision={state.revision}
-    onAnnotationsCommit={(next, change) => {
-      if (change.baseRevision !== state.revision) return
-      setState({ value: next, revision: state.revision + 1 })
-      saveDocument(next)
-    }}
-    interaction={{ drag: 'select' }}
-  />
+  const [state, setState] = useState({ value: initialDocument, revision: 0 });
+  return (
+    <Waveform
+      source={episodeSource}
+      annotations={state.value}
+      annotationsRevision={state.revision}
+      onAnnotationsCommit={(next, change) => {
+        if (change.baseRevision !== state.revision) return;
+        setState({ value: next, revision: state.revision + 1 });
+        saveDocument(next);
+      }}
+      interaction={{ drag: "select" }}
+    />
+  );
 }
 ```
 
@@ -228,13 +255,13 @@ Theme CSS is optional. Canvas colors are read from theme tokens when the view re
 ### Vanilla JavaScript
 
 ```js
-container.classList.add('podcast-wave')
+container.classList.add("podcast-wave");
 view.update({
-  appearance: { style: 'bars', barWidth: 3, barGap: 2 },
-  viewport: { follow: 'off' },
-})
+  appearance: { style: "bars", barWidth: 3, barGap: 2 },
+  viewport: { follow: "off" },
+});
 // After changing a parent theme class:
-view.refreshTheme()
+view.refreshTheme();
 
 /* CSS:
 .podcast-wave {
@@ -249,12 +276,15 @@ view.refreshTheme()
 
 ```jsx
 function StyledAudio() {
-  return <Waveform source={episodeSource}
-    className="podcast-wave"
-    appearance={{ style: 'bars', barWidth: 3, barGap: 2 }}
-    viewport={{ follow: 'off' }}
-    themeVersion="light"
-  />
+  return (
+    <Waveform
+      source={episodeSource}
+      className="podcast-wave"
+      appearance={{ style: "bars", barWidth: 3, barGap: 2 }}
+      viewport={{ follow: "off" }}
+      themeVersion="light"
+    />
+  );
 }
 // Change themeVersion when an external theme changes.
 // Same CSS tokens and classes as the vanilla view.
@@ -271,11 +301,13 @@ The descriptor does not assign media.src. The library borrows the element and de
 ### Vanilla JavaScript
 
 ```js
-const media = document.querySelector('audio')
+const media = document.querySelector("audio");
 await player.setSource({
-  kind: 'media', id: 'episode-1', element: media,
-  waveform: { kind: 'peaks', data: waveformData },
-})
+  kind: "media",
+  id: "episode-1",
+  element: media,
+  waveform: { kind: "peaks", data: waveformData },
+});
 // Media is already configured and owned by the application.
 // player.dispose() leaves it intact.
 ```
@@ -284,14 +316,24 @@ await player.setSource({
 
 ```jsx
 function ExistingAudio() {
-  const [media, setMedia] = useState(null)
-  const source = useMemo(() => media ? {
-    kind: 'media', id: 'episode-1', element: media,
-    waveform: { kind: 'peaks', data: waveformData },
-  } : null, [media])
-  return <>
-    <audio ref={setMedia} src="/audio.mp3" controls />
-    <Waveform source={source} onError={showError} />
-  </>
+  const [media, setMedia] = useState(null);
+  const source = useMemo(
+    () =>
+      media
+        ? {
+            kind: "media",
+            id: "episode-1",
+            element: media,
+            waveform: { kind: "peaks", data: waveformData },
+          }
+        : null,
+    [media],
+  );
+  return (
+    <>
+      <audio ref={setMedia} src="/audio.mp3" controls />
+      <Waveform source={source} onError={showError} />
+    </>
+  );
 }
 ```

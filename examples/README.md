@@ -1,6 +1,6 @@
 # Interactive browser examples
 
-These examples run the actual Phase 3 library. They are no longer API sketches.
+These examples run the actual Phase 4 library. They are no longer API sketches.
 
 ```sh
 npm ci
@@ -14,6 +14,9 @@ For another port: `npm run examples -- --port 4174`.
 
 Choose a scenario in the navigation, then switch between Vanilla JS and React:
 
+- Scale lab: run repeatable redraw measurements on a synthetic two-hour stereo
+  waveform with 10,000 editable regions; try zoom, pagination, and keyboard edits.
+  This shared-engine benchmark uses the vanilla API under either framework tab.
 - Annotation editor: create/resize/move regions, add markers, toggle controlled
   acceptance, lock annotations, play/loop regions, and save/load JSON.
 - URL: the bundled audio works immediately; another URL can be entered.
@@ -49,3 +52,6 @@ zoom/drawing controls, and native audio surviving waveform detachment.
 The file picker, all formats, and all browser/mobile combinations have not been
 exhaustively tested. The annotation demo also verifies selection creation, controlled rejection,
 keyboard resizing, browser persistence, and source-bound visibility.
+
+See [Phase 4 measurements](../docs/PHASE-4.md) for reproducible settings, memory
+accounting, verified browser coverage, and known dense-overview limits.
