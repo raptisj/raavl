@@ -182,3 +182,153 @@ it('supports React-owned default annotations through Strict Mode remount and cle
   expect(host.children).toHaveLength(0)
   expect(frames.size).toBe(0)
 })
+
+it('starts playback at a double-clicked position and removes the handler on disposal', async () => {
+  const player = createPlayer()
+  const ready = player.setSource(source); mock.ready(player.getMediaElement()!); await ready
+  const view = mountWaveform(host, { player })
+  flushFrame()
+  const waveform = host.querySelector('.ravl-waveform')!
+  waveform.dispatchEvent(new MouseEvent('dblclick', { clientX: 400, bubbles: true }))
+  await Promise.resolve()
+  expect(player.getCurrentTime()).toBe(4)
+  expect(player.getSnapshot().playback).toBe('playing')
+  player.pause()
+  view.dispose()
+  waveform.dispatchEvent(new MouseEvent('dblclick', { bubbles: true }))
+  expect(player.getSnapshot().playback).toBe('paused')
+  player.dispose()
+})
+
+it('ignores double-click playback before a source is ready and reports play failures through state', async () => {
+  const player = createPlayer()
+  const view = mountWaveform(host, { player })
+  const waveform = host.querySelector('.ravl-waveform')!
+  waveform.dispatchEvent(new MouseEvent('dblclick', { bubbles: true }))
+  expect(mock.play).not.toHaveBeenCalled()
+  const ready = player.setSource(source); mock.ready(player.getMediaElement()!); await ready
+  mock.play.mockRejectedValueOnce(new Error('Playback blocked'))
+  waveform.dispatchEvent(new MouseEvent('dblclick', { bubbles: true }))
+  await Promise.resolve(); await Promise.resolve()
+  expect(player.getSnapshot().playback).toBe('paused')
+  expect(player.getSnapshot().error).toBeTruthy()
+  view.dispose(); player.dispose()
+})
+
+it('keeps annotation double-clicks separate from waveform playback', async () => {
+  const test = await annotationView()
+  host.querySelector('.ravl-region-body')!.dispatchEvent(new MouseEvent('dblclick', { bubbles: true }))
+  expect(mock.play).not.toHaveBeenCalled()
+  test.player.seek(3)
+  test.viewport.dispatchEvent(new MouseEvent('dblclick', { clientX: 500, bubbles: true }))
+  await Promise.resolve()
+  expect(test.player.getSnapshot().playback).toBe('playing')
+  expect(test.player.getCurrentTime()).toBe(3)
+  test.cleanup()
+})
+
+function touchEvent(element: Element, name: string, x: number, y = 50, id = 1, primary = true) {
+  const event = new MouseEvent(name, { clientX: x, clientY: y, button: 0, bubbles: true, cancelable: true })
+  Object.defineProperties(event, {
+    pointerId: { value: id }, pointerType: { value: 'touch' }, isPrimary: { value: primary },
+  })
+  element.dispatchEvent(event)
+}
+function tap(element: Element, x: number, y = 50) {
+  touchEvent(element, 'pointerdown', x, y)
+  touchEvent(element, 'pointerup', x, y)
+}
+async function touchView(drag: 'none' | 'seek' = 'none') {
+  const player = createPlayer()
+  const ready = player.setSource(source); mock.ready(player.getMediaElement()!); await ready
+  const view = mountWaveform(host, { player, interaction: { drag } })
+  flushFrame()
+  const waveform = host.querySelector<HTMLElement>('.ravl-waveform')!
+  waveform.hasPointerCapture = () => false
+  return { player, view, waveform, cleanup: () => { view.dispose(); player.dispose() } }
+}
+
+it('seeks on touch taps and plays on a nearby double-tap without synthetic mouse events', async () => {
+  const test = await touchView()
+  tap(test.waveform, 400)
+  expect(test.player.getCurrentTime()).toBe(4)
+  expect(mock.play).not.toHaveBeenCalled()
+  tap(test.waveform, 410)
+  await Promise.resolve()
+  expect(test.player.getCurrentTime()).toBeCloseTo(4.1)
+  expect(test.player.getSnapshot().playback).toBe('playing')
+  expect(mock.play).toHaveBeenCalledOnce()
+  // Compatibility events from the same gesture must not seek or play twice.
+  test.waveform.dispatchEvent(new MouseEvent('click', { clientX: 800, bubbles: true }))
+  test.waveform.dispatchEvent(new MouseEvent('dblclick', { clientX: 800, bubbles: true }))
+  expect(test.player.getCurrentTime()).toBeCloseTo(4.1)
+  expect(mock.play).toHaveBeenCalledOnce()
+  expect(test.waveform.style.touchAction).toBe('manipulation')
+  test.cleanup()
+})
+
+it('requires taps to be close in time and position and excludes long presses', async () => {
+  let now = 0
+  vi.spyOn(performance, 'now').mockImplementation(() => now)
+  const test = await touchView()
+  tap(test.waveform, 200)
+  now = 400
+  tap(test.waveform, 200)
+  tap(test.waveform, 500)
+  expect(mock.play).not.toHaveBeenCalled()
+  touchEvent(test.waveform, 'pointerdown', 500)
+  now = 1000
+  touchEvent(test.waveform, 'pointerup', 500)
+  tap(test.waveform, 500)
+  expect(mock.play).not.toHaveBeenCalled()
+  test.cleanup()
+})
+
+it('allows touch scrubbing but does not treat drags or vertical scrolling as taps', async () => {
+  const test = await touchView('seek')
+  expect(test.waveform.style.touchAction).toBe('pan-y pinch-zoom')
+  touchEvent(test.waveform, 'pointerdown', 100)
+  expect(test.player.getCurrentTime()).toBe(0)
+  touchEvent(test.waveform, 'pointermove', 500)
+  expect(test.player.getCurrentTime()).toBe(5)
+  touchEvent(test.waveform, 'pointerup', 500)
+  tap(test.waveform, 500)
+  expect(mock.play).not.toHaveBeenCalled()
+  touchEvent(test.waveform, 'pointerdown', 500)
+  touchEvent(test.waveform, 'pointermove', 500, 100)
+  touchEvent(test.waveform, 'pointercancel', 500, 100)
+  touchEvent(test.waveform, 'pointerup', 500, 100)
+  tap(test.waveform, 500)
+  expect(mock.play).not.toHaveBeenCalled()
+  test.cleanup()
+})
+
+it('rejects multi-touch and clears cancelled or lost touch gestures', async () => {
+  const test = await touchView()
+  tap(test.waveform, 300)
+  touchEvent(test.waveform, 'pointerdown', 300)
+  touchEvent(test.waveform, 'pointerdown', 300, 50, 2, false)
+  touchEvent(test.waveform, 'pointerup', 300, 50, 2, false)
+  touchEvent(test.waveform, 'pointerup', 300)
+  expect(mock.play).not.toHaveBeenCalled()
+  for (const cancel of ['pointercancel', 'lostpointercapture']) {
+    tap(test.waveform, 300)
+    touchEvent(test.waveform, 'pointerdown', 300)
+    touchEvent(test.waveform, cancel, 300)
+    touchEvent(test.waveform, 'pointerup', 300)
+    expect(mock.play).not.toHaveBeenCalled()
+  }
+  test.cleanup()
+})
+
+it('keeps touch annotation gestures separate and supports double-tap playback in selection mode', async () => {
+  const test = await annotationView()
+  const body = host.querySelector('.ravl-region-body')!
+  tap(body, 300); tap(body, 300)
+  expect(mock.play).not.toHaveBeenCalled()
+  tap(test.viewport, 500); tap(test.viewport, 500)
+  await Promise.resolve()
+  expect(test.player.getCurrentTime()).toBe(0)
+  expect(test.player.getSnapshot().playback).toBe('playing')
+  test.cleanup()
+})

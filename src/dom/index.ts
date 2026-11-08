@@ -275,16 +275,85 @@ export function mountWaveform(
       request();
   }
   const seekAt = (clientX: number) => {
-    if (!player || player.getSnapshot().source !== "ready") return;
+    if (!player || player.getSnapshot().source !== "ready" || totalWidth <= 0) return;
     const x = clientX - root.getBoundingClientRect().left + root.scrollLeft;
     player.seekFraction(Math.max(0, Math.min(1, x / totalWidth)));
     request();
   };
+  // Recognize touch directly: mobile browsers need not synthesize dblclick.
+  let touch: { id: number; x: number; y: number; time: number; moved: boolean } | null = null;
+  let lastTap: { x: number; y: number; time: number } | null = null;
+  let lastTouchTime = -Infinity;
+  const startPlayback = () => {
+    if (!player || player.getSnapshot().source !== "ready") return;
+    // play() publishes failures to the player snapshot for subscribers to report.
+    void player.play().catch(() => {});
+  };
+  const touchDown = (event: PointerEvent) => {
+    if (event.pointerType !== "touch") return;
+    lastTouchTime = performance.now();
+    if (!event.isPrimary || event.button !== 0 ||
+      (event.target instanceof Element && event.target.closest("[data-ravl-annotation]")) ||
+      !player || player.getSnapshot().source !== "ready") {
+      touch = null;
+      lastTap = null;
+      pointer = null;
+      return;
+    }
+    touch = { id: event.pointerId, x: event.clientX, y: event.clientY, time: performance.now(), moved: false };
+  };
+  const touchMove = (event: PointerEvent) => {
+    if (!touch || event.pointerId !== touch.id) return;
+    const dx = Math.abs(event.clientX - touch.x), dy = Math.abs(event.clientY - touch.y);
+    if (Math.hypot(dx, dy) > 10) {
+      touch.moved = true;
+      lastTap = null;
+    }
+    // Leave vertical scrolling and pinch zoom to the browser.
+    if (touch.moved && dx > dy && interaction.drag === "seek") {
+      pointer = event.pointerId;
+      seekAt(event.clientX);
+    }
+  };
+  const touchUp = (event: PointerEvent) => {
+    if (event.pointerType !== "touch") return;
+    lastTouchTime = performance.now();
+    if (!touch || event.pointerId !== touch.id) return;
+    const gesture = touch;
+    touch = null;
+    const now = performance.now();
+    if (gesture.moved || now - gesture.time > 350 ||
+      Math.hypot(event.clientX - gesture.x, event.clientY - gesture.y) > 10) {
+      lastTap = null;
+      return;
+    }
+    if (interaction.seek === "click" && interaction.drag !== "select") seekAt(event.clientX);
+    if (lastTap && now - lastTap.time <= 350 &&
+      Math.hypot(event.clientX - lastTap.x, event.clientY - lastTap.y) <= 24) {
+      lastTap = null;
+      startPlayback();
+    } else lastTap = { x: event.clientX, y: event.clientY, time: now };
+  };
+  const touchCancel = (event: PointerEvent) => {
+    if (touch?.id !== event.pointerId) return;
+    touch = null;
+    lastTap = null;
+    lastTouchTime = performance.now();
+  };
   const click = (event: MouseEvent) => {
+    if (performance.now() - lastTouchTime < 700) return;
     if (event.target instanceof Element && event.target.closest("[data-ravl-annotation]")) return;
     if (interaction.seek === "click" && interaction.drag !== "select") seekAt(event.clientX);
   };
+  const doubleClick = (event: MouseEvent) => {
+    if (performance.now() - lastTouchTime < 700) return;
+    if (event.target instanceof Element && event.target.closest("[data-ravl-annotation]")) return;
+    if (event.button !== 0 || !player || player.getSnapshot().source !== "ready") return;
+    if (interaction.seek === "click" && interaction.drag !== "select") seekAt(event.clientX);
+    startPlayback();
+  };
   const down = (event: PointerEvent) => {
+    if (event.pointerType === "touch") return;
     if (event.target instanceof Element && event.target.closest("[data-ravl-annotation]")) return;
     if (
       !player ||
@@ -298,6 +367,7 @@ export function mountWaveform(
     seekAt(event.clientX);
   };
   const move = (event: PointerEvent) => {
+    if (event.pointerType === "touch") return;
     if (event.pointerId === pointer) seekAt(event.clientX);
   };
   const up = (event: PointerEvent) => {
@@ -328,7 +398,13 @@ export function mountWaveform(
     }
   };
   root.addEventListener("click", click);
+  root.addEventListener("dblclick", doubleClick);
   root.addEventListener("keydown", key);
+  root.addEventListener("pointerdown", touchDown);
+  root.addEventListener("pointermove", touchMove);
+  root.addEventListener("pointerup", touchUp);
+  root.addEventListener("pointercancel", touchCancel);
+  root.addEventListener("lostpointercapture", touchCancel);
   root.addEventListener("pointerdown", down);
   root.addEventListener("pointermove", move);
   root.addEventListener("pointerup", up);
@@ -344,7 +420,13 @@ export function mountWaveform(
   }));
   const observer = new ResizeObserver(invalidate);
   observer.observe(root);
+  let tapSourceId = player?.getSnapshot().sourceId;
   const unsubscribe = player?.subscribe(() => {
+    if (player.getSnapshot().sourceId !== tapSourceId || player.getSnapshot().source !== "ready") {
+      touch = null;
+      lastTap = null;
+      tapSourceId = player.getSnapshot().sourceId;
+    }
     const next = player.getSnapshot().data;
     if (next !== data || duration !== player.getSnapshot().duration) {
       data = next;
@@ -396,7 +478,7 @@ export function mountWaveform(
       if (patch.data) data = patch.data;
       if (patch.label !== undefined) label = patch.label;
       if ("onDraw" in patch) onDraw = patch.onDraw;
-      root.style.touchAction = interaction.drag !== "none" ? "pan-y" : "auto";
+      root.style.touchAction = interaction.drag !== "none" ? "pan-y pinch-zoom" : "manipulation";
       invalidate();
     },
     refreshTheme: invalidate,
@@ -412,7 +494,15 @@ export function mountWaveform(
       unsubscribe?.();
       unsubscribeTime?.();
       root.removeEventListener("click", click);
+      root.removeEventListener("dblclick", doubleClick);
       root.removeEventListener("keydown", key);
+      touch = null;
+      lastTap = null;
+      root.removeEventListener("pointerdown", touchDown);
+      root.removeEventListener("pointermove", touchMove);
+      root.removeEventListener("pointerup", touchUp);
+      root.removeEventListener("pointercancel", touchCancel);
+      root.removeEventListener("lostpointercapture", touchCancel);
       root.removeEventListener("pointerdown", down);
       root.removeEventListener("pointermove", move);
       root.removeEventListener("pointerup", up);

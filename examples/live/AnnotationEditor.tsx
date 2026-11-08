@@ -232,7 +232,7 @@ export function AnnotationEditor({ mode }: { mode: "vanilla" | "react" }) {
     <article className="player-card annotation-editor">
       <div className="card-heading">
         <h3>Annotation studio</h3>
-        <span className="badge">{mode.toUpperCase()} · PHASE 03</span>
+        <span className="badge">LIVE PREVIEW</span>
       </div>
       <p className="helper">
         Drag empty space to select. Drag labels to move. Drag handles to resize.

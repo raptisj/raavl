@@ -16,7 +16,10 @@ npm ci
 npm run examples
 ```
 
-Open **http://127.0.0.1:4173** and choose **Vanilla JS** or **React**.
+Open **http://127.0.0.1:4173** for the **Examples** gallery. Each
+playground has a shared live preview and copyable **Vanilla JS** / **React** code.
+The **Documentation** section covers usage, every public option, player and React
+APIs, annotations, styling, touch controls, and error handling.
 
 | Example             | Try it                                                                   |
 | ------------------- | ------------------------------------------------------------------------ |

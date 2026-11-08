@@ -10,13 +10,26 @@ npm run examples
 Use Node.js 22.12+ and open http://127.0.0.1:4173. Stop the server with Ctrl+C.
 For another port: `npm run examples -- --port 4174`.
 
+## Site structure
+
+The home page is the Examples gallery with all eight playgrounds.
+Documentation lives at `#docs/start`, with separate pages for getting started,
+sources and peaks, the player, waveform options and defaults, React props and
+hooks, annotations, CSS styling, touch and keyboard controls, and state/errors.
+Documentation code blocks include a copy button.
+
+Playgrounds use `#demos/<scene>/<framework>`; older `#<scene>/<framework>`
+bookmarks remain supported. Framework choices only change the code panel.
+
 ## Explore
 
-Choose a scenario in the navigation, then switch between Vanilla JS and React:
+Choose a scenario in the navigation and try its shared live preview. Below the
+preview, switch between Vanilla JS and React code and use Copy code to copy the
+selected snippet. Switching code preserves playback, selected files, and controls:
 
 - Scale lab: run repeatable redraw measurements on a synthetic two-hour stereo
   waveform with 10,000 editable regions; try zoom, pagination, and keyboard edits.
-  This shared-engine benchmark uses the vanilla API under either framework tab.
+  This shared-engine benchmark uses the vanilla API.
 - Annotation editor: create/resize/move regions, add markers, toggle controlled
   acceptance, lock annotations, play/loop regions, and save/load JSON.
 - URL: the bundled audio works immediately; another URL can be entered.
@@ -27,12 +40,14 @@ Choose a scenario in the navigation, then switch between Vanilla JS and React:
 - Two players: change one player's time, volume, speed, or zoom independently.
 - Styling: change drawing style, color, height, zoom, and follow mode while playing.
 
-Click or drag the waveform to seek. Keyboard: Left/Right = 1 second,
+Click, tap, or drag the waveform to seek. Double-click or double-tap to start
+playback. Touch gestures use Pointer Events; vertical scrolling and pinch zoom
+remain available. Drags, long presses, and cancelled gestures do not count as taps. Keyboard: Left/Right = 1 second,
 Shift+Left/Right = 10 seconds, Home/End = beginning/end.
 
-The playground shell is React. Its Vanilla JS mode mounts the ordinary DOM API
-through `live/VanillaWaveform.tsx`; React mode uses `src/react/Waveform` directly.
-Both use the same public player. `live/main.tsx` holds the controls and scenarios.
+The playground shell is React. The shared preview mounts the ordinary DOM API
+through `live/VanillaWaveform.tsx`. `live/main.tsx` holds the controls and scenarios;
+`live/snippets.ts` supplies copyable examples for both public APIs.
 
 `public/demo-a.wav` and `demo-b.wav` are original 12-second synthetic recordings.
 Their matching JSON files contain uniform min/max buckets. Regenerate them with

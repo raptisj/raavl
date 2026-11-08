@@ -19,49 +19,12 @@ import { AnnotationEditor } from './AnnotationEditor'
 import { VanillaWaveform } from "./VanillaWaveform";
 import "../../src/styles.css";
 import "./style.css";
+import { exampleCode } from "./snippets";
+import { CopyButton } from "./CopyButton";
 
-type Mode = "vanilla" | "react";
-const scenes = [
-  ['scale', '08', 'Scale lab', 'Measure a two-hour waveform and 10,000 editable annotations.'],
-  ['annotations', '07', 'Annotation editor', 'Create, resize, label, and persist regions and markers.'],
-  [
-    "url",
-    "01",
-    "URL playback",
-    "Load audio, then click or drag its waveform to seek.",
-  ],
-  [
-    "file",
-    "02",
-    "Your audio file",
-    "Open audio from your computer. Nothing is uploaded.",
-  ],
-  [
-    "peaks",
-    "03",
-    "Precomputed peaks",
-    "Supplied waveform data, without browser audio decoding.",
-  ],
-  [
-    "external",
-    "04",
-    "Existing media",
-    "A waveform attached to an audio element owned by this page.",
-  ],
-  [
-    "dual",
-    "05",
-    "Two players",
-    "Independent sources, positions, volume, and lifecycles.",
-  ],
-  [
-    "styling",
-    "06",
-    "Style & interaction",
-    "Change the appearance while audio keeps playing.",
-  ],
-] as const;
-type Scene = (typeof scenes)[number][0];
+import { scenes, parseRoute, type Scene, type Mode } from './routes';
+import { Documentation } from './Documentation';
+
 const sourceA: Source = { kind: "url", id: "demo-a", url: "/demo-a.wav" };
 const sourceB: Source = { kind: "url", id: "demo-b", url: "/demo-b.wav" };
 const selectState = (state: PlayerSnapshot | null) => state;
@@ -238,11 +201,11 @@ function PlayerCard({
       <div className="card-heading">
         <h3>{title}</h3>
         <span className="badge">
-          {mode === "react" ? "REACT COMPONENT" : "VANILLA API"}
+          LIVE PREVIEW
         </span>
       </div>
       <p className="helper">
-        Click or drag to seek · Tab to focus · ← → seek 1s · Shift seeks 10s
+        Click, tap, or drag to seek · Double-click or double-tap to play · Tab to focus · ← → seek 1s · Shift seeks 10s
       </p>
       {detached ? (
         <div className="empty-wave">
@@ -491,85 +454,75 @@ function Example({ scene, mode }: { scene: Scene; mode: Mode }) {
   if (scene === 'scale') return <ScaleLab />
   return scene === 'annotations' ? <AnnotationEditor mode={mode} /> : <PlaybackExample scene={scene} mode={mode} />
 }
-function parseHash() {
-  const [scene, mode] = location.hash.slice(1).split("/");
-  return {
-    scene: scenes.some((item) => item[0] === scene)
-      ? (scene as Scene)
-      : ("url" as Scene),
-    mode: mode === "react" ? ("react" as Mode) : ("vanilla" as Mode),
-  };
+function CodeExample({ scene, mode }: { scene: Scene; mode: Mode }) {
+  const code = exampleCode(scene, mode);
+  return (
+    <section className="code-example" aria-label="Example code">
+      <div className="code-heading">
+        <h3>Code</h3>
+        <div className="frameworks" role="group" aria-label="Code framework">
+          {(["vanilla", "react"] as const).map((framework) => (
+            <a key={framework} href={`#demos/${scene}/${framework}`}
+              aria-current={mode === framework ? "true" : undefined}
+              aria-controls="example-code">
+              {framework === "vanilla" ? "Vanilla JS" : "React"}
+            </a>
+          ))}
+        </div>
+        <CopyButton code={code} />
+      </div>
+      <pre id="example-code" tabIndex={0} aria-label={`${mode === "vanilla" ? "Vanilla JavaScript" : "React"} example`}><code>{code}</code></pre>
+    </section>
+  );
 }
 function App() {
-  const [route, setRoute] = useState(parseHash);
+  const [route, setRoute] = useState(() => parseRoute(location.hash));
   useEffect(() => {
-    const change = () => setRoute(parseHash());
+    const change = () => setRoute(parseRoute(location.hash));
     addEventListener("hashchange", change);
     return () => removeEventListener("hashchange", change);
   }, []);
-  const scene = scenes.find((item) => item[0] === route.scene)!;
+  const scene = route.page === 'demos' ? scenes.find(([id]) => id === route.scene) : undefined;
+  const pageTitle = route.page === 'docs' ? route.topic : route.scene;
+  useEffect(() => {
+    window.scrollTo(0, 0);
+    document.title = route.page === 'docs' ? 'ravl — documentation' : 'ravl — examples';
+  }, [route.page, pageTitle]);
   return (
     <>
       <header>
-        <a className="brand" href="#url/vanilla">
-          ravl <span>audio, made composable</span>
-        </a>
-        <span className="badge">PHASE 04 · LIVE PLAYGROUND</span>
+        <a className="brand" href="#demos">ravl <span>audio, made composable</span></a>
+        <nav className="site-nav" aria-label="Main navigation">
+          <a href="#demos" aria-current={route.page === 'demos' ? 'page' : undefined}>Examples</a>
+          <a href="#docs/start" aria-current={route.page === 'docs' ? 'page' : undefined}>Documentation</a>
+        </nav>
       </header>
       <main>
-        <section className="intro">
-          <p className="eyebrow">Real components. Real audio.</p>
-          <h1>Make some waves.</h1>
-          <p>
-            Explore the same waveform engine through vanilla JavaScript and
-            React.
-          </p>
-        </section>
-        <div className="workspace">
-          <nav aria-label="Examples">
-            {scenes.map(([id, number, title]) => (
-              <a
-                key={id}
-                href={`#${id}/${route.mode}`}
-                aria-current={route.scene === id ? "page" : undefined}
-              >
-                <span>{number}</span>
-                {title}
-              </a>
-            ))}
-          </nav>
-          <section className="demo">
-            <div className="demo-heading">
-              <div>
-                <h2>{scene[2]}</h2>
-                <p>{scene[3]}</p>
-              </div>
-              <div className="frameworks" role="group" aria-label="Framework">
-                <a
-                  href={`#${route.scene}/vanilla`}
-                  aria-current={route.mode === "vanilla" ? "true" : undefined}
-                >
-                  Vanilla JS
-                </a>
-                <a
-                  href={`#${route.scene}/react`}
-                  aria-current={route.mode === "react" ? "true" : undefined}
-                >
-                  React
-                </a>
-              </div>
-            </div>
-            <Example
-              key={`${route.scene}/${route.mode}`}
-              scene={route.scene}
-              mode={route.mode}
-            />
+        {route.page === 'docs' ? <Documentation topic={route.topic} /> : <>
+          <section className="intro">
+            <p className="eyebrow">Real components. Real audio.</p>
+            <h1>{scene ? scene[2] : 'Make some waves.'}</h1>
+            <p>{scene ? scene[3] : 'Explore eight interactive playgrounds. Each demo includes Vanilla JavaScript and React code to copy.'}</p>
           </section>
-        </div>
-        <footer>
-          <span>Original synthetic audio · No remote services required</span>
-          <span>Regions, markers & annotation editing are now interactive.</span>
-        </footer>
+          {!scene ? <>
+            <div className="demo-grid">
+              {scenes.map(([id, number, title, description]) => <a className="demo-tile" key={id} href={`#demos/${id}/vanilla`}>
+                <span className="eyebrow">EXAMPLE {number}</span><h2>{title}</h2><p>{description}</p><span className="tile-link">Open playground →</span>
+              </a>)}
+            </div>
+            <aside className="docs-callout"><div><h2>Build your own waveform</h2><p>Start with usage examples, then explore every option in the API reference.</p></div><a href="#docs/start">Read the documentation →</a></aside>
+          </> : <div className="workspace">
+            <nav className="section-nav" aria-label="Examples">
+              <a href="#demos">← All examples</a>
+              {scenes.map(([id, number, title]) => <a key={id} href={`#demos/${id}/${route.mode}`} aria-current={route.scene === id ? 'page' : undefined}><span>{number}</span>{title}</a>)}
+            </nav>
+            <section className="demo" aria-label={scene[2]}>
+              <Example key={scene[0]} scene={scene[0]} mode="vanilla" />
+              <CodeExample key={`${scene[0]}/${route.mode}`} scene={scene[0]} mode={route.mode} />
+            </section>
+          </div>}
+        </>}
+        <footer><span>ravl · Audio, made composable</span><a href={route.page === 'docs' ? '#demos' : '#docs/start'}>{route.page === 'docs' ? 'Explore the playgrounds →' : 'Usage & API reference →'}</a></footer>
       </main>
     </>
   );
