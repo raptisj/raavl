@@ -3,3 +3,6 @@ export { mountWaveform } from './dom'
 export type { Appearance, Viewport, Interaction, ViewOptions, ViewUpdate, WaveformView } from './dom'
 export { validateWaveform, createPeaks } from './core/data'
 export type * from './core/types'
+
+export { createAnnotations, validateAnnotations, parseAnnotations, stringifyAnnotations } from "./regions";
+export type * from "./regions";

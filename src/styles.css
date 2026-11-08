@@ -7,3 +7,13 @@
   scrollbar-width: thin;
 }
 :where(.ravl-waveform:focus-visible) { outline: 3px solid var(--ravl-focus-color); outline-offset: 3px; }
+:where(.ravl-region) { border: 1px solid var(--ravl-handle-color, #8055ba); box-sizing: border-box; }
+:where(.ravl-region[data-selected="true"]) { outline: 2px solid var(--ravl-focus-color, #bd722e); outline-offset: -2px; }
+:where(.ravl-region-label) { display: block; position: absolute; top: 8px; left: 10px; font: 12px system-ui; color: var(--ravl-label-color, #493165); white-space: nowrap; }
+:where(.ravl-marker .ravl-region-label) { top: 28px; }
+:where(.ravl-region-body) { cursor: grab; }
+:where(.ravl-region-body:focus-visible, .ravl-region-handle:focus-visible) { outline: 3px solid var(--ravl-focus-color, #bd722e); outline-offset: 1px; z-index: 2; }
+:where(.ravl-annotation-list) { font: 12px system-ui; margin-top: 10px; }
+:where(.ravl-annotation-list ul) { display: flex; flex-wrap: wrap; gap: 6px; list-style: none; padding: 0; }
+:where(.ravl-annotation-list button) { font: inherit; padding: 5px 8px; border: 1px solid #d6dfd2; border-radius: 5px; background: transparent; color: inherit; cursor: pointer; }
+:where(.ravl-annotation-status:empty) { display: none; }

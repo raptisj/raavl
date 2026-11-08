@@ -80,3 +80,78 @@ it('supports keyboard seeking and validates view updates before applying them', 
   expect(host.children).toHaveLength(0); expect(player.getSnapshot().source).toBe('ready')
   player.dispose()
 })
+
+import { createAnnotations, type AnnotationDocument } from '../src/regions'
+const annotations: AnnotationDocument = { version: 1, sourceId: 'demo', regions: [{ id: 'intro', start: 2, end: 4, label: 'Intro' }], markers: [{ id: 'cue', time: 7, label: 'Cue' }] }
+function pointer(element: Element, name: string, x: number) {
+  const event = new MouseEvent(name, { clientX: x, button: 0, bubbles: true, cancelable: true })
+  Object.defineProperty(event, 'pointerId', { value: 1 }); element.dispatchEvent(event)
+}
+async function annotationView(controlled = false) {
+  const player = createPlayer(), onCommit = vi.fn()
+  const ready = player.setSource(source); mock.ready(player.getMediaElement()!); await ready
+  const store = controlled ? createAnnotations({ value: annotations, revision: 0, onCommit }) : createAnnotations({ document: annotations })
+  if (!controlled) store.onCommit(onCommit)
+  const view = mountWaveform(host, { player, annotations: store, interaction: { drag: 'select' } })
+  const viewport = host.querySelector<HTMLElement>('.ravl-waveform')!
+  Object.defineProperty(viewport, 'clientWidth', { value: 1000 })
+  viewport.setPointerCapture = vi.fn(); viewport.releasePointerCapture = vi.fn(); viewport.hasPointerCapture = () => false
+  flushFrame()
+  return { player, store, view, viewport, onCommit, cleanup: () => { view.dispose(); store.dispose(); player.dispose() } }
+}
+it('previews dragging without commits, commits once on release, and keeps selection separate', async () => {
+  const test = await annotationView()
+  const body = host.querySelector('.ravl-region-body')!
+  pointer(body, 'pointerdown', 200); pointer(test.viewport, 'pointermove', 300); pointer(test.viewport, 'pointermove', 400)
+  expect(test.onCommit).not.toHaveBeenCalled()
+  expect(test.store.getSnapshot().document.regions[0].start).toBe(2)
+  pointer(test.viewport, 'pointerup', 400)
+  expect(test.onCommit).toHaveBeenCalledOnce()
+  expect(test.store.getSnapshot().document.regions[0]).toMatchObject({ start: 4, end: 6 })
+  pointer(test.viewport, 'pointerdown', 100); pointer(test.viewport, 'pointermove', 300); pointer(test.viewport, 'pointerup', 300)
+  expect(test.view.getSelection()).toEqual({ start: 1, end: 3 })
+  expect(test.store.getSnapshot().document.regions).toHaveLength(1)
+  test.view.createRegionFromSelection('new', 'Selected')
+  expect(test.store.getSnapshot().document.regions).toHaveLength(2)
+  expect(test.view.getSelection()).toBe(null)
+  test.cleanup()
+})
+it('reverts rejected controlled drags and cancels gestures on an external revision', async () => {
+  const test = await annotationView(true)
+  pointer(host.querySelector('.ravl-region-body')!, 'pointerdown', 200)
+  pointer(test.viewport, 'pointermove', 400); pointer(test.viewport, 'pointerup', 400)
+  expect(test.onCommit).toHaveBeenCalledOnce()
+  expect(host.querySelector<HTMLElement>('.ravl-region')!.style.left).toBe('20%')
+  test.onCommit.mockClear()
+  pointer(host.querySelector('.ravl-region-body')!, 'pointerdown', 200); pointer(test.viewport, 'pointermove', 300)
+  test.store.setControlled({ value: { ...annotations, regions: [{ ...annotations.regions[0], start: 1 }] }, revision: 1, onCommit: test.onCommit })
+  pointer(test.viewport, 'pointerup', 300)
+  expect(test.onCommit).not.toHaveBeenCalled()
+  expect(host.querySelector<HTMLElement>('.ravl-region')!.style.left).toBe('10%')
+  test.cleanup()
+})
+it('edits region boundaries with the keyboard without seeking playback, and hides annotations on source switch', async () => {
+  const test = await annotationView()
+  host.querySelector('.ravl-region-handle-end')!.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowRight', bubbles: true }))
+  expect(test.store.getSnapshot().document.regions[0].end).toBeCloseTo(4.1)
+  expect(test.player.getCurrentTime()).toBe(0)
+  const ready = test.player.setSource({ ...source, id: 'different' }); mock.ready(test.player.getMediaElement()!); await ready
+  flushFrame()
+  expect(host.querySelector<HTMLElement>('.ravl-annotations')!.hidden).toBe(true)
+  expect(test.store.getSnapshot().document.regions).toHaveLength(1)
+  expect(host.textContent).toContain('another source')
+  test.cleanup()
+})
+it('renders React-owned custom region labels and receives controlled keyboard proposals', async () => {
+  let player: Player | null = null
+  const onCommit = vi.fn()
+  root = createRoot(host)
+  await act(async () => root!.render(<StrictMode><Waveform source={source} onPlayer={value => { player = value }} annotations={annotations} annotationsRevision={0} onAnnotationsCommit={onCommit} renderRegionLabel={region => <strong data-custom-label>{region.label}</strong>} /></StrictMode>))
+  const active = player as unknown as Player
+  await act(async () => { mock.ready(active.getMediaElement()!); flushFrame() })
+  expect(host.querySelector('[data-custom-label]')?.textContent).toBe('Intro')
+  await act(async () => host.querySelector('.ravl-region-handle-end')!.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowRight', bubbles: true })))
+  expect(onCommit).toHaveBeenCalledOnce()
+  expect(onCommit.mock.calls[0][0].regions[0].end).toBeCloseTo(4.1)
+  expect(host.querySelector<HTMLElement>('.ravl-region')!.style.width).toBe('20%')
+})
