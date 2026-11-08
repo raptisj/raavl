@@ -1,0 +1,12 @@
+{
+  "name": "ravl-design-workspace",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "engines": { "node": ">=22" },
+  "scripts": {
+    "examples": "node scripts/serve-examples.mjs",
+    "docs:workflows": "node scripts/write-workflows.mjs",
+    "check": "node --check scripts/serve-examples.mjs && node --check examples/app.js && node --check examples/workflows.js && node scripts/write-workflows.mjs --check"
+  }
+}

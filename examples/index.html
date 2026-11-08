@@ -1,0 +1,48 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>ravl — API design review</title>
+    <link rel="stylesheet" href="/style.css">
+    <script type="module" src="/app.js"></script>
+  </head>
+  <body>
+    <header>
+      <a class="brand" href="/">ravl<span> / audio, made composable</span></a>
+      <span class="badge">PHASE 01 · DESIGN REVIEW</span>
+    </header>
+    <main>
+      <section class="intro">
+        <p class="eyebrow">A clearer contract for interactive audio</p>
+        <h1>Explore the API.<br>Before we build it.</h1>
+        <p>Plain data. Ordinary DOM. One core for vanilla JavaScript and React.</p>
+      </section>
+      <p class="notice"><strong>Design preview only.</strong> This page runs, but the proposed library does not exist yet. Snippets are API sketches with application placeholders. Playback arrives in Phase 2; annotation editing in Phase 3.</p>
+      <div class="workspace">
+        <nav id="workflows" aria-label="Choose a workflow"></nav>
+        <section class="detail" aria-labelledby="workflow-title">
+          <div class="detail-heading"><h2 id="workflow-title"></h2><span id="phase" class="badge"></span></div>
+          <p id="intent"></p>
+          <div class="toolbar">
+            <div class="frameworks" role="group" aria-label="Example framework">
+              <button type="button" data-framework="vanilla" aria-pressed="true">Vanilla JavaScript</button>
+              <button type="button" data-framework="react" aria-pressed="false">React</button>
+            </div>
+            <button type="button" id="copy">Copy snippet</button>
+          </div>
+          <pre tabindex="0" aria-label="Proposed API example"><code id="code"></code></pre>
+          <p id="copy-status" role="status"></p>
+          <div class="contract"><h3>Behavioral contract</h3><p id="contract"></p></div>
+        </section>
+      </div>
+      <footer>
+        <span>Review the full proposal</span>
+        <a href="/docs/api.md">Architecture & API</a>
+        <a href="/docs/workflows.md">All workflows</a>
+        <a href="/docs/review.md">Review checklist</a>
+      </footer>
+      <noscript>Enable JavaScript to browse the API sketches, or read the linked design documents.</noscript>
+    </main>
+  </body>
+</html>
