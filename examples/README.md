@@ -1,6 +1,6 @@
 # Interactive browser examples
 
-These examples run the actual Phase 2 library. They are no longer API sketches.
+These examples run the actual Phase 3 library. They are no longer API sketches.
 
 ```sh
 npm ci
@@ -14,6 +14,8 @@ For another port: `npm run examples -- --port 4174`.
 
 Choose a scenario in the navigation, then switch between Vanilla JS and React:
 
+- Annotation editor: create/resize/move regions, add markers, toggle controlled
+  acceptance, lock annotations, play/loop regions, and save/load JSON.
 - URL: the bundled audio works immediately; another URL can be entered.
 - File: select audio locally. The file stays in your browser.
 - Peaks: supplied JSON avoids waveform decoding; the invalid-data checkbox tests
@@ -36,7 +38,8 @@ needed after dependency installation.
 
 `npm run examples:build` creates a production bundle in `dist/examples`.
 Historical Phase 1 sketches remain in `workflows.js` and the design guide; they
-include future annotation APIs and are not the implementation reference.
+include early API proposals and are not the implementation reference. Use
+`docs/ANNOTATIONS.md` for the implemented annotation contract.
 
 ## Verification
 
@@ -44,4 +47,5 @@ Automated lifecycle, React, SSR, and keyboard tests run with `npm test`.
 Browser smoke checks confirmed loaded waveforms, React and vanilla playback,
 zoom/drawing controls, and native audio surviving waveform detachment.
 The file picker, all formats, and all browser/mobile combinations have not been
-exhaustively tested. Region examples arrive with Phase 3.
+exhaustively tested. The annotation demo also verifies selection creation, controlled rejection,
+keyboard resizing, browser persistence, and source-bound visibility.

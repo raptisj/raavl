@@ -1,11 +1,11 @@
-# ravl
+# 🌊 ravl
 
 A TypeScript waveform player with ordinary DOM styling, a functional JavaScript
 API, and a React component backed by the same controller and Canvas renderer.
 
-**Phase 2 is implemented.** The examples now use real components and playable
-audio. This is a local development package, not a published release. Regions,
-markers, and annotation editing are planned for Phase 3.
+**Phase 3 is implemented.** The examples use real components, playable audio,
+and editable annotations. This is a local development package, not a published
+release. [Open the annotation editor](http://127.0.0.1:4173/#annotations/react).
 
 ## Try the interactive examples
 
@@ -18,14 +18,14 @@ npm run examples
 
 Open **http://127.0.0.1:4173** and choose **Vanilla JS** or **React**.
 
-| Example | Try it |
-| --- | --- |
-| URL playback | Play the included clip or load your own audio URL |
-| Your audio file | Select a local file; nothing is uploaded |
-| Precomputed peaks | Play without decoding audio for visualization; test invalid peaks |
-| Existing media | Start audio, then detach the waveform without stopping the native player |
-| Two players | Control two independent recordings |
-| Style & interaction | Change drawing mode, colors, height, zoom, and scrolling while playing |
+| Example             | Try it                                                                   |
+| ------------------- | ------------------------------------------------------------------------ |
+| URL playback        | Play the included clip or load your own audio URL                        |
+| Your audio file     | Select a local file; nothing is uploaded                                 |
+| Precomputed peaks   | Play without decoding audio for visualization; test invalid peaks        |
+| Existing media      | Start audio, then detach the waveform without stopping the native player |
+| Two players         | Control two independent recordings                                       |
+| Style & interaction | Change drawing mode, colors, height, zoom, and scrolling while playing   |
 
 Every player supports play/pause, reset, seeking, volume, speed, and full-recording
 looping. Click or drag the waveform to seek. Focus it with Tab and use Left/Right
@@ -42,30 +42,32 @@ examples import `src` directly. Run `npm run build` before consuming this checko
 as a local package; no npm publication is required.
 
 ```ts
-import { createPlayer, mountWaveform } from 'ravl'
-import 'ravl/styles.css' // optional visual theme
+import { createPlayer, mountWaveform } from "ravl";
+import "ravl/styles.css"; // optional visual theme
 
-const container = document.querySelector<HTMLElement>('#waveform')!
-const playButton = document.querySelector<HTMLButtonElement>('#play')!
-const player = createPlayer()
+const container = document.querySelector<HTMLElement>("#waveform")!;
+const playButton = document.querySelector<HTMLButtonElement>("#play")!;
+const player = createPlayer();
 const view = mountWaveform(container, {
   player,
-  appearance: { style: 'bars', height: 160, barWidth: 2, barGap: 1 },
-  viewport: { zoom: 'fit', follow: 'visible' },
-  interaction: { seek: 'click', drag: 'seek' },
-})
+  appearance: { style: "bars", height: 160, barWidth: 2, barGap: 1 },
+  viewport: { zoom: "fit", follow: "visible" },
+  interaction: { seek: "click", drag: "seek" },
+});
 
 const unsubscribe = player.subscribe(() => {
-  const state = player.getSnapshot()
-  playButton.disabled = state.source !== 'ready'
-  if (state.waveformError) console.error(state.waveformError)
-})
+  const state = player.getSnapshot();
+  playButton.disabled = state.source !== "ready";
+  if (state.waveformError) console.error(state.waveformError);
+});
 
-playButton.onclick = () => { void player.play().catch(console.error) }
+playButton.onclick = () => {
+  void player.play().catch(console.error);
+};
 try {
-  await player.setSource({ kind: 'url', id: 'episode-1', url: '/episode.mp3' })
+  await player.setSource({ kind: "url", id: "episode-1", url: "/episode.mp3" });
 } catch (error) {
-  console.error(error)
+  console.error(error);
 }
 
 // On application teardown:
@@ -80,35 +82,43 @@ one player. Disposal is idempotent.
 
 ## React
 
-React 19 is an optional peer dependency. Vanilla imports do not include React.
+React 19 and React DOM 19 are optional peer dependencies. Vanilla imports do not include React.
 
 ```tsx
-import { useState } from 'react'
-import { Waveform, usePlayerState } from 'ravl/react'
-import type { Player } from 'ravl'
-import 'ravl/styles.css'
+import { useState } from "react";
+import { Waveform, usePlayerState } from "ravl/react";
+import type { Player } from "ravl";
+import "ravl/styles.css";
 
 export function AudioPlayer() {
-  const [player, setPlayer] = useState<Player | null>(null)
-  const ready = usePlayerState(player, state => state?.source === 'ready')
-  const playing = usePlayerState(player, state => state?.playback === 'playing')
+  const [player, setPlayer] = useState<Player | null>(null);
+  const ready = usePlayerState(player, (state) => state?.source === "ready");
+  const playing = usePlayerState(
+    player,
+    (state) => state?.playback === "playing",
+  );
 
-  return <>
-    <Waveform
-      source={{ kind: 'url', id: 'episode-1', url: '/episode.mp3' }}
-      onPlayer={setPlayer}
-      onError={console.error}
-      appearance={{ style: 'bars' }}
-      interaction={{ drag: 'seek' }}
-      aria-label="Episode waveform"
-    />
-    <button disabled={!ready} onClick={() => {
-      if (playing) player?.pause()
-      else void player?.play().catch(console.error)
-    }}>
-      {playing ? 'Pause' : 'Play'}
-    </button>
-  </>
+  return (
+    <>
+      <Waveform
+        source={{ kind: "url", id: "episode-1", url: "/episode.mp3" }}
+        onPlayer={setPlayer}
+        onError={console.error}
+        appearance={{ style: "bars" }}
+        interaction={{ drag: "seek" }}
+        aria-label="Episode waveform"
+      />
+      <button
+        disabled={!ready}
+        onClick={() => {
+          if (playing) player?.pause();
+          else void player?.play().catch(console.error);
+        }}
+      >
+        {playing ? "Pause" : "Play"}
+      </button>
+    </>
+  );
 }
 ```
 
@@ -137,19 +147,23 @@ A waveform failure does not prevent otherwise valid audio playback.
 
 ```ts
 // Local file or Blob
-await player.setSource({ kind: 'file', id: 'upload-1', file })
+await player.setSource({ kind: "file", id: "upload-1", file });
 
 // Supplied visualization data: skips full audio decoding
 await player.setSource({
-  kind: 'url', id: 'episode-1', url: '/episode.mp3',
-  waveform: { kind: 'peaks', data: peaks },
-})
+  kind: "url",
+  id: "episode-1",
+  url: "/episode.mp3",
+  waveform: { kind: "peaks", data: peaks },
+});
 
 // Borrow an existing element without assigning its source
 await player.setSource({
-  kind: 'media', id: 'episode-1', element: audioElement,
-  waveform: { kind: 'peaks', data: peaks },
-})
+  kind: "media",
+  id: "episode-1",
+  element: audioElement,
+  waveform: { kind: "peaks", data: peaks },
+});
 ```
 
 Peaks use `{ version: 1, sourceId, sourceRevision?, duration, channels }`.
@@ -190,16 +204,50 @@ surrounding DOM and shared color tokens.
 After changing an external CSS theme, call `view.refreshTheme()`; in React, change
 `themeVersion`. Canvas pixels need a redraw to reflect new CSS colors.
 
-| Group | Implemented options |
-| --- | --- |
-| Appearance | `style: 'line' \| 'bars'`, `height`, `barWidth`, `barGap`, `normalize` |
-| Viewport | `zoom: 'fit' \| pixelsPerSecond`, `follow: 'off' \| 'visible' \| 'center'` |
-| Interaction | `seek: 'click' \| 'off'`, `drag: 'none' \| 'seek'` |
+| Group       | Implemented options                                                        |
+| ----------- | -------------------------------------------------------------------------- |
+| Appearance  | `style: 'line' \| 'bars'`, `height`, `barWidth`, `barGap`, `normalize`     |
+| Viewport    | `zoom: 'fit' \| pixelsPerSecond`, `follow: 'off' \| 'visible' \| 'center'` |
+| Interaction | `seek: 'click' \| 'off'`, `drag: 'none' \| 'seek' \| 'select'`                         |
 
 Vanilla updates merge fields within a group; `undefined` resets a field to its
 default. React props describe the current configuration, so removing a prop
 restores its default. All time-based commands use seconds; `seekFraction()` uses
 an explicit fraction from 0 to 1. Playback rate supports 0.25–4×.
+
+## Regions, markers, and annotation editing
+
+Use `createAnnotations` from `ravl/regions` for a library-owned store, or pass a
+controlled document plus revision and commit callback. Both vanilla and React
+support draggable regions, resize handles, markers, custom labels, locks,
+keyboard editing, and temporary selections.
+
+```ts
+import { createAnnotations } from "ravl/regions";
+
+const annotations = createAnnotations({
+  document: {
+    version: 1,
+    sourceId: 'episode-1',
+    regions: [{ id: 'intro', start: 0.5, end: 3, label: 'Introduction' }],
+    markers: [{ id: 'cue', time: 8 }],
+  },
+})
+view.update({ annotations, interaction: { drag: 'select' } })
+```
+
+Controlled React uses `annotations`, `annotationsRevision`, and
+`onAnnotationsCommit`; uncontrolled React uses `defaultAnnotations` or a borrowed
+`annotationStore`. A pointer drag produces one commit/proposal on release.
+Rejected proposals restore committed geometry; external revisions cancel stale
+gestures. Documents are bound to their audio source and remain intact on switches.
+
+The interactive editor includes selection-to-region creation, label/time editing,
+locking, markers, play/loop region, local browser save/load, and JSON import/export.
+`player.playRange({ start, end, loop })` uses best-effort HTML media timing.
+
+See the [annotation API guide](docs/ANNOTATIONS.md) for complete examples,
+validation, ownership, keyboard controls, CSS hooks, and persistence semantics.
 
 ## Development and checks
 
@@ -211,13 +259,13 @@ npm run examples:build  # Production build of the interactive playground
 npm run check           # All of the above
 ```
 
-Build entry points: `ravl`, `ravl/core`, `ravl/dom`, `ravl/react`, and
-`ravl/styles.css`. The package remains private while its API is being developed.
+Build entry points: `ravl`, `ravl/core`, `ravl/dom`, `ravl/react`,
+`ravl/regions`, and `ravl/styles.css`. The package remains private while its API is being developed.
 
 ## Current limits and next phases
 
 - HTML media playback only; no sample-accurate range scheduling or Web Audio
-  playback backend. Full-recording looping is implemented; region loops are not.
+  playback backend. Full-recording and best-effort region looping are implemented.
 - Finite recordings only. Live/infinite streams are not supported.
 - URL waveform generation downloads and decodes the full recording. Prefer supplied
   peaks for long recordings. This foundation has not been benchmarked at scale.
@@ -226,11 +274,11 @@ Build entry points: `ravl`, `ravl/core`, `ravl/dom`, `ravl/react`, and
   requires appropriate CORS responses.
 - Loading phases are exposed; byte-level progress, worker processing, reusable
   decoder pools, and multi-resolution caches are future work.
-- Regions, markers, custom annotation slots, and annotation persistence begin in
-  Phase 3. The broader design documents include these future APIs.
+- Annotation virtualization, label collision avoidance, and drag edge auto-scroll
+  are not implemented. Undo/redo and advanced snapping remain later modules.
 - Browser smoke checks cover the available in-app browser. A full cross-browser,
   mobile, accessibility, and performance matrix remains Phase 4 work.
 
-See [Phase 2 checkpoint](docs/PHASE-2.md), [roadmap](docs/ROADMAP.md), and the
+See [Phase 3 checkpoint](docs/PHASE-3.md), [Phase 2 checkpoint](docs/PHASE-2.md), [roadmap](docs/ROADMAP.md), and the
 [original API design](docs/design/api.md). Each phase ends for review before the
 next starts.

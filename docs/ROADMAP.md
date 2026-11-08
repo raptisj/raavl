@@ -6,7 +6,7 @@ Deliver architecture, source and lifecycle semantics, region ownership,
 styling rules, paired vanilla/React workflows, and a runnable API review page.
 Stop for review before implementing the library.
 
-## Phase 2 — Foundation (complete; awaiting review)
+## Phase 2 — Foundation (complete)
 
 Implement the core, HTML media playback, URL/File sources, provided waveform
 data, Canvas rendering, light DOM styling, cleanup, and vanilla/React adapters.
@@ -15,13 +15,15 @@ owned media, and two players. Check lifecycle and loading behavior.
 
 Phase 2 results and verification: [checkpoint](PHASE-2.md).
 
-## Phase 3 — Annotation workflow (not started)
+## Phase 3 — Annotation workflow (complete; awaiting review)
 
 Implement regions, markers, selection, controlled ownership, labels, keyboard
 editing, and JSON persistence. Add paired annotation examples and validate
 gesture commits, bounds policies, and source switching.
 
-## Phase 4 — Robustness and scale
+Phase 3 results and verification: [checkpoint](PHASE-3.md).
+
+## Phase 4 — Robustness and scale (not started)
 
 Benchmark long files and dense annotations; exercise interrupted loads,
 repeated mounting, external media, browser differences, and memory ownership.
