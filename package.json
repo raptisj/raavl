@@ -1,12 +1,62 @@
 {
-  "name": "ravl-design-workspace",
+  "name": "ravl",
   "private": true,
   "version": "0.0.0",
   "type": "module",
-  "engines": { "node": ">=22" },
+  "engines": {
+    "node": ">=22"
+  },
   "scripts": {
-    "examples": "node scripts/serve-examples.mjs",
+    "examples": "vite --config vite.config.ts",
+    "examples:build": "vite build --config vite.config.ts",
     "docs:workflows": "node scripts/write-workflows.mjs",
-    "check": "node --check scripts/serve-examples.mjs && node --check examples/app.js && node --check examples/workflows.js && node scripts/write-workflows.mjs --check"
-  }
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "build": "vite build --config vite.library.config.ts && tsc -p tsconfig.build.json",
+    "check": "npm run typecheck && npm test && npm run build && npm run examples:build"
+  },
+  "devDependencies": {
+    "@types/node": "^26.6.6",
+    "@types/react": "^19.3.0",
+    "@types/react-dom": "^19.3.0",
+    "jsdom": "^31.0.0",
+    "typescript": "^7.0.2",
+    "vite": "^8.3.6",
+    "vitest": "^5.1.0",
+    "react": "^19.3.1",
+    "react-dom": "^19.3.1"
+  },
+  "peerDependencies": {
+    "react": "^19.0.0"
+  },
+  "peerDependenciesMeta": {
+    "react": {
+      "optional": true
+    }
+  },
+  "exports": {
+    ".": {
+      "types": "./dist/types/index.d.ts",
+      "import": "./dist/library/index.js"
+    },
+    "./core": {
+      "types": "./dist/types/core/index.d.ts",
+      "import": "./dist/library/core.js"
+    },
+    "./dom": {
+      "types": "./dist/types/dom/index.d.ts",
+      "import": "./dist/library/dom.js"
+    },
+    "./react": {
+      "types": "./dist/types/react/index.d.ts",
+      "import": "./dist/library/react.js"
+    },
+    "./styles.css": "./src/styles.css"
+  },
+  "files": [
+    "dist/library",
+    "dist/types",
+    "src/styles.css",
+    "README.md"
+  ]
 }

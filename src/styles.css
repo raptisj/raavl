@@ -1,0 +1,9 @@
+:where(.ravl-waveform) {
+  --ravl-wave-color: #9aafa7;
+  --ravl-progress-color: #285d50;
+  --ravl-focus-color: #bd722e;
+  border-radius: 8px;
+  background: #f3f6f2;
+  scrollbar-width: thin;
+}
+:where(.ravl-waveform:focus-visible) { outline: 3px solid var(--ravl-focus-color); outline-offset: 3px; }
