@@ -80,7 +80,7 @@ export function mountWaveform(
   let disposed = false,
     frame = 0,
     width = 1,
-    totalWidth = 1,
+    totalWidth = 0,
     duration = 0,
     normalization = 1;
   let lastData: WaveformData | null = null;

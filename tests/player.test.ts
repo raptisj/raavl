@@ -265,3 +265,24 @@ it("plays and loops a bounded range and cancels range scheduling on pause", asyn
     vi.useRealTimers();
   }
 });
+
+ it("ignores a late play rejection after pause", async () => {
+  const player = createPlayer()
+  const loading = player.setSource({ kind: 'url', id: 'a', url: '/a', waveform: { kind: 'none' } })
+  mock.ready(player.getMediaElement()!); await loading
+  let reject!: (error: Error) => void
+  mock.play.mockImplementationOnce(() => new Promise((_, no) => { reject = no }))
+  const playing = player.play()
+  const cancelled = expect(playing).rejects.toMatchObject({ code: 'CANCELLED' })
+  player.pause(); reject(new Error('Interrupted'))
+  await cancelled
+  expect(player.getSnapshot()).toMatchObject({ playback: 'paused', error: null })
+  player.dispose()
+ })
+ it("stops source preparation when a loading subscriber disposes the player", async () => {
+  const player = createPlayer()
+  player.subscribe(() => { if (player.getSnapshot().source === 'loading') player.dispose() })
+  await expect(player.setSource({ kind: 'file', id: 'a', file: new Blob(), waveform: { kind: 'none' } })).rejects.toMatchObject({ code: 'CANCELLED' })
+  expect(player.getSnapshot().source).toBe('disposed')
+  expect(player.getMediaElement()).toBeNull()
+ })

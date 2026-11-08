@@ -84,7 +84,19 @@ export function mountAnnotations(
   status.className = "ravl-annotation-status";
   status.setAttribute("role", "status");
   const rows = document.createElement("ul");
-  list.append(status, rows);
+  const pagination = document.createElement("div");
+  pagination.className = "ravl-annotation-pagination";
+  const previous = document.createElement("button"), next = document.createElement("button"), pageLabel = document.createElement("span");
+  previous.type = next.type = "button";
+  previous.textContent = "Previous annotations";
+  next.textContent = "Next annotations";
+  pageLabel.setAttribute("role", "status");
+  let page = 0;
+  const pageSize = 100;
+  previous.onclick = () => { page--; render(); };
+  next.onclick = () => { page++; render(); };
+  pagination.append(previous, pageLabel, next);
+  list.append(status, rows, pagination);
   container.append(list);
   list.hidden = true;
   const nodes = new Map<
@@ -205,7 +217,14 @@ export function mountAnnotations(
         ...snapshot.document.regions,
         ...snapshot.document.markers,
       ];
-      const visible = items.filter((item) => !invalid.has(item.id));
+      const focus = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+      const focusId = focus?.dataset.ravlAnnotation, focusSide = focus?.dataset.side;
+      const from = root.scrollLeft / geometry().width * duration;
+      const to = (root.scrollLeft + root.clientWidth) / geometry().width * duration;
+      const visible = active() && geometry().width > 0 ? items.filter((item) => !invalid.has(item.id) && (
+        item.id === focusId || item.id === gesture?.id ||
+        ("start" in item ? item.end >= from && item.start <= to : item.time >= from && item.time <= to)
+      )) : [];
       const ids = new Set(visible.map((item) => item.id));
       for (const [id, node] of nodes)
         if (!ids.has(id)) {
@@ -213,12 +232,6 @@ export function mountAnnotations(
           node.element.remove();
           nodes.delete(id);
         }
-      const focus =
-        document.activeElement instanceof HTMLElement
-          ? document.activeElement
-          : null;
-      const focusId = focus?.dataset.ravlAnnotation,
-        focusSide = focus?.dataset.side;
       for (const item of visible) {
         let node = nodes.get(item.id);
         if (
@@ -318,8 +331,13 @@ export function mountAnnotations(
       // The list is the non-spatial alternative to overlays; no hidden canvas data.
       const focusedRow = focus?.dataset.rowId;
       rows.replaceChildren();
+      page = Math.max(0, Math.min(page, Math.ceil(items.length / pageSize) - 1));
+      pagination.hidden = !matches() || items.length <= pageSize;
+      previous.disabled = page === 0;
+      next.disabled = (page + 1) * pageSize >= items.length;
+      pageLabel.textContent = ` Page ${page + 1} of ${Math.max(1, Math.ceil(items.length / pageSize))} `;
       if (matches())
-        for (const item of items) {
+        for (const item of items.slice(page * pageSize, (page + 1) * pageSize)) {
           const row = document.createElement("li"),
             button = document.createElement("button");
           button.type = "button";
@@ -327,15 +345,15 @@ export function mountAnnotations(
           button.textContent = `${item.label || item.id} · ${"start" in item ? `${item.start.toFixed(2)}–${item.end.toFixed(2)}` : item.time.toFixed(2)}s${item.locked ? " · locked" : ""}${invalid.has(item.id) ? " · out of bounds" : ""}`;
           button.onclick = () => {
             select(item.id);
-            const element = nodes.get(item.id)?.element;
-            if (element && active()) {
+            if (active()) {
               root.scrollLeft = Math.max(
                 0,
                 (("start" in item ? item.start : item.time) / duration) *
                   geometry().width -
                   root.clientWidth / 3,
               );
-              element
+              render();
+              nodes.get(item.id)?.element
                 .querySelector<HTMLElement>(".ravl-region-body")
                 ?.focus({ preventScroll: true });
             }

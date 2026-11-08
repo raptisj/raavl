@@ -30,6 +30,7 @@ export function createPlayer(): Player {
   let disposed = false;
   let media: HTMLMediaElement | null = null;
   let generation = 0;
+  let playSerial = 0;
   let cleanup: ((reason: RavlError["reason"]) => void) | undefined;
   let clock: ReturnType<typeof setInterval> | undefined;
   let clockValue = 0;
@@ -86,6 +87,7 @@ export function createPlayer(): Player {
   };
   const reset = (reason: RavlError["reason"]) => {
     generation++;
+    playSerial++;
     clearRange();
     cleanup?.(reason);
     cleanup = undefined;
@@ -213,7 +215,9 @@ export function createPlayer(): Player {
         if (objectUrl) URL.revokeObjectURL(objectUrl);
       };
       publish({ ...initial(), source: "loading", sourceId: source.id });
+      if (!current()) return result;
       emitTime();
+      if (!current()) return result;
       const cancel = () => {
         if (!current()) return;
         reset("aborted");
@@ -263,6 +267,7 @@ export function createPlayer(): Player {
           return;
         }
         publish({ duration: element.duration, source: "ready" });
+        if (!current()) return;
         if (state.data) {
           try {
             checkDuration(state.data);
@@ -389,6 +394,7 @@ export function createPlayer(): Player {
         else return;
         if (!current()) return;
         publish({ waveform: "decoding" });
+        if (!current()) return;
         const context = new AudioContext();
         try {
           const buffer = await context.decodeAudioData(bytes);
@@ -411,11 +417,12 @@ export function createPlayer(): Player {
     },
     async play() {
       const element = needMedia(),
-        token = generation;
+        token = generation, request = ++playSerial;
       publish({ playback: "starting", error: null });
       try {
+        if (token !== generation || disposed || request !== playSerial) throw failure("CANCELLED", "playback", "Playback request cancelled");
         await element.play();
-        if (token !== generation || disposed)
+        if (token !== generation || disposed || request !== playSerial)
           throw Object.assign(
             failure("CANCELLED", "playback", "Playback request superseded"),
             {
@@ -427,7 +434,7 @@ export function createPlayer(): Player {
         publish({ playback: element.paused ? "paused" : "playing" });
         sync();
       } catch (cause) {
-        if (token !== generation || disposed)
+        if (token !== generation || disposed || request !== playSerial)
           throw Object.assign(
             failure("CANCELLED", "playback", "Playback request cancelled"),
             {
@@ -463,6 +470,7 @@ export function createPlayer(): Player {
     },
     pause() {
       const element = needMedia();
+      playSerial++;
       clearRange();
       element.pause();
       publish({ playback: "paused" });

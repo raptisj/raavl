@@ -10,6 +10,7 @@ import { mockMedia } from './media'
 let host: HTMLDivElement, root: Root | undefined, mock: ReturnType<typeof mockMedia>
 let frames: Map<number, FrameRequestCallback>, next: number
 beforeEach(() => {
+  vi.spyOn(HTMLElement.prototype, 'clientWidth', 'get').mockReturnValue(1000)
   mock = mockMedia(); host = document.createElement('div'); document.body.append(host)
   vi.stubGlobal('IS_REACT_ACT_ENVIRONMENT', true)
   frames = new Map(); next = 1
