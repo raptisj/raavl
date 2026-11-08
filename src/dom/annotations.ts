@@ -92,6 +92,8 @@ export function mountAnnotations(
   next.textContent = "Next annotations";
   pageLabel.setAttribute("role", "status");
   let page = 0;
+  let listSnapshot: ReturnType<AnnotationStore["getSnapshot"]> | null = null;
+  let listPage = -1, listChannels = -1, listSource: string | null = null;
   const pageSize = 100;
   previous.onclick = () => { page--; render(); };
   next.onclick = () => { page++; render(); };
@@ -186,6 +188,8 @@ export function mountAnnotations(
         lastSource = sourceId;
       }
       if (!store) {
+        for (const node of nodes.values()) { node.cleanup?.(); node.element.remove(); }
+        nodes.clear(); rows.replaceChildren(); listSnapshot = null;
         overlay.hidden = true;
         list.hidden = true;
         return;
@@ -330,8 +334,10 @@ export function mountAnnotations(
       }
       // The list is the non-spatial alternative to overlays; no hidden canvas data.
       const focusedRow = focus?.dataset.rowId;
-      rows.replaceChildren();
       page = Math.max(0, Math.min(page, Math.ceil(items.length / pageSize) - 1));
+      if (listSnapshot !== snapshot || listPage !== page || listChannels !== channels || listSource !== sourceId) {
+      listSnapshot = snapshot; listPage = page; listChannels = channels; listSource = sourceId;
+      rows.replaceChildren();
       pagination.hidden = !matches() || items.length <= pageSize;
       previous.disabled = page === 0;
       next.disabled = (page + 1) * pageSize >= items.length;
@@ -362,6 +368,7 @@ export function mountAnnotations(
           rows.append(row);
           if (focusedRow === item.id) button.focus({ preventScroll: true });
         }
+      }
       setSelection(selection, false);
     } finally {
       rendering = false;

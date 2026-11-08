@@ -17,3 +17,6 @@
 :where(.ravl-annotation-list ul) { display: flex; flex-wrap: wrap; gap: 6px; list-style: none; padding: 0; }
 :where(.ravl-annotation-list button) { font: inherit; padding: 5px 8px; border: 1px solid #d6dfd2; border-radius: 5px; background: transparent; color: inherit; cursor: pointer; }
 :where(.ravl-annotation-status:empty) { display: none; }
+
+:where(.ravl-annotation-list ul) { max-height: var(--ravl-annotation-list-height, 12rem); overflow: auto; }
+:where(.ravl-annotation-pagination) { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }

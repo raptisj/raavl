@@ -14,6 +14,7 @@ import type {
   WaveformData,
 } from "../../src";
 import { Waveform, usePlayerState, usePlayerTime } from "../../src/react";
+import { ScaleLab } from './ScaleLab'
 import { AnnotationEditor } from './AnnotationEditor'
 import { VanillaWaveform } from "./VanillaWaveform";
 import "../../src/styles.css";
@@ -21,6 +22,7 @@ import "./style.css";
 
 type Mode = "vanilla" | "react";
 const scenes = [
+  ['scale', '08', 'Scale lab', 'Measure a two-hour waveform and 10,000 editable annotations.'],
   ['annotations', '07', 'Annotation editor', 'Create, resize, label, and persist regions and markers.'],
   [
     "url",
@@ -486,6 +488,7 @@ function PlaybackExample({ scene, mode }: { scene: Scene; mode: Mode }) {
   );
 }
 function Example({ scene, mode }: { scene: Scene; mode: Mode }) {
+  if (scene === 'scale') return <ScaleLab />
   return scene === 'annotations' ? <AnnotationEditor mode={mode} /> : <PlaybackExample scene={scene} mode={mode} />
 }
 function parseHash() {
@@ -511,7 +514,7 @@ function App() {
         <a className="brand" href="#url/vanilla">
           ravl <span>audio, made composable</span>
         </a>
-        <span className="badge">PHASE 03 · LIVE PLAYGROUND</span>
+        <span className="badge">PHASE 04 · LIVE PLAYGROUND</span>
       </header>
       <main>
         <section className="intro">
