@@ -23,18 +23,18 @@ may exceed the implemented API.
 
 ## Feature inventory
 
-| Area | Available capabilities |
-| --- | --- |
-| Audio sources | URL, local File/Blob, borrowed HTML media element; source ID and optional revision |
-| Playback | Play, pause, seek, volume, mute, speed, full-recording loop, best-effort range play/loop |
-| Visualization | Multichannel min/max peaks, browser decoding, supplied peaks, data-only views, line/bars rendering |
-| Navigation | Fit or numeric zoom, horizontal scrolling, playhead following, viewport subscriptions, timeline, minimap |
-| Annotations | Regions, markers, labels, channel-specific regions, metadata, locks, selection, move/resize/delete |
-| Editing ownership | Library-owned store, application-controlled document/revision, React defaults or borrowed store |
-| Editing helpers | Grid snapping, optional magnetic snapping, immutable undo/redo history |
-| Persistence | Validated annotation JSON import/export; application-owned storage |
-| Interaction | Mouse, touch, keyboard seeking and editing, accessible annotation list and viewport slider |
-| Integration | Typed ESM entry points, React component/hooks, SSR-safe imports, optional CSS theme |
+| Area                 | Available capabilities                                                                                                                     |
+| -------------------- | ------------------------------------------------------------------------------------------------------------------------------------------ |
+| Audio sources        | URL, local File/Blob, borrowed HTML media element; source ID and optional revision                                                         |
+| Playback             | Play, pause, seek, volume, mute, speed, full-recording loop, best-effort range play/loop                                                   |
+| Visualization        | Multichannel min/max peaks, browser decoding, supplied peaks, data-only views, line/bars rendering                                         |
+| Navigation           | Fit or numeric zoom, horizontal scrolling, playhead following, viewport subscriptions, timeline, minimap                                   |
+| Annotations          | Regions, markers, labels, channel-specific regions, metadata, locks, selection, move/resize/delete                                         |
+| Editing ownership    | Library-owned store, application-controlled document/revision, React defaults or borrowed store                                            |
+| Editing helpers      | Grid snapping, optional magnetic snapping, immutable undo/redo history                                                                     |
+| Persistence          | Validated annotation JSON import/export; application-owned storage                                                                         |
+| Interaction          | Mouse, touch, keyboard seeking and editing, accessible annotation list and viewport slider                                                 |
+| Integration          | Typed ESM entry points, React component/hooks, SSR-safe imports, optional CSS theme                                                        |
 | Developer experience | Public Fumadocs site, agent-readable Markdown, interactive examples, browser API reference, copyable snippets, scale lab, automated checks |
 
 ## Audio sources, preparation, and playback
@@ -58,19 +58,19 @@ instead provide `{ kind: 'peaks', data }` or disable preparation with
 `setSource(source, { signal? })` resolves after finite audio metadata is available,
 before visualization necessarily finishes or playback is buffered.
 
-| Player API | Product behavior |
-| --- | --- |
-| `play()` / `pause()` | Start/resume and pause audio; handle the play promise, including autoplay failures |
+| Player API                                 | Product behavior                                                                   |
+| ------------------------------------------ | ---------------------------------------------------------------------------------- |
+| `play()` / `pause()`                       | Start/resume and pause audio; handle the play promise, including autoplay failures |
 | `seek(seconds)` / `seekFraction(fraction)` | Seek in seconds or a fraction in `[0, 1]`; seconds above duration clamp to the end |
-| `setVolume(value)` / `setMuted(value)` | Volume in `[0, 1]` and independent mute control |
-| `setPlaybackRate(rate)` | Speed from 0.25× through 4× |
-| `setLoop(boolean)` | Native full-recording looping |
-| `playRange({ start, end, loop? })` | Play or loop a finite interval within the recording; resolves when playback starts |
-| `setSource()` / `clearSource()` | Replace the active asset or release it and return to idle |
-| `getMediaElement()` | Access the current underlying media element, or null |
-| `getSnapshot()` / `subscribe()` | Read and observe semantic state; subscription returns an unsubscribe function |
-| `getCurrentTime()` / `subscribeTime()` | Read and observe a separate cached playback clock |
-| `dispose()` | Release owned resources and subscriptions; repeated disposal is safe |
+| `setVolume(value)` / `setMuted(value)`     | Volume in `[0, 1]` and independent mute control                                    |
+| `setPlaybackRate(rate)`                    | Speed from 0.25× through 4×                                                        |
+| `setLoop(boolean)`                         | Native full-recording looping                                                      |
+| `playRange({ start, end, loop? })`         | Play or loop a finite interval within the recording; resolves when playback starts |
+| `setSource()` / `clearSource()`            | Replace the active asset or release it and return to idle                          |
+| `getMediaElement()`                        | Access the current underlying media element, or null                               |
+| `getSnapshot()` / `subscribe()`            | Read and observe semantic state; subscription returns an unsubscribe function      |
+| `getCurrentTime()` / `subscribeTime()`     | Read and observe a separate cached playback clock                                  |
+| `dispose()`                                | Release owned resources and subscriptions; repeated disposal is safe               |
 
 Range playback uses best-effort HTML media timing. It disables full-recording
 looping. Pause, explicit seek, source replacement, or disposal clears range
@@ -92,15 +92,15 @@ commands fail with `DISPOSED`.
 
 The player exposes separate state dimensions:
 
-| Snapshot field | Values or purpose |
-| --- | --- |
-| `source` | `idle`, `loading`, `ready`, `error`, `disposed` |
-| `playback` | `paused`, `starting`, `playing`, `buffering`, `ended` |
-| `waveform` | `idle`, `fetching`, `decoding`, `ready`, `error`, `cancelled` |
-| `canPlay` | Browser media readiness, separate from source metadata readiness |
-| `sourceId`, `duration`, `data` | Asset identity, duration in seconds, prepared peaks or null |
-| `volume`, `muted`, `playbackRate`, `loop` | Current media settings |
-| `error`, `waveformError` | Audio/playback error and independent visualization error |
+| Snapshot field                            | Values or purpose                                                |
+| ----------------------------------------- | ---------------------------------------------------------------- |
+| `source`                                  | `idle`, `loading`, `ready`, `error`, `disposed`                  |
+| `playback`                                | `paused`, `starting`, `playing`, `buffering`, `ended`            |
+| `waveform`                                | `idle`, `fetching`, `decoding`, `ready`, `error`, `cancelled`    |
+| `canPlay`                                 | Browser media readiness, separate from source metadata readiness |
+| `sourceId`, `duration`, `data`            | Asset identity, duration in seconds, prepared peaks or null      |
+| `volume`, `muted`, `playbackRate`, `loop` | Current media settings                                           |
+| `error`, `waveformError`                  | Audio/playback error and independent visualization error         |
 
 A visualization failure can coexist with working audio playback. `RaavlError`
 provides `code`, `stage`, optional `sourceId`, and an underlying cause where
@@ -117,13 +117,13 @@ Canvas displays each channel in its own vertical band, plus played progress and
 a playhead for player-backed views. Canvas allocation follows the visible
 viewport and device pixel ratio, capped at 3, rather than recording length.
 
-| Configuration | Options and defaults |
-| --- | --- |
-| `theme` | Versioned JSON theme or null; presets `sage`, `studio`, `neon`, `paper` from `raavl/themes` |
-| `appearance` | `style: 'line'` (or `'bars'`), `height: 160`, `lineWidth: 1`, `barWidth: 2`, `barGap: 1`, `barRadius: 0`, `amplitude: 0.9`, `cursorWidth: 2`, `borderRadius: 8`, `normalize: false` |
-| `viewport` | `zoom: 'fit'` (or pixels per second), `follow: 'visible'` (or `'off'`, `'center'`) |
-| `interaction` | `seek: 'click'` (or `'off'`), `drag: 'none'` (or `'seek'`, `'select'`) |
-| Other view options | Accessible `label`, `onDraw`, annotation options and callbacks |
+| Configuration      | Options and defaults                                                                                                                                                                |
+| ------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `theme`            | Versioned JSON theme or null; presets `sage`, `studio`, `neon`, `paper` from `raavl/themes`                                                                                         |
+| `appearance`       | `style: 'line'` (or `'bars'`), `height: 160`, `lineWidth: 1`, `barWidth: 2`, `barGap: 1`, `barRadius: 0`, `amplitude: 0.9`, `cursorWidth: 2`, `borderRadius: 8`, `normalize: false` |
+| `viewport`         | `zoom: 'fit'` (or pixels per second), `follow: 'visible'` (or `'off'`, `'center'`)                                                                                                  |
+| `interaction`      | `seek: 'click'` (or `'off'`), `drag: 'none'` (or `'seek'`, `'select'`)                                                                                                              |
+| Other view options | Accessible `label`, `onDraw`, annotation options and callbacks                                                                                                                      |
 
 `view.update()` changes configuration without replacing the player. Vanilla
 updates merge fields within groups; explicit `undefined` resets a field to its
@@ -203,12 +203,12 @@ One pointer gesture produces one proposal on release; cancellation produces none
 
 ## Optional editing and navigation modules
 
-| Module | Implemented behavior |
-| --- | --- |
+| Module           | Implemented behavior                                                                                                                                                                                            |
+| ---------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `raavl/timeline` | `mountTimeline(host, { view, minSpacing?, formatTime? })`; adaptive 1/2/5 time intervals covering the visible viewport; default spacing 80 CSS pixels; exported `formatTime`; dispose/remount to change options |
-| `raavl/minimap` | `mountMinimap(host, { view, player | data, height?, label? })`; fit-width overview with visible-window indicator; default height 64; pointer and keyboard panning without audio seeking; `refreshTheme()` and `dispose()` |
-| `raavl/history` | Pure immutable `createHistory`, `recordHistory`, `undoHistory`, `redoHistory`; full annotation snapshots with default 100-entry undo limit; new edits clear redo; a different source ID resets history |
-| `raavl/snapping` | `createSnapper()`; magnetic pointer snapping to markers, region boundaries, optional grid, playhead, and custom targets; default tolerance 8 CSS pixels |
+| `raavl/minimap`  | `mountMinimap(host, { view, player                                                                                                                                                                              | data, height?, label? })`; fit-width overview with visible-window indicator; default height 64; pointer and keyboard panning without audio seeking; `refreshTheme()`and`dispose()` |
+| `raavl/history`  | Pure immutable `createHistory`, `recordHistory`, `undoHistory`, `redoHistory`; full annotation snapshots with default 100-entry undo limit; new edits clear redo; a different source ID resets history          |
+| `raavl/snapping` | `createSnapper()`; magnetic pointer snapping to markers, region boundaries, optional grid, playhead, and custom targets; default tolerance 8 CSS pixels                                                         |
 
 Optional modules have separate entry points and no global registration. Timeline
 and minimap borrow the main view; the minimap shares its player's prepared data
@@ -255,13 +255,13 @@ entry points do not import React.
 
 ## Interaction, accessibility, and styling
 
-| Surface | Controls |
-| --- | --- |
-| Waveform playback | Click/tap to seek when enabled; drag/touch scrub in seek mode; double-click/double-tap the background to play |
-| Waveform keyboard | Left/Right seek 1 second, Shift seeks 10 seconds, Home/End seek bounds |
+| Surface             | Controls                                                                                                                                                                    |
+| ------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Waveform playback   | Click/tap to seek when enabled; drag/touch scrub in seek mode; double-click/double-tap the background to play                                                               |
+| Waveform keyboard   | Left/Right seek 1 second, Shift seeks 10 seconds, Home/End seek bounds                                                                                                      |
 | Annotation keyboard | Arrows move items/handles by 0.1 seconds or the configured snap interval; Shift multiplies by 10; Delete/Backspace removes unlocked items; Escape cancels gesture/selection |
-| Minimap keyboard | Left/Right pan 10% of a window; Shift pans a full window; Home/End reach viewport bounds |
-| Annotation list | 100 items per page; selecting an item scrolls to and focuses its overlay; invalid annotations remain listed for correction |
+| Minimap keyboard    | Left/Right pan 10% of a window; Shift pans a full window; Home/End reach viewport bounds                                                                                    |
+| Annotation list     | 100 items per page; selecting an item scrolls to and focuses its overlay; invalid annotations remain listed for correction                                                  |
 
 The player view exposes slider semantics, annotation views use a group with
 individual controls, and data-only visuals use image semantics. Decorative Canvas
@@ -355,11 +355,11 @@ The Vite development run used Chromium 156 on macOS, DPR 2, a 458 CSS-pixel-wide
 view, height 160, and 30 samples after one warm-up redraw. Timings include waiting
 for requestAnimationFrame; they are not isolated CPU timings.
 
-| Scenario | Median redraw | p95 redraw | Maximum | Overlays / list rows |
-| --- | ---: | ---: | ---: | ---: |
-| 100 px/sec, 10,000 regions | 8.3 ms | 8.7 ms | 11.2 ms | 7 / 100 |
-| Fit two hours, annotations hidden | 8.3 ms | 9.4 ms | 9.4 ms | 0 / 0 |
-| Fit two hours, all regions visible | 17.8 ms | 28.7 ms | 53.9 ms | 10,000 / 100 |
+| Scenario                           | Median redraw | p95 redraw | Maximum | Overlays / list rows |
+| ---------------------------------- | ------------: | ---------: | ------: | -------------------: |
+| 100 px/sec, 10,000 regions         |        8.3 ms |     8.7 ms | 11.2 ms |              7 / 100 |
+| Fit two hours, annotations hidden  |        8.3 ms |     9.4 ms |  9.4 ms |                0 / 0 |
+| Fit two hours, all regions visible |       17.8 ms |    28.7 ms | 53.9 ms |         10,000 / 100 |
 
 The stereo fixture contains 720,000 min/max buckets per channel, totaling
 11,520,000 Float32 bytes. The two canvases used 2,344,960 backing bytes in that
@@ -394,29 +394,29 @@ Current limits:
 
 ## Repository map and agent maintenance
 
-| Concern | Source or reference |
-| --- | --- |
-| Player lifecycle, sources, playback | `src/player.ts`, `src/core/types.ts` |
-| Peak validation/generation | `src/core/data.ts` |
-| Canvas view and viewport | `src/dom/index.ts` |
-| Annotation data/store | `src/regions/index.ts` |
-| Annotation overlays and gestures | `src/dom/annotations.ts` |
-| React ownership and hooks | `src/react/index.tsx` |
-| Optional modules | `src/timeline/`, `src/minimap/`, `src/history/`, `src/snapping/` |
-| Styling | `src/styles.css` |
-| Site light/dark palettes and Canvas theme bridge | `docs/app/global.css`, `docs/app/dark.css`, `examples/live/usePageTheme.ts` |
-| Theme format and JSON presets | `src/themes/`, [Theme guide](docs/content/docs/styling.mdx) |
-| Public package exports | `package.json`, `src/index.ts`, `src/core/index.ts` |
-| Shared gallery and builder components | `examples/live/`, `docs/app/(home)/examples/page.tsx`, `examples/README.md` |
-| Public landing page and Fumadocs guides | `docs/app/`, `docs/components/`, `docs/content/docs/` |
-| Agent-readable docs and export checks | `docs/lib/source.ts`, `docs/app/llms*`, `docs/scripts/verify-export.mjs` |
-| Public integration skill and Codex metadata | `skills/raavl-integrate/` |
+| Concern                                           | Source or reference                                                                                                          |
+| ------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------- |
+| Player lifecycle, sources, playback               | `src/player.ts`, `src/core/types.ts`                                                                                         |
+| Peak validation/generation                        | `src/core/data.ts`                                                                                                           |
+| Canvas view and viewport                          | `src/dom/index.ts`                                                                                                           |
+| Annotation data/store                             | `src/regions/index.ts`                                                                                                       |
+| Annotation overlays and gestures                  | `src/dom/annotations.ts`                                                                                                     |
+| React ownership and hooks                         | `src/react/index.tsx`                                                                                                        |
+| Optional modules                                  | `src/timeline/`, `src/minimap/`, `src/history/`, `src/snapping/`                                                             |
+| Styling                                           | `src/styles.css`                                                                                                             |
+| Site light/dark palettes and Canvas theme bridge  | `docs/app/global.css`, `docs/app/dark.css`, `examples/live/usePageTheme.ts`                                                  |
+| Theme format and JSON presets                     | `src/themes/`, [Theme guide](docs/content/docs/styling.mdx)                                                                  |
+| Public package exports                            | `package.json`, `src/index.ts`, `src/core/index.ts`                                                                          |
+| Shared gallery and builder components             | `examples/live/`, `docs/app/(home)/examples/page.tsx`, `examples/README.md`                                                  |
+| Public landing page and Fumadocs guides           | `docs/app/`, `docs/components/`, `docs/content/docs/`                                                                        |
+| Agent-readable docs and export checks             | `docs/lib/source.ts`, `docs/app/llms*`, `docs/scripts/verify-export.mjs`                                                     |
+| Public integration skill and Codex metadata       | `skills/raavl-integrate/`                                                                                                    |
 | Skill page, prompt, installation, and publication | `docs/content/docs/skills.mdx`, `docs/lib/skill-config.ts`, `docs/components/skill-*.tsx`, `docs/scripts/prepare-skills.mjs` |
-| Docs development and independent hosting | [Docs app](docs/README.md), [Vercel hosting](docs/HOSTING.md) |
-| Detailed annotation contract | [Annotation guide](docs/content/docs/annotations.mdx) |
-| Detailed optional-module contract | [Module guide](docs/content/docs/modules.mdx) |
-| Historical API proposals | `docs/design/api.md`, `docs/design/workflows.md` |
-| Behavior and lifecycle checks | `tests/` |
+| Docs development and independent hosting          | [Docs app](docs/README.md), [Vercel hosting](docs/HOSTING.md)                                                                |
+| Detailed annotation contract                      | [Annotation guide](docs/content/docs/annotations.mdx)                                                                        |
+| Detailed optional-module contract                 | [Module guide](docs/content/docs/modules.mdx)                                                                                |
+| Historical API proposals                          | `docs/design/api.md`, `docs/design/workflows.md`                                                                             |
+| Behavior and lifecycle checks                     | `tests/`                                                                                                                     |
 
 Public entry points are `raavl`, `raavl/core`, `raavl/dom`, `raavl/react`,
 `raavl/regions`, `raavl/timeline`, `raavl/minimap`, `raavl/history`, `raavl/snapping`,

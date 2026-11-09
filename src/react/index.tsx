@@ -11,7 +11,15 @@ import {
   type ReactNode,
 } from "react";
 import { createPortal } from "react-dom";
-import { createAnnotations, type AnnotationDocument, type AnnotationStore, type AnnotationRules, type CommitHandler, type Region, type Selection } from "../regions";
+import {
+  createAnnotations,
+  type AnnotationDocument,
+  type AnnotationStore,
+  type AnnotationRules,
+  type CommitHandler,
+  type Region,
+  type Selection,
+} from "../regions";
 import { createPlayer } from "../player";
 import {
   mountWaveform,
@@ -102,23 +110,59 @@ export const Waveform = forwardRef<Player | null, WaveformProps>(
       themeVersion,
       onError,
       onPlayer,
-      onView, snapAnnotation,
+      onView,
+      snapAnnotation,
       onDraw,
-      annotations, annotationsRevision, defaultAnnotations, annotationStore,
-      annotationRules, onAnnotationsCommit, onSelectionChange, onAnnotationSelect,
+      annotations,
+      annotationsRevision,
+      defaultAnnotations,
+      annotationStore,
+      annotationRules,
+      onAnnotationsCommit,
+      onSelectionChange,
+      onAnnotationSelect,
       renderRegionLabel,
       ...html
     },
     ref,
   ) {
-    if ([annotations, defaultAnnotations, annotationStore].filter(value => value !== undefined).length > 1) throw new Error("Choose controlled annotations, defaultAnnotations, or annotationStore");
-    if (annotations && (annotationsRevision === undefined || !onAnnotationsCommit)) throw new Error("Controlled annotations require revision and onAnnotationsCommit");
+    if (
+      [annotations, defaultAnnotations, annotationStore].filter(
+        (value) => value !== undefined,
+      ).length > 1
+    )
+      throw new Error(
+        "Choose controlled annotations, defaultAnnotations, or annotationStore",
+      );
+    if (
+      annotations &&
+      (annotationsRevision === undefined || !onAnnotationsCommit)
+    )
+      throw new Error(
+        "Controlled annotations require revision and onAnnotationsCommit",
+      );
     const container = useRef<HTMLDivElement>(null);
     const view = useRef<WaveformView | null>(null);
     const [owned, setOwned] = useState<Player | null>(null);
-    const callbacks = useRef({ onError, onPlayer, onView, onDraw, onAnnotationsCommit, onSelectionChange, onAnnotationSelect });
+    const callbacks = useRef({
+      onError,
+      onPlayer,
+      onView,
+      onDraw,
+      onAnnotationsCommit,
+      onSelectionChange,
+      onAnnotationSelect,
+    });
     useEffect(() => {
-      callbacks.current = { onError, onPlayer, onView, onDraw, onAnnotationsCommit, onSelectionChange, onAnnotationSelect };
+      callbacks.current = {
+        onError,
+        onPlayer,
+        onView,
+        onDraw,
+        onAnnotationsCommit,
+        onSelectionChange,
+        onAnnotationSelect,
+      };
     });
     const seen = useRef(new WeakSet<Error>());
     const report = useCallback((error: RaavlError) => {
@@ -126,23 +170,48 @@ export const Waveform = forwardRef<Player | null, WaveformProps>(
       seen.current.add(error);
       callbacks.current.onError?.(error);
     }, []);
-    const [localAnnotations, setLocalAnnotations] = useState<AnnotationStore | null>(null);
+    const [localAnnotations, setLocalAnnotations] =
+      useState<AnnotationStore | null>(null);
     const initialAnnotations = useRef(defaultAnnotations);
     useEffect(() => {
       if (!initialAnnotations.current || annotations || annotationStore) return;
-      const store = createAnnotations({ document: initialAnnotations.current, rules: annotationRules });
-      const off = store.onCommit((document, change) => callbacks.current.onAnnotationsCommit?.(document, change));
+      const store = createAnnotations({
+        document: initialAnnotations.current,
+        rules: annotationRules,
+      });
+      const off = store.onCommit((document, change) =>
+        callbacks.current.onAnnotationsCommit?.(document, change),
+      );
       setLocalAnnotations(store);
-      return () => { view.current?.update({ annotations: null }); off(); store.dispose(); };
+      return () => {
+        view.current?.update({ annotations: null });
+        off();
+        store.dispose();
+      };
     }, [Boolean(annotations), annotationStore]);
-    const [slots, setSlots] = useState<Array<{ key: number; element: HTMLElement; region: Region }>>([]);
+    const [slots, setSlots] = useState<
+      Array<{ key: number; element: HTMLElement; region: Region }>
+    >([]);
     const slotKey = useRef(0);
     const customLabels = Boolean(renderRegionLabel);
-    const labelRenderer = useMemo(() => customLabels ? (region: Region) => {
-      const element = document.createElement("span"), key = ++slotKey.current;
-      setSlots(current => [...current, { key, element, region }]);
-      return { element, dispose: () => setSlots(current => current.filter(slot => slot.key !== key)) };
-    } : undefined, [customLabels]);
+    const labelRenderer = useMemo(
+      () =>
+        customLabels
+          ? (region: Region) => {
+              const element = document.createElement("span"),
+                key = ++slotKey.current;
+              setSlots((current) => [...current, { key, element, region }]);
+              return {
+                element,
+                dispose: () =>
+                  setSlots((current) =>
+                    current.filter((slot) => slot.key !== key),
+                  ),
+              };
+            }
+          : undefined,
+      [customLabels],
+    );
     const player = borrowed ?? owned;
     // Like a DOM ref, this is null until the committed owned player exists.
     useImperativeHandle(ref, () => player!, [player]);
@@ -250,22 +319,57 @@ export const Waveform = forwardRef<Player | null, WaveformProps>(
     useEffect(() => {
       if (!view.current) return;
       view.current.update({
-        annotations: annotations ? { value: annotations, revision: annotationsRevision!, onCommit: (document, change) => callbacks.current.onAnnotationsCommit?.(document, change) } : annotationStore ?? localAnnotations,
+        annotations: annotations
+          ? {
+              value: annotations,
+              revision: annotationsRevision!,
+              onCommit: (document, change) =>
+                callbacks.current.onAnnotationsCommit?.(document, change),
+            }
+          : (annotationStore ?? localAnnotations),
         annotationRules,
         snapAnnotation,
         renderRegionLabel: labelRenderer,
-        onSelectionChange: selection => callbacks.current.onSelectionChange?.(selection),
-        onAnnotationSelect: id => callbacks.current.onAnnotationSelect?.(id),
+        onSelectionChange: (selection) =>
+          callbacks.current.onSelectionChange?.(selection),
+        onAnnotationSelect: (id) => callbacks.current.onAnnotationSelect?.(id),
         onAnnotationError: report,
       });
-    }, [player, annotations, annotationsRevision, annotationStore, localAnnotations, annotationRules?.minLength, annotationRules?.maxLength, annotationRules?.snap, snapAnnotation, labelRenderer, report]);
+    }, [
+      player,
+      annotations,
+      annotationsRevision,
+      annotationStore,
+      localAnnotations,
+      annotationRules?.minLength,
+      annotationRules?.maxLength,
+      annotationRules?.snap,
+      snapAnnotation,
+      labelRenderer,
+      report,
+    ]);
     useEffect(() => {
       view.current?.refreshTheme();
     }, [player, themeVersion]);
-    return <><div {...html} ref={container} />{slots.map(slot => createPortal(renderRegionLabel?.(slot.region), slot.element, String(slot.key)))}</>;
+    return (
+      <>
+        <div {...html} ref={container} />
+        {slots.map((slot) =>
+          createPortal(
+            renderRegionLabel?.(slot.region),
+            slot.element,
+            String(slot.key),
+          ),
+        )}
+      </>
+    );
   },
 );
 
 export function useAnnotations(store: AnnotationStore | null) {
-  return useSyncExternalStore(store?.subscribe ?? noopSubscribe, store?.getSnapshot ?? (() => null), () => null);
+  return useSyncExternalStore(
+    store?.subscribe ?? noopSubscribe,
+    store?.getSnapshot ?? (() => null),
+    () => null,
+  );
 }

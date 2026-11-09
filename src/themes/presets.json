@@ -2,25 +2,101 @@
   "sage": {
     "version": 1,
     "name": "Sage",
-    "appearance": { "style": "line", "height": 160, "lineWidth": 1, "amplitude": 0.9, "cursorWidth": 2, "borderRadius": 8 },
-    "colors": { "wave": "#9aafa7", "progress": "#285d50", "cursor": "#285d50", "background": "#f3f6f2", "focus": "#bd722e", "region": "#a67ce333", "marker": "#b65d29", "handle": "#8055ba", "selection": "#538ce644", "label": "#493165" }
+    "appearance": {
+      "style": "line",
+      "height": 160,
+      "lineWidth": 1,
+      "amplitude": 0.9,
+      "cursorWidth": 2,
+      "borderRadius": 8
+    },
+    "colors": {
+      "wave": "#9aafa7",
+      "progress": "#285d50",
+      "cursor": "#285d50",
+      "background": "#f3f6f2",
+      "focus": "#bd722e",
+      "region": "#a67ce333",
+      "marker": "#b65d29",
+      "handle": "#8055ba",
+      "selection": "#538ce644",
+      "label": "#493165"
+    }
   },
   "studio": {
     "version": 1,
     "name": "Studio",
-    "appearance": { "style": "bars", "height": 180, "barWidth": 2, "barGap": 1, "barRadius": 0, "amplitude": 0.84, "cursorWidth": 1, "borderRadius": 4 },
-    "colors": { "wave": "#52657b", "progress": "#74c7ec", "cursor": "#f5c97b", "background": "#111923", "focus": "#f5c97b", "region": "#74c7ec22", "marker": "#f5c97b", "handle": "#74c7ec", "selection": "#74c7ec44", "label": "#e4edf7" }
+    "appearance": {
+      "style": "bars",
+      "height": 180,
+      "barWidth": 2,
+      "barGap": 1,
+      "barRadius": 0,
+      "amplitude": 0.84,
+      "cursorWidth": 1,
+      "borderRadius": 4
+    },
+    "colors": {
+      "wave": "#52657b",
+      "progress": "#74c7ec",
+      "cursor": "#f5c97b",
+      "background": "#111923",
+      "focus": "#f5c97b",
+      "region": "#74c7ec22",
+      "marker": "#f5c97b",
+      "handle": "#74c7ec",
+      "selection": "#74c7ec44",
+      "label": "#e4edf7"
+    }
   },
   "neon": {
     "version": 1,
     "name": "Neon",
-    "appearance": { "style": "bars", "height": 200, "barWidth": 5, "barGap": 3, "barRadius": 3, "amplitude": 0.78, "cursorWidth": 3, "borderRadius": 16 },
-    "colors": { "wave": "#514270", "progress": "#d0a2ff", "cursor": "#67f5cf", "background": "#191225", "focus": "#67f5cf", "region": "#d0a2ff28", "marker": "#67f5cf", "handle": "#d0a2ff", "selection": "#67f5cf33", "label": "#f1e5ff" }
+    "appearance": {
+      "style": "bars",
+      "height": 200,
+      "barWidth": 5,
+      "barGap": 3,
+      "barRadius": 3,
+      "amplitude": 0.78,
+      "cursorWidth": 3,
+      "borderRadius": 16
+    },
+    "colors": {
+      "wave": "#514270",
+      "progress": "#d0a2ff",
+      "cursor": "#67f5cf",
+      "background": "#191225",
+      "focus": "#67f5cf",
+      "region": "#d0a2ff28",
+      "marker": "#67f5cf",
+      "handle": "#d0a2ff",
+      "selection": "#67f5cf33",
+      "label": "#f1e5ff"
+    }
   },
   "paper": {
     "version": 1,
     "name": "Paper",
-    "appearance": { "style": "line", "height": 120, "lineWidth": 2.5, "amplitude": 0.68, "cursorWidth": 1, "borderRadius": 0 },
-    "colors": { "wave": "#c9bfae", "progress": "#514639", "cursor": "#b04c30", "background": "#faf6ec", "focus": "#b04c30", "region": "#a98c5b22", "marker": "#b04c30", "handle": "#887147", "selection": "#a98c5b44", "label": "#514639" }
+    "appearance": {
+      "style": "line",
+      "height": 120,
+      "lineWidth": 2.5,
+      "amplitude": 0.68,
+      "cursorWidth": 1,
+      "borderRadius": 0
+    },
+    "colors": {
+      "wave": "#c9bfae",
+      "progress": "#514639",
+      "cursor": "#b04c30",
+      "background": "#faf6ec",
+      "focus": "#b04c30",
+      "region": "#a98c5b22",
+      "marker": "#b04c30",
+      "handle": "#887147",
+      "selection": "#a98c5b44",
+      "label": "#514639"
+    }
   }
 }

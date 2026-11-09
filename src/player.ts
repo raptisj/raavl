@@ -37,7 +37,12 @@ export function createPlayer(): Player {
   let rangeTimer: ReturnType<typeof setInterval> | undefined;
   let range: { start: number; end: number; loop?: boolean } | null = null;
   let rangeSerial = 0;
-  const clearRange = () => { rangeSerial++; clearInterval(rangeTimer); rangeTimer = undefined; range = null; };
+  const clearRange = () => {
+    rangeSerial++;
+    clearInterval(rangeTimer);
+    rangeTimer = undefined;
+    range = null;
+  };
   const listeners = new Set<() => void>(),
     timeListeners = new Set<() => void>();
   const guard = () => {
@@ -47,8 +52,14 @@ export function createPlayer(): Player {
   const emitTime = () => {
     if (range && media && media.currentTime >= range.end) {
       const target = range;
-      if (target.loop) { media.currentTime = target.start; if (media.paused) void media.play().catch(() => clearRange()); }
-      else { clearRange(); media.pause(); media.currentTime = target.end; }
+      if (target.loop) {
+        media.currentTime = target.start;
+        if (media.paused) void media.play().catch(() => clearRange());
+      } else {
+        clearRange();
+        media.pause();
+        media.currentTime = target.end;
+      }
     }
     clockValue = media?.currentTime ?? 0;
     timeListeners.forEach((fn) => fn());
@@ -417,10 +428,12 @@ export function createPlayer(): Player {
     },
     async play() {
       const element = needMedia(),
-        token = generation, request = ++playSerial;
+        token = generation,
+        request = ++playSerial;
       publish({ playback: "starting", error: null });
       try {
-        if (token !== generation || disposed || request !== playSerial) throw failure("CANCELLED", "playback", "Playback request cancelled");
+        if (token !== generation || disposed || request !== playSerial)
+          throw failure("CANCELLED", "playback", "Playback request cancelled");
         await element.play();
         if (token !== generation || disposed || request !== playSerial)
           throw Object.assign(
@@ -458,12 +471,19 @@ export function createPlayer(): Player {
       const element = needMedia();
       finite(target.start, "Range start", 0, state.duration);
       finite(target.end, "Range end", 0, state.duration);
-      if (target.end <= target.start) throw failure("INVALID_DATA", "playback", "Range end must follow its start");
+      if (target.end <= target.start)
+        throw failure(
+          "INVALID_DATA",
+          "playback",
+          "Range end must follow its start",
+        );
       player.seek(target.start);
       element.loop = false;
-      const token = generation, request = rangeSerial;
+      const token = generation,
+        request = rangeSerial;
       await player.play();
-      if (token !== generation || disposed || request !== rangeSerial) throw failure("CANCELLED", "playback", "Range playback was cancelled");
+      if (token !== generation || disposed || request !== rangeSerial)
+        throw failure("CANCELLED", "playback", "Range playback was cancelled");
       range = { ...target };
       rangeTimer = setInterval(emitTime, 25);
       emitTime();

@@ -1,16 +1,31 @@
 import { mountAnnotations, type AnnotationViewOptions } from "./annotations";
 import type { Selection } from "../regions";
-export type { AnnotationViewOptions, AnnotationSnapper, LabelSlot } from "./annotations";
+export type {
+  AnnotationViewOptions,
+  AnnotationSnapper,
+  LabelSlot,
+} from "./annotations";
 import { failure, finite, validateWaveform } from "../core/data";
 import type { Player, WaveformData } from "../core/types";
-import { colorTokens, defaultAppearance, parseTheme, validateAppearance, type Appearance, type WaveformTheme, type WaveformPaint } from "../themes";
+import {
+  colorTokens,
+  defaultAppearance,
+  parseTheme,
+  validateAppearance,
+  type Appearance,
+  type WaveformTheme,
+  type WaveformPaint,
+} from "../themes";
 export type { Appearance, WaveformTheme } from "../themes";
 
 export type Viewport = {
   zoom?: number | "fit";
   follow?: "off" | "visible" | "center";
 };
-export type Interaction = { seek?: "click" | "off"; drag?: "none" | "seek" | "select" };
+export type Interaction = {
+  seek?: "click" | "off";
+  drag?: "none" | "seek" | "select";
+};
 export type ViewOptions = AnnotationViewOptions & {
   theme?: WaveformTheme | null;
   appearance?: Appearance;
@@ -22,8 +37,17 @@ export type ViewOptions = AnnotationViewOptions & {
 export type ViewUpdate = Pick<
   ViewOptions,
   "theme" | "appearance" | "viewport" | "interaction" | "label" | "onDraw"
-> & AnnotationViewOptions & { data?: WaveformData };
-export type ViewportSnapshot = Readonly<{ sourceId: string | null; duration: number; start: number; end: number; width: number; pixelsPerSecond: number; disposed: boolean }>;
+> &
+  AnnotationViewOptions & { data?: WaveformData };
+export type ViewportSnapshot = Readonly<{
+  sourceId: string | null;
+  duration: number;
+  start: number;
+  end: number;
+  width: number;
+  pixelsPerSecond: number;
+  disposed: boolean;
+}>;
 export type WaveformView = {
   getViewport(): ViewportSnapshot;
   subscribeViewport(callback: () => void): () => void;
@@ -52,11 +76,23 @@ function merge<T extends object>(
   return next;
 }
 
-function canvasPaint(context: CanvasRenderingContext2D, paint: WaveformPaint | undefined, fallback: string, width: number, height: number): string | CanvasGradient {
+function canvasPaint(
+  context: CanvasRenderingContext2D,
+  paint: WaveformPaint | undefined,
+  fallback: string,
+  width: number,
+  height: number,
+): string | CanvasGradient {
   if (!paint || typeof paint === "string") return fallback;
   const horizontal = paint.axis === "horizontal";
-  const gradient = context.createLinearGradient(0, 0, horizontal ? width : 0, horizontal ? 0 : height);
-  for (const stop of paint.stops) gradient.addColorStop(stop.offset, stop.color);
+  const gradient = context.createLinearGradient(
+    0,
+    0,
+    horizontal ? width : 0,
+    horizontal ? 0 : height,
+  );
+  for (const stop of paint.stops)
+    gradient.addColorStop(stop.offset, stop.color);
   return gradient;
 }
 
@@ -92,18 +128,51 @@ export function mountWaveform(
   let dirty = true;
   let annotationOptions: AnnotationViewOptions = {};
   const player = options.player;
-  let viewportState: ViewportSnapshot = Object.freeze({ sourceId: null, duration: 0, start: 0, end: 0, width: 0, pixelsPerSecond: 0, disposed: false });
+  let viewportState: ViewportSnapshot = Object.freeze({
+    sourceId: null,
+    duration: 0,
+    start: 0,
+    end: 0,
+    width: 0,
+    pixelsPerSecond: 0,
+    disposed: false,
+  });
   const viewportListeners = new Set<() => void>();
   const publishViewport = () => {
-    const currentDuration = player?.getSnapshot().duration || data?.duration || 0;
+    const currentDuration =
+      player?.getSnapshot().duration || data?.duration || 0;
     const currentWidth = Math.max(1, root.clientWidth);
-    const contentWidth = viewport.zoom === "fit" ? currentWidth : Math.max(currentWidth, currentDuration * viewport.zoom);
+    const contentWidth =
+      viewport.zoom === "fit"
+        ? currentWidth
+        : Math.max(currentWidth, currentDuration * viewport.zoom);
     const pps = currentDuration ? contentWidth / currentDuration : 0;
-    const start = pps ? Math.min(Math.max(0, currentDuration - currentWidth / pps), root.scrollLeft / pps) : 0;
-    const next = { sourceId: player?.getSnapshot().sourceId ?? data?.sourceId ?? null, duration: currentDuration, start, end: pps ? Math.min(currentDuration, start + currentWidth / pps) : 0, width: currentWidth, pixelsPerSecond: pps, disposed };
-    if (Object.keys(next).every(key => Object.is(next[key as keyof typeof next], viewportState[key as keyof ViewportSnapshot]))) return;
+    const start = pps
+      ? Math.min(
+          Math.max(0, currentDuration - currentWidth / pps),
+          root.scrollLeft / pps,
+        )
+      : 0;
+    const next = {
+      sourceId: player?.getSnapshot().sourceId ?? data?.sourceId ?? null,
+      duration: currentDuration,
+      start,
+      end: pps ? Math.min(currentDuration, start + currentWidth / pps) : 0,
+      width: currentWidth,
+      pixelsPerSecond: pps,
+      disposed,
+    };
+    if (
+      Object.keys(next).every((key) =>
+        Object.is(
+          next[key as keyof typeof next],
+          viewportState[key as keyof ViewportSnapshot],
+        ),
+      )
+    )
+      return;
     viewportState = Object.freeze(next);
-    viewportListeners.forEach(fn => fn());
+    viewportListeners.forEach((fn) => fn());
   };
   const root = document.createElement("div");
   root.className = "raavl-waveform";
@@ -137,7 +206,8 @@ export function mountWaveform(
     top: "0",
     bottom: "0",
     width: "2px",
-    background: "var(--raavl-cursor-color, var(--raavl-progress-color, #285d50))",
+    background:
+      "var(--raavl-cursor-color, var(--raavl-progress-color, #285d50))",
     pointerEvents: "none",
   });
   surface.append(cursor);
@@ -183,8 +253,13 @@ export function mountWaveform(
     }
     ctx.setTransform(ratio, 0, 0, ratio, 0, 0);
     const style = getComputedStyle(root);
-    ctx.fillStyle = canvasPaint(ctx, theme?.colors?.wave,
-      style.getPropertyValue("--raavl-wave-color").trim() || "#9aafa7", width, appearance.height);
+    ctx.fillStyle = canvasPaint(
+      ctx,
+      theme?.colors?.wave,
+      style.getPropertyValue("--raavl-wave-color").trim() || "#9aafa7",
+      width,
+      appearance.height,
+    );
     if (data) {
       if (lastData !== data) {
         normalization = 0;
@@ -198,8 +273,13 @@ export function mountWaveform(
         lastData = data;
       }
       const scale = appearance.normalize ? 1 / (normalization || 1) : 1;
-      const rows = appearance.splitChannels ? data.channels : data.channels.slice(0, 1);
-      const bottomChannel = !appearance.splitChannels && data.channels.length > 1 ? data.channels[1] : null;
+      const rows = appearance.splitChannels
+        ? data.channels
+        : data.channels.slice(0, 1);
+      const bottomChannel =
+        !appearance.splitChannels && data.channels.length > 1
+          ? data.channels[1]
+          : null;
       const height = appearance.height / rows.length;
       const step =
         appearance.style === "bars"
@@ -235,21 +315,41 @@ export function mountWaveform(
             if (bottomChannel) {
               // Keep stereo channels distinct around one center line; do not
               // average samples, which could cancel opposite-phase signals.
-              hi = Math.max(hi, Math.abs(channel.min[j]), Math.abs(channel.max[j]));
-              lo = Math.min(lo, -Math.abs(bottomChannel.min[j]), -Math.abs(bottomChannel.max[j]));
+              hi = Math.max(
+                hi,
+                Math.abs(channel.min[j]),
+                Math.abs(channel.max[j]),
+              );
+              lo = Math.min(
+                lo,
+                -Math.abs(bottomChannel.min[j]),
+                -Math.abs(bottomChannel.max[j]),
+              );
             } else {
               lo = Math.min(lo, channel.min[j]);
               hi = Math.max(hi, channel.max[j]);
             }
           }
-          const top = center - hi * height * appearance.amplitude / 2 * scale;
-          const bottom = center - lo * height * appearance.amplitude / 2 * scale;
+          const top =
+            center - ((hi * height * appearance.amplitude) / 2) * scale;
+          const bottom =
+            center - ((lo * height * appearance.amplitude) / 2) * scale;
           const barHeight = Math.max(1, bottom - top);
           if (line) {
             ctx.moveTo(x + 0.5, top);
             ctx.lineTo(x + 0.5, top + barHeight);
           } else if (appearance.barRadius > 0) {
-            ctx.roundRect(x, top, appearance.barWidth, barHeight, Math.min(appearance.barRadius, appearance.barWidth / 2, barHeight / 2));
+            ctx.roundRect(
+              x,
+              top,
+              appearance.barWidth,
+              barHeight,
+              Math.min(
+                appearance.barRadius,
+                appearance.barWidth / 2,
+                barHeight / 2,
+              ),
+            );
           } else ctx.fillRect(x, top, appearance.barWidth, barHeight);
         }
         if (line) ctx.stroke();
@@ -264,8 +364,13 @@ export function mountWaveform(
     playedCtx.drawImage(wave, 0, 0);
     playedCtx.globalCompositeOperation = "source-in";
     // Progress is composited in device pixels; its gradient must use that same space.
-    playedCtx.fillStyle = canvasPaint(playedCtx, theme?.colors?.progress,
-      style.getPropertyValue("--raavl-progress-color").trim() || "#285d50", progress.width, progress.height);
+    playedCtx.fillStyle = canvasPaint(
+      playedCtx,
+      theme?.colors?.progress,
+      style.getPropertyValue("--raavl-progress-color").trim() || "#285d50",
+      progress.width,
+      progress.height,
+    );
     playedCtx.fillRect(0, 0, progress.width, progress.height);
     playedCtx.globalCompositeOperation = "source-over";
     root.setAttribute("aria-label", label);
@@ -289,14 +394,21 @@ export function mountWaveform(
     if (player && !annotationOptions.annotations) {
       // Readiness can change without invalidating already supplied peak pixels.
       root.setAttribute("aria-valuemax", String(duration));
-      root.setAttribute("aria-disabled", String(state?.source !== "ready" || interaction.seek === "off"));
+      root.setAttribute(
+        "aria-disabled",
+        String(state?.source !== "ready" || interaction.seek === "off"),
+      );
       root.setAttribute("aria-valuenow", String(time));
       root.setAttribute(
         "aria-valuetext",
         `${time.toFixed(1)} of ${duration.toFixed(1)} seconds`,
       );
     }
-    if (state?.playback === "playing" && pointer === null && !annotationLayer.isEditing()) {
+    if (
+      state?.playback === "playing" &&
+      pointer === null &&
+      !annotationLayer.isEditing()
+    ) {
       if (viewport.follow === "center") root.scrollLeft = x - width / 2;
       else if (
         viewport.follow === "visible" &&
@@ -308,13 +420,20 @@ export function mountWaveform(
       request();
   }
   const seekAt = (clientX: number) => {
-    if (!player || player.getSnapshot().source !== "ready" || totalWidth <= 0) return;
+    if (!player || player.getSnapshot().source !== "ready" || totalWidth <= 0)
+      return;
     const x = clientX - root.getBoundingClientRect().left + root.scrollLeft;
     player.seekFraction(Math.max(0, Math.min(1, x / totalWidth)));
     request();
   };
   // Recognize touch directly: mobile browsers need not synthesize dblclick.
-  let touch: { id: number; x: number; y: number; time: number; moved: boolean } | null = null;
+  let touch: {
+    id: number;
+    x: number;
+    y: number;
+    time: number;
+    moved: boolean;
+  } | null = null;
   let lastTap: { x: number; y: number; time: number } | null = null;
   let lastTouchTime = -Infinity;
   const startPlayback = () => {
@@ -325,19 +444,31 @@ export function mountWaveform(
   const touchDown = (event: PointerEvent) => {
     if (event.pointerType !== "touch") return;
     lastTouchTime = performance.now();
-    if (!event.isPrimary || event.button !== 0 ||
-      (event.target instanceof Element && event.target.closest("[data-raavl-annotation]")) ||
-      !player || player.getSnapshot().source !== "ready") {
+    if (
+      !event.isPrimary ||
+      event.button !== 0 ||
+      (event.target instanceof Element &&
+        event.target.closest("[data-raavl-annotation]")) ||
+      !player ||
+      player.getSnapshot().source !== "ready"
+    ) {
       touch = null;
       lastTap = null;
       pointer = null;
       return;
     }
-    touch = { id: event.pointerId, x: event.clientX, y: event.clientY, time: performance.now(), moved: false };
+    touch = {
+      id: event.pointerId,
+      x: event.clientX,
+      y: event.clientY,
+      time: performance.now(),
+      moved: false,
+    };
   };
   const touchMove = (event: PointerEvent) => {
     if (!touch || event.pointerId !== touch.id) return;
-    const dx = Math.abs(event.clientX - touch.x), dy = Math.abs(event.clientY - touch.y);
+    const dx = Math.abs(event.clientX - touch.x),
+      dy = Math.abs(event.clientY - touch.y);
     if (Math.hypot(dx, dy) > 10) {
       touch.moved = true;
       lastTap = null;
@@ -355,14 +486,21 @@ export function mountWaveform(
     const gesture = touch;
     touch = null;
     const now = performance.now();
-    if (gesture.moved || now - gesture.time > 350 ||
-      Math.hypot(event.clientX - gesture.x, event.clientY - gesture.y) > 10) {
+    if (
+      gesture.moved ||
+      now - gesture.time > 350 ||
+      Math.hypot(event.clientX - gesture.x, event.clientY - gesture.y) > 10
+    ) {
       lastTap = null;
       return;
     }
-    if (interaction.seek === "click" && interaction.drag !== "select") seekAt(event.clientX);
-    if (lastTap && now - lastTap.time <= 350 &&
-      Math.hypot(event.clientX - lastTap.x, event.clientY - lastTap.y) <= 24) {
+    if (interaction.seek === "click" && interaction.drag !== "select")
+      seekAt(event.clientX);
+    if (
+      lastTap &&
+      now - lastTap.time <= 350 &&
+      Math.hypot(event.clientX - lastTap.x, event.clientY - lastTap.y) <= 24
+    ) {
       lastTap = null;
       startPlayback();
     } else lastTap = { x: event.clientX, y: event.clientY, time: now };
@@ -375,19 +513,38 @@ export function mountWaveform(
   };
   const click = (event: MouseEvent) => {
     if (performance.now() - lastTouchTime < 700) return;
-    if (event.target instanceof Element && event.target.closest("[data-raavl-annotation]")) return;
-    if (interaction.seek === "click" && interaction.drag !== "select") seekAt(event.clientX);
+    if (
+      event.target instanceof Element &&
+      event.target.closest("[data-raavl-annotation]")
+    )
+      return;
+    if (interaction.seek === "click" && interaction.drag !== "select")
+      seekAt(event.clientX);
   };
   const doubleClick = (event: MouseEvent) => {
     if (performance.now() - lastTouchTime < 700) return;
-    if (event.target instanceof Element && event.target.closest("[data-raavl-annotation]")) return;
-    if (event.button !== 0 || !player || player.getSnapshot().source !== "ready") return;
-    if (interaction.seek === "click" && interaction.drag !== "select") seekAt(event.clientX);
+    if (
+      event.target instanceof Element &&
+      event.target.closest("[data-raavl-annotation]")
+    )
+      return;
+    if (
+      event.button !== 0 ||
+      !player ||
+      player.getSnapshot().source !== "ready"
+    )
+      return;
+    if (interaction.seek === "click" && interaction.drag !== "select")
+      seekAt(event.clientX);
     startPlayback();
   };
   const down = (event: PointerEvent) => {
     if (event.pointerType === "touch") return;
-    if (event.target instanceof Element && event.target.closest("[data-raavl-annotation]")) return;
+    if (
+      event.target instanceof Element &&
+      event.target.closest("[data-raavl-annotation]")
+    )
+      return;
     if (
       !player ||
       event.button !== 0 ||
@@ -409,7 +566,11 @@ export function mountWaveform(
     pointer = null;
   };
   const key = (event: KeyboardEvent) => {
-    if (event.target instanceof Element && event.target.closest("[data-raavl-annotation]")) return;
+    if (
+      event.target instanceof Element &&
+      event.target.closest("[data-raavl-annotation]")
+    )
+      return;
     if (
       !player ||
       interaction.seek === "off" ||
@@ -456,7 +617,10 @@ export function mountWaveform(
   observer.observe(root);
   let tapSourceId = player?.getSnapshot().sourceId;
   const unsubscribe = player?.subscribe(() => {
-    if (player.getSnapshot().sourceId !== tapSourceId || player.getSnapshot().source !== "ready") {
+    if (
+      player.getSnapshot().sourceId !== tapSourceId ||
+      player.getSnapshot().source !== "ready"
+    ) {
       touch = null;
       lastTap = null;
       tapSourceId = player.getSnapshot().sourceId;
@@ -476,28 +640,44 @@ export function mountWaveform(
     subscribeViewport(callback) {
       if (disposed) throw failure("DISPOSED", "view", "View has been disposed");
       viewportListeners.add(callback);
-      return () => { viewportListeners.delete(callback); };
+      return () => {
+        viewportListeners.delete(callback);
+      };
     },
     scrollTo(seconds) {
       if (disposed) throw failure("DISPOSED", "view", "View has been disposed");
       finite(seconds, "Viewport start");
       publishViewport();
       const span = viewportState.end - viewportState.start;
-      root.scrollLeft = Math.min(seconds, Math.max(0, viewportState.duration - span)) * viewportState.pixelsPerSecond;
-      publishViewport(); invalidate();
+      root.scrollLeft =
+        Math.min(seconds, Math.max(0, viewportState.duration - span)) *
+        viewportState.pixelsPerSecond;
+      publishViewport();
+      invalidate();
     },
     update(patch) {
       if (disposed) throw failure("DISPOSED", "view", "View has been disposed");
-      const nextTheme = "theme" in patch ? patch.theme == null ? null : parseTheme(patch.theme) : theme;
+      const nextTheme =
+        "theme" in patch
+          ? patch.theme == null
+            ? null
+            : parseTheme(patch.theme)
+          : theme;
       const overrides = { ...appearanceOverrides };
       if (patch.appearance !== undefined) {
         validateAppearance(patch.appearance);
-        for (const key of Object.keys(patch.appearance) as Array<keyof Appearance>) {
+        for (const key of Object.keys(patch.appearance) as Array<
+          keyof Appearance
+        >) {
           if (patch.appearance[key] === undefined) delete overrides[key];
           else Object.assign(overrides, { [key]: patch.appearance[key] });
         }
       }
-      const a = { ...defaults.appearance, ...nextTheme?.appearance, ...overrides };
+      const a = {
+        ...defaults.appearance,
+        ...nextTheme?.appearance,
+        ...overrides,
+      };
       const v = merge(viewport, patch.viewport, defaults.viewport);
       const i = merge(interaction, patch.interaction, defaults.interaction);
       validateAppearance(a);
@@ -519,30 +699,61 @@ export function mountWaveform(
         validateWaveform(patch.data);
       }
       const nextAnnotations = { ...annotationOptions };
-      for (const key of ["annotations", "annotationRules", "snapAnnotation", "renderRegionLabel", "onSelectionChange", "onAnnotationSelect", "onAnnotationError"] as const) {
+      for (const key of [
+        "annotations",
+        "annotationRules",
+        "snapAnnotation",
+        "renderRegionLabel",
+        "onSelectionChange",
+        "onAnnotationSelect",
+        "onAnnotationError",
+      ] as const) {
         if (key in patch) Object.assign(nextAnnotations, { [key]: patch[key] });
       }
       annotationLayer.update(nextAnnotations);
       annotationOptions = nextAnnotations;
-      root.setAttribute("role", annotationOptions.annotations ? "group" : player ? "slider" : "img");
-      if (annotationOptions.annotations) for (const name of ["aria-valuemin", "aria-valuemax", "aria-valuenow", "aria-valuetext", "aria-orientation", "aria-disabled"]) root.removeAttribute(name);
-      else if (player) { root.setAttribute("aria-valuemin", "0"); root.setAttribute("aria-orientation", "horizontal"); }
+      root.setAttribute(
+        "role",
+        annotationOptions.annotations ? "group" : player ? "slider" : "img",
+      );
+      if (annotationOptions.annotations)
+        for (const name of [
+          "aria-valuemin",
+          "aria-valuemax",
+          "aria-valuenow",
+          "aria-valuetext",
+          "aria-orientation",
+          "aria-disabled",
+        ])
+          root.removeAttribute(name);
+      else if (player) {
+        root.setAttribute("aria-valuemin", "0");
+        root.setAttribute("aria-orientation", "horizontal");
+      }
       appearance = a;
       appearanceOverrides = overrides;
-      if ("theme" in patch) for (const [key, token] of Object.entries(colorTokens)) {
-        const color = nextTheme?.colors?.[key as keyof typeof colorTokens];
-        if (typeof color === "string") root.style.setProperty(token, color);
-        else if (theme?.colors?.[key as keyof typeof colorTokens] !== undefined) root.style.removeProperty(token);
-      }
+      if ("theme" in patch)
+        for (const [key, token] of Object.entries(colorTokens)) {
+          const color = nextTheme?.colors?.[key as keyof typeof colorTokens];
+          if (typeof color === "string") root.style.setProperty(token, color);
+          else if (
+            theme?.colors?.[key as keyof typeof colorTokens] !== undefined
+          )
+            root.style.removeProperty(token);
+        }
       theme = nextTheme;
-      root.style.setProperty("--raavl-border-radius", `${appearance.borderRadius}px`);
+      root.style.setProperty(
+        "--raavl-border-radius",
+        `${appearance.borderRadius}px`,
+      );
       cursor.style.width = `${appearance.cursorWidth}px`;
       viewport = v;
       interaction = i;
       if (patch.data) data = patch.data;
       if (patch.label !== undefined) label = patch.label;
       if ("onDraw" in patch) onDraw = patch.onDraw;
-      root.style.touchAction = interaction.drag !== "none" ? "pan-y pinch-zoom" : "manipulation";
+      root.style.touchAction =
+        interaction.drag !== "none" ? "pan-y pinch-zoom" : "manipulation";
       invalidate();
     },
     refreshTheme: invalidate,

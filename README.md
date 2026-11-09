@@ -39,16 +39,16 @@ Run all commands from the repository root. Install the docs dependencies with
 `npm --prefix docs ci` for site commands, and the root dependencies with `npm ci`
 for library commands.
 
-| Command | Purpose |
-| --- | --- |
-| `npm run docs:dev` | Start the complete site on port 3000 |
-| `npm run examples` | Alias for the same site; no separate examples server |
-| `npm run docs:typecheck` | Typecheck the site and shared example components |
-| `npm --prefix docs run test:skills` | Run skill publication, command, URL, and alias tests |
-| `npm run docs:build` | Build the static site with Turbopack and verify the export |
-| `npm run examples:build` | Alias for `npm run docs:build` |
-| `npm run check:docs` | Run the site typecheck, skill tests, build, and export verification |
-| `npm run check` | Run the library typecheck, tests, and build |
+| Command                             | Purpose                                                             |
+| ----------------------------------- | ------------------------------------------------------------------- |
+| `npm run docs:dev`                  | Start the complete site on port 3000                                |
+| `npm run examples`                  | Alias for the same site; no separate examples server                |
+| `npm run docs:typecheck`            | Typecheck the site and shared example components                    |
+| `npm --prefix docs run test:skills` | Run skill publication, command, URL, and alias tests                |
+| `npm run docs:build`                | Build the static site with Turbopack and verify the export          |
+| `npm run examples:build`            | Alias for `npm run docs:build`                                      |
+| `npm run check:docs`                | Run the site typecheck, skill tests, build, and export verification |
+| `npm run check`                     | Run the library typecheck, tests, and build                         |
 
 Stop the dev server before running production build checks. Skill downloads are
 prepared automatically before site development, typechecking, and building.

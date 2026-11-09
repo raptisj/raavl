@@ -14,9 +14,15 @@ import {
 import type { RaavlError } from "../core/types";
 
 export type LabelSlot = HTMLElement | { element: HTMLElement; dispose(): void };
-export type AnnotationSnapper = (time: number, context: {
-  document: AnnotationDocument; excludeId?: string; duration: number; pixelsPerSecond: number;
-}) => number;
+export type AnnotationSnapper = (
+  time: number,
+  context: {
+    document: AnnotationDocument;
+    excludeId?: string;
+    duration: number;
+    pixelsPerSecond: number;
+  },
+) => number;
 export type AnnotationViewOptions = {
   snapAnnotation?: AnnotationSnapper;
   annotations?: AnnotationStore | ControlledAnnotations | null;
@@ -92,17 +98,27 @@ export function mountAnnotations(
   const rows = document.createElement("ul");
   const pagination = document.createElement("div");
   pagination.className = "raavl-annotation-pagination";
-  const previous = document.createElement("button"), next = document.createElement("button"), pageLabel = document.createElement("span");
+  const previous = document.createElement("button"),
+    next = document.createElement("button"),
+    pageLabel = document.createElement("span");
   previous.type = next.type = "button";
   previous.textContent = "Previous annotations";
   next.textContent = "Next annotations";
   pageLabel.setAttribute("role", "status");
   let page = 0;
   let listSnapshot: ReturnType<AnnotationStore["getSnapshot"]> | null = null;
-  let listPage = -1, listChannels = -1, listSource: string | null = null;
+  let listPage = -1,
+    listChannels = -1,
+    listSource: string | null = null;
   const pageSize = 100;
-  previous.onclick = () => { page--; render(); };
-  next.onclick = () => { page++; render(); };
+  previous.onclick = () => {
+    page--;
+    render();
+  };
+  next.onclick = () => {
+    page++;
+    render();
+  };
   pagination.append(previous, pageLabel, next);
   list.append(status, rows, pagination);
   container.append(list);
@@ -148,7 +164,12 @@ export function mountAnnotations(
   const snap = (time: number) => {
     let value = snapTime(time, rules.snap);
     if (gesture && options.snapAnnotation && store) {
-      value = options.snapAnnotation(time, { document: store.getSnapshot().document, excludeId: gesture.id, duration: geometry().duration, pixelsPerSecond: geometry().width / geometry().duration });
+      value = options.snapAnnotation(time, {
+        document: store.getSnapshot().document,
+        excludeId: gesture.id,
+        duration: geometry().duration,
+        pixelsPerSecond: geometry().width / geometry().duration,
+      });
       if (!Number.isFinite(value)) value = time;
     }
     return Math.max(0, Math.min(geometry().duration, value));
@@ -182,7 +203,8 @@ export function mountAnnotations(
       "start" in item
         ? `${((item.end - item.start) / duration) * 100}%`
         : "2px";
-    const channel = splitChannels && "channel" in item ? item.channel : undefined;
+    const channel =
+      splitChannels && "channel" in item ? item.channel : undefined;
     element.style.top =
       channel === undefined ? "0" : `${(channel / channels) * 100}%`;
     element.style.height =
@@ -200,8 +222,13 @@ export function mountAnnotations(
         lastSource = sourceId;
       }
       if (!store) {
-        for (const node of nodes.values()) { node.cleanup?.(); node.element.remove(); }
-        nodes.clear(); rows.replaceChildren(); listSnapshot = null;
+        for (const node of nodes.values()) {
+          node.cleanup?.();
+          node.element.remove();
+        }
+        nodes.clear();
+        rows.replaceChildren();
+        listSnapshot = null;
         overlay.hidden = true;
         list.hidden = true;
         return;
@@ -233,14 +260,27 @@ export function mountAnnotations(
         ...snapshot.document.regions,
         ...snapshot.document.markers,
       ];
-      const focus = document.activeElement instanceof HTMLElement ? document.activeElement : null;
-      const focusId = focus?.dataset.raavlAnnotation, focusSide = focus?.dataset.side;
-      const from = root.scrollLeft / geometry().width * duration;
-      const to = (root.scrollLeft + root.clientWidth) / geometry().width * duration;
-      const visible = active() && geometry().width > 0 ? items.filter((item) => !invalid.has(item.id) && (
-        item.id === focusId || item.id === gesture?.id ||
-        ("start" in item ? item.end >= from && item.start <= to : item.time >= from && item.time <= to)
-      )) : [];
+      const focus =
+        document.activeElement instanceof HTMLElement
+          ? document.activeElement
+          : null;
+      const focusId = focus?.dataset.raavlAnnotation,
+        focusSide = focus?.dataset.side;
+      const from = (root.scrollLeft / geometry().width) * duration;
+      const to =
+        ((root.scrollLeft + root.clientWidth) / geometry().width) * duration;
+      const visible =
+        active() && geometry().width > 0
+          ? items.filter(
+              (item) =>
+                !invalid.has(item.id) &&
+                (item.id === focusId ||
+                  item.id === gesture?.id ||
+                  ("start" in item
+                    ? item.end >= from && item.start <= to
+                    : item.time >= from && item.time <= to)),
+            )
+          : [];
       const ids = new Set(visible.map((item) => item.id));
       for (const [id, node] of nodes)
         if (!ids.has(id)) {
@@ -336,7 +376,10 @@ export function mountAnnotations(
           nodes.set(item.id, node);
         }
         // Redraws and unrelated player updates must preserve the live gesture.
-        position(node.element, gesture?.id === item.id && gesture.next ? gesture.next : item);
+        position(
+          node.element,
+          gesture?.id === item.id && gesture.next ? gesture.next : item,
+        );
       }
       if (focusId && !focus?.isConnected) {
         const element = nodes.get(focusId)?.element;
@@ -347,40 +390,55 @@ export function mountAnnotations(
       }
       // The list is the non-spatial alternative to overlays; no hidden canvas data.
       const focusedRow = focus?.dataset.rowId;
-      page = Math.max(0, Math.min(page, Math.ceil(items.length / pageSize) - 1));
-      if (listSnapshot !== snapshot || listPage !== page || listChannels !== channels || listSource !== sourceId) {
-      listSnapshot = snapshot; listPage = page; listChannels = channels; listSource = sourceId;
-      rows.replaceChildren();
-      pagination.hidden = !matches() || items.length <= pageSize;
-      previous.disabled = page === 0;
-      next.disabled = (page + 1) * pageSize >= items.length;
-      pageLabel.textContent = ` Page ${page + 1} of ${Math.max(1, Math.ceil(items.length / pageSize))} `;
-      if (matches())
-        for (const item of items.slice(page * pageSize, (page + 1) * pageSize)) {
-          const row = document.createElement("li"),
-            button = document.createElement("button");
-          button.type = "button";
-          button.dataset.rowId = item.id;
-          button.textContent = `${item.label || item.id} · ${"start" in item ? `${item.start.toFixed(2)}–${item.end.toFixed(2)}` : item.time.toFixed(2)}s${item.locked ? " · locked" : ""}${invalid.has(item.id) ? " · out of bounds" : ""}`;
-          button.onclick = () => {
-            select(item.id);
-            if (active()) {
-              root.scrollLeft = Math.max(
-                0,
-                (("start" in item ? item.start : item.time) / duration) *
-                  geometry().width -
-                  root.clientWidth / 3,
-              );
-              render();
-              nodes.get(item.id)?.element
-                .querySelector<HTMLElement>(".raavl-region-body")
-                ?.focus({ preventScroll: true });
-            }
-          };
-          row.append(button);
-          rows.append(row);
-          if (focusedRow === item.id) button.focus({ preventScroll: true });
-        }
+      page = Math.max(
+        0,
+        Math.min(page, Math.ceil(items.length / pageSize) - 1),
+      );
+      if (
+        listSnapshot !== snapshot ||
+        listPage !== page ||
+        listChannels !== channels ||
+        listSource !== sourceId
+      ) {
+        listSnapshot = snapshot;
+        listPage = page;
+        listChannels = channels;
+        listSource = sourceId;
+        rows.replaceChildren();
+        pagination.hidden = !matches() || items.length <= pageSize;
+        previous.disabled = page === 0;
+        next.disabled = (page + 1) * pageSize >= items.length;
+        pageLabel.textContent = ` Page ${page + 1} of ${Math.max(1, Math.ceil(items.length / pageSize))} `;
+        if (matches())
+          for (const item of items.slice(
+            page * pageSize,
+            (page + 1) * pageSize,
+          )) {
+            const row = document.createElement("li"),
+              button = document.createElement("button");
+            button.type = "button";
+            button.dataset.rowId = item.id;
+            button.textContent = `${item.label || item.id} · ${"start" in item ? `${item.start.toFixed(2)}–${item.end.toFixed(2)}` : item.time.toFixed(2)}s${item.locked ? " · locked" : ""}${invalid.has(item.id) ? " · out of bounds" : ""}`;
+            button.onclick = () => {
+              select(item.id);
+              if (active()) {
+                root.scrollLeft = Math.max(
+                  0,
+                  (("start" in item ? item.start : item.time) / duration) *
+                    geometry().width -
+                    root.clientWidth / 3,
+                );
+                render();
+                nodes
+                  .get(item.id)
+                  ?.element.querySelector<HTMLElement>(".raavl-region-body")
+                  ?.focus({ preventScroll: true });
+              }
+            };
+            row.append(button);
+            rows.append(row);
+            if (focusedRow === item.id) button.focus({ preventScroll: true });
+          }
       }
       setSelection(selection, false);
     } finally {

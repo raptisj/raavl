@@ -74,7 +74,11 @@ export type Player = {
   setSource(source: Source, options?: { signal?: AbortSignal }): Promise<void>;
   clearSource(): void;
   play(): Promise<void>;
-  playRange(range: { start: number; end: number; loop?: boolean }): Promise<void>;
+  playRange(range: {
+    start: number;
+    end: number;
+    loop?: boolean;
+  }): Promise<void>;
   pause(): void;
   seek(seconds: number): void;
   seekFraction(fraction: number): void;
