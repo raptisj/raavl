@@ -287,18 +287,3 @@ keyboard region movement/resizing, meaningful handle labels, and an accessible
 annotation list. Decorative canvas does not pretend to expose every audio sample
 to assistive technology. Pointer editing uses Pointer Events and explicit touch
 gesture policies. Reduced-motion preferences affect scrolling/animations.
-
-## Upstream lessons
-
-Reviewed WaveSurfer main (package version 8.0.5) and its React wrapper on
-2026-11-08. This was source inspection, not a runtime audit. Current upstream
-already has reactive state, functional plugins, lifecycle cleanup, and chunked
-rendering; these are baseline expectations, not claimed new inventions.
-
-- [Core/loading](https://github.com/katspaugh/wavesurfer.js/blob/main/src/wavesurfer.ts)
-- [Renderer](https://github.com/katspaugh/wavesurfer.js/blob/main/src/renderer.ts)
-- [Regions](https://github.com/katspaugh/wavesurfer.js/blob/main/src/plugins/regions.ts)
-- [React adapter](https://github.com/katspaugh/wavesurfer-react/blob/main/src/index.tsx)
-
-This phase copies no upstream implementation. If later work reuses source,
-retain the applicable upstream notices and document provenance.

@@ -3,6 +3,9 @@
 A TypeScript waveform player with ordinary DOM styling, a functional JavaScript
 API, and a React component backed by the same controller and Canvas renderer.
 
+See [PRODUCT.md](PRODUCT.md) for the current feature inventory, product limits,
+and source map for agents and contributors.
+
 **Phase 5 is implemented.** The examples use real components, playable audio,
 and editable annotations. This is a local development package, not a published
 release. [Try the optional modules](http://127.0.0.1:4173/#demos/modules/react), [the scale lab](http://127.0.0.1:4173/#scale/vanilla) or [the annotation editor](http://127.0.0.1:4173/#annotations/react).
@@ -286,10 +289,9 @@ React's `onView` provides the committed view for accessory effects. History is
 immutable and framework-independent: record accepted documents, then render/apply
 `undoHistory(history).present`. Controlled React updates require a new revision.
 
-See the [complete module API and ownership rules](docs/OPTIONAL-MODULES.md),
-[interactive editor](http://127.0.0.1:4173/#demos/modules/react), and
-[recording/spectrogram assessment](docs/PHASE-5.md). Recording and spectrograms
-remain proposals, not shipped modules.
+See the [complete module API and ownership rules](docs/OPTIONAL-MODULES.md) and
+[interactive editor](http://127.0.0.1:4173/#demos/modules/react). Recording and
+spectrograms remain proposals, not shipped modules.
 
 ## Current limits and next phases
 
@@ -297,8 +299,8 @@ remain proposals, not shipped modules.
   playback backend. Full-recording and best-effort region looping are implemented.
 - Finite recordings only. Live/infinite streams are not supported.
 - URL waveform generation downloads and decodes the full recording. Prefer supplied
-  peaks for long recordings. The [scale checkpoint](docs/PHASE-4.md) measures a
-  two-hour supplied-peaks fixture, not full-file decoding.
+  peaks for long recordings. The scale lab measures a two-hour supplied-peaks
+  fixture, not full-file decoding.
 - Request headers apply to waveform fetching, not native media playback. Custom
   authenticated playback can use an application-fetched Blob. Remote decoding
   requires appropriate CORS responses.
@@ -309,9 +311,8 @@ remain proposals, not shipped modules.
   drag edge auto-scroll are not implemented. Undo/redo and magnetic snapping are
   available through optional imports.
 - Browser measurements cover Chromium 156 on macOS. Safari, Firefox, mobile and
-  comprehensive screen-reader certification remain unverified. See the documented
-  budgets, memory limits, and release checklist in the Phase 4 checkpoint.
+  comprehensive screen-reader certification remain unverified.
 
-See [Phase 5 checkpoint](docs/PHASE-5.md), [Phase 4 checkpoint](docs/PHASE-4.md), [Phase 3 checkpoint](docs/PHASE-3.md), [Phase 2 checkpoint](docs/PHASE-2.md), [roadmap](docs/ROADMAP.md), and the
-[original API design](docs/design/api.md). Each phase ends for review before the
-next starts.
+See the [product reference](PRODUCT.md#scale-limits-and-unimplemented-capabilities)
+for current limits, measurements, and remaining validation work. The
+[original API design](docs/design/api.md) contains historical proposals.

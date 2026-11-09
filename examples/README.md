@@ -70,10 +70,11 @@ The file picker, all formats, and all browser/mobile combinations have not been
 exhaustively tested. The annotation demo also verifies selection creation, controlled rejection,
 keyboard resizing, browser persistence, and source-bound visibility.
 
-See [Phase 4 measurements](../docs/PHASE-4.md) for reproducible settings, memory
-accounting, verified browser coverage, and known dense-overview limits.
+See the [product reference](../PRODUCT.md#scale-limits-and-unimplemented-capabilities)
+for measured scale results, memory accounting, browser coverage, and remaining
+validation work.
 
 Phase 5: open `#demos/modules/react` or `#demos/modules/vanilla`. Rename then
 undo/redo; resize a region near the 8s cue; use the minimap with pointer or
-keyboard; switch source to reset history. See [module API](../docs/OPTIONAL-MODULES.md)
-and [checkpoint](../docs/PHASE-5.md). The full composition is in `live/ModulesEditor.tsx`.
+keyboard; switch source to reset history. See the [module API](../docs/OPTIONAL-MODULES.md).
+The full composition is in `live/ModulesEditor.tsx`.

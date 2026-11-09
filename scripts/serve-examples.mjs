@@ -10,7 +10,6 @@ const publicFiles = new Map([
   ["/style.css", ["examples/style.css", "text/css"]],
   ["/docs/api.md", ["docs/design/api.md", "text/plain"]],
   ["/docs/workflows.md", ["docs/design/workflows.md", "text/plain"]],
-  ["/docs/review.md", ["docs/design/review.md", "text/plain"]],
 ]);
 const port = Number(process.env.PORT ?? 4173);
 if (!Number.isInteger(port) || port < 1 || port > 65535)

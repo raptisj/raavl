@@ -200,5 +200,5 @@ overlays to the visible time range and paginates the list in groups of 100.
 Focused and dragged overlays remain mounted. Custom label slots unmount offscreen;
 keep durable state outside those slots. Style `.ravl-annotation-pagination` and
 set `--ravl-annotation-list-height` to customize the list (default 12rem).
-See [scale measurements and browser limits](PHASE-4.md). Undo/redo and magnetic
+See [scale measurements and browser limits](../PRODUCT.md#scale-limits-and-unimplemented-capabilities). Undo/redo and magnetic
 snapping are available as [separately imported modules](OPTIONAL-MODULES.md).
