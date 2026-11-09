@@ -3,7 +3,7 @@ import { workflows } from "../examples/workflows.js";
 
 const target = new URL("../docs/design/workflows.md", import.meta.url);
 const body =
-  `# Proposed workflows\n\nGenerated from \`examples/workflows.js\` with \`npm run docs:workflows\`.\n\nThese are API sketches, not executable library examples. Imports named ravl\ndo not exist yet. Snippets omit surrounding application UI and repeated imports.\n\`container\`, \`showError\`, \`showStatus\`, \`saveDocument\`, \`episodeSource\`,\nand \`waveformData\` are application-provided placeholders. React snippets use\nReact hooks and the proposed Waveform component. Persistence helpers must handle\ntheir own failures. All async operations in production examples will handle errors.\n\n` +
+  `# Proposed workflows\n\nGenerated from \`examples/workflows.js\` with \`npm run docs:workflows\`.\n\nThese are API sketches, not executable library examples. Imports named raavl\ndo not exist yet. Snippets omit surrounding application UI and repeated imports.\n\`container\`, \`showError\`, \`showStatus\`, \`saveDocument\`, \`episodeSource\`,\nand \`waveformData\` are application-provided placeholders. React snippets use\nReact hooks and the proposed Waveform component. Persistence helpers must handle\ntheir own failures. All async operations in production examples will handle errors.\n\n` +
   workflows
     .map(
       (w) =>

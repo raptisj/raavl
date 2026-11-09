@@ -1,0 +1,67 @@
+---
+title: Waveform view
+description: Drawing, interaction, and viewport options for the shared DOM renderer.
+---
+
+`mountWaveform(container, options)` mounts a light-DOM Canvas renderer. Supply exactly one of `player` or `data`. A data-only view renders peaks without audio playback.
+
+Audio is drawn as one waveform by default. For stereo audio, the left channel's absolute peaks form the upper half and the right channel's absolute peaks form the lower half. Combined mode uses the first two channels of multichannel audio; mono audio keeps its min/max envelope. Set `appearance: { splitChannels: true }` to draw every channel in its own row within the configured height. This changes only the visualization; decoding and playback preserve the original channels.
+
+Channel-specific annotations span the full waveform in combined mode and their channel's row in split mode. Their stored channel assignments are preserved.
+
+```ts
+const view = mountWaveform(container, {
+  player,
+  appearance: { style: 'bars', height: 160 },
+  viewport: { zoom: 'fit', follow: 'visible' },
+  interaction: { seek: 'click', drag: 'seek' },
+  label: 'Episode waveform',
+});
+```
+
+## Appearance
+
+| Option | Default | Range / values |
+| --- | --- | --- |
+| `style` | `'line'` | `'line'` or `'bars'` |
+| `height` | `160` | 24–2000 CSS pixels |
+| `lineWidth` | `1` | 0.5–20 CSS pixels |
+| `barWidth` | `2` | 0.5–100 CSS pixels |
+| `barGap` | `1` | 0–100 CSS pixels |
+| `barRadius` | `0` | 0–100 CSS pixels |
+| `amplitude` | `0.9` | 0.1–1 of channel height |
+| `cursorWidth` | `2` | 0–20 CSS pixels |
+| `borderRadius` | `8` | 0–100 CSS pixels |
+| `normalize` | `false` | Scale amplitudes to fill available height |
+| `splitChannels` | `false` | Draw every channel in a separate row |
+
+## Viewport and interaction
+
+| Group | Option | Default | Behavior |
+| --- | --- | --- | --- |
+| `viewport` | `zoom` | `'fit'` | Fit recording, or 0.01–10,000 CSS pixels per second |
+| `viewport` | `follow` | `'visible'` | `'off'`, `'visible'`, or `'center'` |
+| `interaction` | `seek` | `'click'` | `'click'` or `'off'` |
+| `interaction` | `drag` | `'none'` | `'none'`, `'seek'`, or `'select'` |
+
+`label` sets the accessible waveform name, defaulting to `Audio waveform`. `onDraw` observes completed drawing. `theme` accepts a [WaveformTheme](/docs/styling).
+
+Annotation options include `annotations`, `annotationRules`, `snapAnnotation`, `renderRegionLabel`, `onSelectionChange`, `onAnnotationSelect`, and `onAnnotationError`. See [annotations](/docs/annotations) for ownership and edit callbacks.
+
+## View methods
+
+| Method | Behavior |
+| --- | --- |
+| `update(options)` | Patch drawing, viewport, interaction, annotations, label, data, and callbacks |
+| `refreshTheme()` | Re-read computed CSS colors and redraw |
+| `getViewport()` | Cached source ID, duration, visible start/end, width, pixels-per-second, disposed flag |
+| `subscribeViewport(listener)` | Observe changed geometry; returns an unsubscribe function |
+| `scrollTo(seconds)` | Pan left edge without seeking playback; clamps to valid bounds |
+| `getSelection()` | Temporary `{ start, end }` or `null` |
+| `clearSelection()` | Clear temporary selection |
+| `createRegionFromSelection(id, label?)` | Commit selection as a region; requires annotation ownership |
+| `dispose()` | Remove view and listeners without disposing its borrowed player |
+
+Vanilla updates merge fields within option groups; setting a field to `undefined` restores its default. React props describe the current configuration; removing a prop restores its default.
+
+Initial viewport geometry is zero until the first draw. Subscriptions do not immediately invoke the listener. Dispose optional visual accessories before disposing the view.

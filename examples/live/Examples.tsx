@@ -1,14 +1,10 @@
-import {
-  StrictMode,
-  useEffect,
-  useMemo,
-  useState,
-} from "react";
-import { createRoot } from "react-dom/client";
+"use client";
+
+import { useEffect, useMemo, useState } from "react";
 import type {
   Player,
   PlayerSnapshot,
-  RavlError,
+  RaavlError,
   Source,
   WaveformData,
   Appearance,
@@ -17,17 +13,23 @@ import type {
 import { parseTheme, waveformThemes } from "../../src";
 import { defaultAppearance } from "../../src/themes";
 import { Waveform, usePlayerState, usePlayerTime } from "../../src/react";
-import { ModulesEditor } from './ModulesEditor'
-import { ScaleLab } from './ScaleLab'
-import { AnnotationEditor } from './AnnotationEditor'
+import { ModulesEditor } from "./ModulesEditor";
+import { ScaleLab } from "./ScaleLab";
+import { AnnotationEditor } from "./AnnotationEditor";
+import { SoundCloudPlayer } from "./SoundCloudPlayer";
 import { VanillaWaveform } from "./VanillaWaveform";
-import "../../src/styles.css";
 import "./style.css";
 import { exampleCode } from "./snippets";
 import { CopyButton } from "./CopyButton";
+import { usePageTheme } from "./usePageTheme";
 
-import { scenes, parseRoute, type Scene, type Mode } from './routes';
-import { Documentation } from './Documentation';
+import {
+  scenes,
+  parseRoute,
+  legacyDocumentationPath,
+  type Scene,
+  type Mode,
+} from "./routes";
 
 const sourceA: Source = { kind: "url", id: "demo-a", url: "/demo-a.wav" };
 const sourceB: Source = { kind: "url", id: "demo-b", url: "/demo-b.wav" };
@@ -53,7 +55,7 @@ function Transport({
   report,
 }: {
   player: Player | null;
-  report: (error: RavlError) => void;
+  report: (error: RaavlError) => void;
 }) {
   const state = usePlayerState(player, selectState),
     ready = state?.source === "ready";
@@ -63,7 +65,7 @@ function Transport({
     try {
       fn();
     } catch (error) {
-      report(error as RavlError);
+      report(error as RaavlError);
     }
   };
   return (
@@ -178,10 +180,13 @@ function PlayerCard({
   title: string;
   detached?: boolean;
 }) {
+  const pageTheme = usePageTheme();
   const [player, setPlayer] = useState<Player | null>(null),
-    [error, setError] = useState<RavlError | null>(null);
+    [error, setError] = useState<RaavlError | null>(null);
   const [theme, setTheme] = useState<WaveformTheme>(waveformThemes.sage);
-  const [themeText, setThemeText] = useState(JSON.stringify(waveformThemes.sage, null, 2));
+  const [themeText, setThemeText] = useState(
+    JSON.stringify(waveformThemes.sage, null, 2),
+  );
   const [themeError, setThemeError] = useState("");
   const [overrides, setOverrides] = useState<Appearance>({});
   const [zoom, setZoom] = useState("fit");
@@ -191,13 +196,28 @@ function PlayerCard({
     setError(null);
   }, [source]);
   // Send every field so Vanilla's patch API also clears removed overrides.
-  const appearance = useMemo(() => ({ ...defaultAppearance, ...theme.appearance, ...overrides }), [theme, overrides]);
-  const activeTheme = useMemo(() => color ? { ...theme, colors: { ...theme.colors, progress: color } } : theme, [theme, color]);
+  const appearance = useMemo(
+    () => ({ ...defaultAppearance, ...theme.appearance, ...overrides }),
+    [theme, overrides],
+  );
+  const activeTheme = useMemo(
+    () =>
+      color
+        ? { ...theme, colors: { ...theme.colors, progress: color } }
+        : theme,
+    [theme, color],
+  );
   const applyTheme = (next: WaveformTheme) => {
-    setTheme(next); setOverrides({}); setColor(null); setThemeError("");
+    setTheme(next);
+    setOverrides({});
+    setColor(null);
+    setThemeError("");
     setThemeText(JSON.stringify(next, null, 2));
   };
-  const exportedTheme = useMemo(() => ({ ...activeTheme, appearance }), [activeTheme, appearance]);
+  const exportedTheme = useMemo(
+    () => ({ ...activeTheme, appearance }),
+    [activeTheme, appearance],
+  );
   const viewport = useMemo(
     () => ({ zoom: zoom === "fit" ? ("fit" as const) : Number(zoom), follow }),
     [zoom, follow],
@@ -206,12 +226,11 @@ function PlayerCard({
     <article className="player-card">
       <div className="card-heading">
         <h3>{title}</h3>
-        <span className="badge">
-          LIVE PREVIEW
-        </span>
+        <span className="badge">LIVE PREVIEW</span>
       </div>
       <p className="helper">
-        Click, tap, or drag to seek · Double-click or double-tap to play · Tab to focus · ← → seek 1s · Shift seeks 10s
+        Click, tap, or drag to seek · Double-click or double-tap to play · Tab
+        to focus · ← → seek 1s · Shift seeks 10s
       </p>
       {detached ? (
         <div className="empty-wave">
@@ -222,6 +241,7 @@ function PlayerCard({
           source={source}
           appearance={appearance}
           theme={activeTheme}
+          themeVersion={pageTheme}
           viewport={viewport}
           interaction={{ drag: "seek" }}
           onPlayer={setPlayer}
@@ -244,17 +264,41 @@ function PlayerCard({
         <div className="view-settings">
           <label>
             Theme
-            <select aria-label="Waveform theme" value={Object.entries(waveformThemes).find(([, preset]) => preset === theme)?.[0] ?? "custom"}
-              onChange={event => applyTheme(waveformThemes[event.target.value as keyof typeof waveformThemes])}>
-              {Object.entries(waveformThemes).map(([id, preset]) => <option key={id} value={id}>{preset.name}</option>)}
-              {!Object.values(waveformThemes).includes(theme) && <option value="custom">{theme.name} (custom)</option>}
+            <select
+              aria-label="Waveform theme"
+              value={
+                Object.entries(waveformThemes).find(
+                  ([, preset]) => preset === theme,
+                )?.[0] ?? "custom"
+              }
+              onChange={(event) =>
+                applyTheme(
+                  waveformThemes[
+                    event.target.value as keyof typeof waveformThemes
+                  ],
+                )
+              }
+            >
+              {Object.entries(waveformThemes).map(([id, preset]) => (
+                <option key={id} value={id}>
+                  {preset.name}
+                </option>
+              ))}
+              {!Object.values(waveformThemes).includes(theme) && (
+                <option value="custom">{theme.name} (custom)</option>
+              )}
             </select>
           </label>
           <label>
             Drawing
             <select
               value={appearance.style}
-              onChange={(e) => setOverrides(current => ({ ...current, style: e.target.value as "line" | "bars" }))}
+              onChange={(e) =>
+                setOverrides((current) => ({
+                  ...current,
+                  style: e.target.value as "line" | "bars",
+                }))
+              }
             >
               <option value="bars">Bars</option>
               <option value="line">Envelope</option>
@@ -289,7 +333,12 @@ function PlayerCard({
               max="2000"
               step="1"
               value={appearance.height}
-              onChange={(e) => setOverrides(current => ({ ...current, height: Number(e.target.value) }))}
+              onChange={(e) =>
+                setOverrides((current) => ({
+                  ...current,
+                  height: Number(e.target.value),
+                }))
+              }
             />
           </label>
           <label>
@@ -297,41 +346,113 @@ function PlayerCard({
             <input
               aria-label="Waveform color"
               type="color"
-              value={color ?? theme.colors?.progress ?? "#285d50"}
+              value={color ?? (typeof theme.colors?.progress === "string" ? theme.colors.progress : "#285d50")}
               onChange={(e) => setColor(e.target.value)}
             />
           </label>
-          {(appearance.style === 'line' ? [
-            ['lineWidth', 'Line thickness', 0.5, 20, 0.5],
-          ] as const : [
-            ['barWidth', 'Bar width', 0.5, 100, 0.5],
-            ['barGap', 'Bar gap', 0, 100, 0.5],
-            ['barRadius', 'Bar rounding', 0, 100, 0.5],
-          ] as const).map(([key, label, min, max, step]) => <label key={key}>
-            {label} · {appearance[key]}px
-            <input type="range" aria-label={label} min={min} max={max} step={step} value={appearance[key]}
-              onChange={event => setOverrides(current => ({ ...current, [key]: Number(event.target.value) }))} />
-          </label>)}
+          {(appearance.style === "line"
+            ? ([["lineWidth", "Line thickness", 0.5, 20, 0.5]] as const)
+            : ([
+                ["barWidth", "Bar width", 0.5, 100, 0.5],
+                ["barGap", "Bar gap", 0, 100, 0.5],
+                ["barRadius", "Bar rounding", 0, 100, 0.5],
+              ] as const)
+          ).map(([key, label, min, max, step]) => (
+            <label key={key}>
+              {label} · {appearance[key]}px
+              <input
+                type="range"
+                aria-label={label}
+                min={min}
+                max={max}
+                step={step}
+                value={appearance[key]}
+                onChange={(event) =>
+                  setOverrides((current) => ({
+                    ...current,
+                    [key]: Number(event.target.value),
+                  }))
+                }
+              />
+            </label>
+          ))}
           <label>
             Amplitude · {Math.round(appearance.amplitude * 100)}%
-            <input type="range" aria-label="Waveform amplitude" min="0.1" max="1" step="0.01" value={appearance.amplitude}
-              onChange={event => setOverrides(current => ({ ...current, amplitude: Number(event.target.value) }))} />
+            <input
+              type="range"
+              aria-label="Waveform amplitude"
+              min="0.1"
+              max="1"
+              step="0.01"
+              value={appearance.amplitude}
+              onChange={(event) =>
+                setOverrides((current) => ({
+                  ...current,
+                  amplitude: Number(event.target.value),
+                }))
+              }
+            />
           </label>
           <label>
             Playhead · {appearance.cursorWidth}px
-            <input type="range" aria-label="Playhead width" min="0" max="20" step="0.5" value={appearance.cursorWidth}
-              onChange={event => setOverrides(current => ({ ...current, cursorWidth: Number(event.target.value) }))} />
+            <input
+              type="range"
+              aria-label="Playhead width"
+              min="0"
+              max="20"
+              step="0.5"
+              value={appearance.cursorWidth}
+              onChange={(event) =>
+                setOverrides((current) => ({
+                  ...current,
+                  cursorWidth: Number(event.target.value),
+                }))
+              }
+            />
           </label>
         </div>
         <details className="theme-json">
           <summary>Edit or export theme JSON</summary>
-          <p>Presets come from one JSON file. Apply your own values here; audio keeps playing. Export includes your control adjustments.</p>
-          <label>Theme JSON<textarea aria-label="Theme JSON" rows={12} spellCheck={false} value={themeText} onChange={event => setThemeText(event.target.value)} /></label>
+          <p>
+            Presets come from one JSON file. Apply your own values here; audio
+            keeps playing. Export includes your control adjustments.
+          </p>
+          <label>
+            Theme JSON
+            <textarea
+              aria-label="Theme JSON"
+              rows={12}
+              spellCheck={false}
+              value={themeText}
+              onChange={(event) => setThemeText(event.target.value)}
+            />
+          </label>
           <div className="editor-actions">
-            <button onClick={() => { try { applyTheme(parseTheme(themeText)); } catch (error) { setThemeError((error as Error).message); } }}>Apply JSON</button>
-            <button onClick={() => setThemeText(JSON.stringify(exportedTheme, null, 2))}>Use current settings</button>
+            <button
+              onClick={() => {
+                try {
+                  applyTheme(parseTheme(themeText));
+                } catch (error) {
+                  setThemeError((error as Error).message);
+                }
+              }}
+            >
+              Apply JSON
+            </button>
+            <button
+              onClick={() =>
+                setThemeText(JSON.stringify(exportedTheme, null, 2))
+              }
+            >
+              Use current settings
+            </button>
             <CopyButton code={JSON.stringify(exportedTheme, null, 2)} />
-            <a download="waveform-theme.json" href={`data:application/json;charset=utf-8,${encodeURIComponent(JSON.stringify(exportedTheme, null, 2))}`}>Download JSON</a>
+            <a
+              download="waveform-theme.json"
+              href={`data:application/json;charset=utf-8,${encodeURIComponent(JSON.stringify(exportedTheme, null, 2))}`}
+            >
+              Download JSON
+            </a>
           </div>
           {themeError && <p role="alert">{themeError}</p>}
         </details>
@@ -498,9 +619,14 @@ function PlaybackExample({ scene, mode }: { scene: Scene; mode: Mode }) {
   );
 }
 function Example({ scene, mode }: { scene: Scene; mode: Mode }) {
-  if (scene === 'modules') return <ModulesEditor mode={mode} />
-  if (scene === 'scale') return <ScaleLab />
-  return scene === 'annotations' ? <AnnotationEditor mode={mode} /> : <PlaybackExample scene={scene} mode={mode} />
+  if (scene === "soundcloud") return <SoundCloudPlayer mode={mode} />;
+  if (scene === "modules") return <ModulesEditor mode={mode} />;
+  if (scene === "scale") return <ScaleLab />;
+  return scene === "annotations" ? (
+    <AnnotationEditor mode={mode} />
+  ) : (
+    <PlaybackExample scene={scene} mode={mode} />
+  );
 }
 function CodeExample({ scene, mode }: { scene: Scene; mode: Mode }) {
   const code = exampleCode(scene, mode);
@@ -510,73 +636,119 @@ function CodeExample({ scene, mode }: { scene: Scene; mode: Mode }) {
         <h3>Code</h3>
         <div className="frameworks" role="group" aria-label="Code framework">
           {(["vanilla", "react"] as const).map((framework) => (
-            <a key={framework} href={`#demos/${scene}/${framework}`}
+            <a
+              key={framework}
+              href={`#demos/${scene}/${framework}`}
               aria-current={mode === framework ? "true" : undefined}
-              aria-controls="example-code">
+              aria-controls="example-code"
+            >
               {framework === "vanilla" ? "Vanilla JS" : "React"}
             </a>
           ))}
         </div>
         <CopyButton code={code} />
       </div>
-      <pre id="example-code" tabIndex={0} aria-label={`${mode === "vanilla" ? "Vanilla JavaScript" : "React"} example`}><code>{code}</code></pre>
+      <pre
+        id="example-code"
+        tabIndex={0}
+        aria-label={`${mode === "vanilla" ? "Vanilla JavaScript" : "React"} example`}
+      >
+        <code>{code}</code>
+      </pre>
     </section>
   );
 }
-function App() {
-  const [route, setRoute] = useState(() => parseRoute(location.hash));
+export function Examples() {
+  const [route, setRoute] = useState(() => parseRoute(""));
   useEffect(() => {
-    const change = () => setRoute(parseRoute(location.hash));
+    const change = () => {
+      const documentation = legacyDocumentationPath(location.hash);
+      if (documentation) {
+        location.replace(documentation);
+        return;
+      }
+      setRoute(parseRoute(location.hash));
+    };
+    change();
     addEventListener("hashchange", change);
     return () => removeEventListener("hashchange", change);
   }, []);
-  const scene = route.page === 'demos' ? scenes.find(([id]) => id === route.scene) : undefined;
-  const pageTitle = route.page === 'docs' ? route.topic : route.scene;
+  const scene = scenes.find(([id]) => id === route.scene);
   useEffect(() => {
     window.scrollTo(0, 0);
-    document.title = route.page === 'docs' ? 'ravl — documentation' : 'ravl — examples';
-  }, [route.page, pageTitle]);
+  }, [route.scene]);
   return (
-    <>
-      <header>
-        <a className="brand" href="#demos">ravl <span>audio, made composable</span></a>
-        <nav className="site-nav" aria-label="Main navigation">
-          <a href="#demos" aria-current={route.page === 'demos' ? 'page' : undefined}>Examples</a>
-          <a href="#docs/start" aria-current={route.page === 'docs' ? 'page' : undefined}>Documentation</a>
-        </nav>
-      </header>
+    <div className="examples-app">
       <main>
-        {route.page === 'docs' ? <Documentation topic={route.topic} /> : <>
-          <section className="intro">
-            <p className="eyebrow">Real components. Real audio.</p>
-            <h1>{scene ? scene[2] : 'Make some waves.'}</h1>
-            <p>{scene ? scene[3] : 'Explore nine interactive playgrounds. Each demo includes Vanilla JavaScript and React code to copy.'}</p>
-          </section>
-          {!scene ? <>
+        <section className="intro">
+          {/* <p className="eyebrow">Explore interactive examples</p> */}
+          <h1>{scene ? scene[2] : "Make some waves"}</h1>
+          <p>
+            {scene
+              ? scene[3]
+              : "Explore our interactive examples and explore the potential."}
+          </p>
+        </section>
+        {!scene ? (
+          <>
             <div className="demo-grid">
-              {scenes.map(([id, number, title, description]) => <a className="demo-tile" key={id} href={`#demos/${id}/vanilla`}>
-                <span className="eyebrow">EXAMPLE {number}</span><h2>{title}</h2><p>{description}</p><span className="tile-link">Open playground →</span>
-              </a>)}
+              {scenes.map(([id, , title, description]) => (
+                <a className="demo-tile" key={id} href={`#demos/${id}/vanilla`}>
+                  <h2>{title}</h2>
+                  <p>{description}</p>
+                  <span className="tile-link">Open playground →</span>
+                </a>
+              ))}
             </div>
-            <aside className="docs-callout"><div><h2>Build your own waveform</h2><p>Start with usage examples, then explore every option in the API reference.</p></div><a href="#docs/start">Read the documentation →</a></aside>
-          </> : <div className="workspace">
+            <aside className="docs-callout">
+              <div>
+                <h2>Build your own waveform</h2>
+                <p>
+                  Start with usage examples, then explore every option in the
+                  API reference.
+                </p>
+              </div>
+              <a href="/docs">Read the documentation →</a>
+            </aside>
+          </>
+        ) : (
+          <div className="workspace">
             <nav className="section-nav" aria-label="Examples">
               <a href="#demos">← All examples</a>
-              {scenes.map(([id, number, title]) => <a key={id} href={`#demos/${id}/${route.mode}`} aria-current={route.scene === id ? 'page' : undefined}><span>{number}</span>{title}</a>)}
+              {scenes.map(([id, number, title]) => (
+                <a
+                  key={id}
+                  href={`#demos/${id}/${route.mode}`}
+                  aria-current={route.scene === id ? "page" : undefined}
+                >
+                  <span>{number}</span>
+                  {title}
+                </a>
+              ))}
             </nav>
             <section className="demo" aria-label={scene[2]}>
-              <Example key={scene[0] === 'modules' ? `preview/${scene[0]}/${route.mode}` : scene[0]} scene={scene[0]} mode={scene[0] === 'modules' ? route.mode : 'vanilla'} />
-              <CodeExample key={`${scene[0]}/${route.mode}`} scene={scene[0]} mode={route.mode} />
+              <Example
+                key={
+                  scene[0] === "modules" || scene[0] === "soundcloud"
+                    ? `preview/${scene[0]}/${route.mode}`
+                    : scene[0]
+                }
+                scene={scene[0]}
+                mode={scene[0] === "modules" || scene[0] === "soundcloud" ? route.mode : "vanilla"}
+              />
+              <CodeExample
+                key={`${scene[0]}/${route.mode}`}
+                scene={scene[0]}
+                mode={route.mode}
+              />
             </section>
-          </div>}
-        </>}
-        <footer><span>ravl · Audio, made composable</span><a href={route.page === 'docs' ? '#demos' : '#docs/start'}>{route.page === 'docs' ? 'Explore the playgrounds →' : 'Usage & API reference →'}</a></footer>
+          </div>
+        )}
+        <footer>
+          <span>raavl</span>
+          <a href="/docs">Usage & API reference →</a>
+        </footer>
       </main>
-    </>
+    </div>
   );
 }
-createRoot(document.getElementById("app")!).render(
-  <StrictMode>
-    <App />
-  </StrictMode>,
-);

@@ -8,19 +8,22 @@ export const scenes = [
   ['annotations', '07', 'Annotation editor', 'Create, resize, label, and persist regions and markers.'],
   ['scale', '08', 'Scale lab', 'Measure a two-hour waveform and 10,000 editable annotations.'],
   ['modules', '09', 'Optional modules', 'Timeline, minimap, undo/redo, and magnetic snapping.'],
-] as const
-export const topics = [
-  ['start', 'Getting started'], ['sources', 'Sources & peaks'], ['player', 'Player API'],
-  ['waveform', 'Waveform options'], ['react', 'React API'], ['annotations', 'Annotations'],
-  ['modules', 'Optional modules'], ['styling', 'Styling'], ['interactions', 'Touch & keyboard'], ['errors', 'State & errors'],
+  ['soundcloud', '10', 'SoundCloud-style player', 'Gray and orange gradients, hover highlighting, time badges, and click-to-play interaction.'],
 ] as const
 export type Scene = typeof scenes[number][0]
-export type Topic = typeof topics[number][0]
 export type Mode = 'vanilla' | 'react'
-export type Route = { page: 'demos'; scene: Scene | null; mode: Mode } | { page: 'docs'; topic: Topic }
+export type Route = { scene: Scene | null; mode: Mode }
 export function parseRoute(hash: string): Route {
   const parts = hash.replace(/^#/, '').split('/')
-  if (parts[0] === 'docs') return { page: 'docs', topic: topics.some(([id]) => id === parts[1]) ? parts[1] as Topic : 'start' }
   const [scene, mode] = parts[0] === 'demos' ? parts.slice(1) : parts
-  return { page: 'demos', scene: scenes.some(([id]) => id === scene) ? scene as Scene : null, mode: mode === 'react' ? 'react' : 'vanilla' }
+  return { scene: scenes.some(([id]) => id === scene) ? scene as Scene : null, mode: mode === 'react' ? 'react' : 'vanilla' }
+}
+
+// Old documentation bookmarks lead to the single Fumadocs reference.
+export function legacyDocumentationPath(hash: string): string | null {
+  const [section, topic] = hash.replace(/^#/, '').split('/')
+  if (section !== 'docs') return null
+  if (topic === 'agents' || topic === 'skills') return '/docs/skills'
+  const pages = ['quickstart', 'sources', 'player', 'waveform', 'react', 'annotations', 'modules', 'styling', 'interactions', 'errors']
+  return pages.includes(topic) ? `/docs/${topic}` : '/docs'
 }

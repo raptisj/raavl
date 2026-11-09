@@ -3,7 +3,7 @@ import type { Selection } from "../regions";
 export type { AnnotationViewOptions, AnnotationSnapper, LabelSlot } from "./annotations";
 import { failure, finite, validateWaveform } from "../core/data";
 import type { Player, WaveformData } from "../core/types";
-import { colorTokens, defaultAppearance, parseTheme, validateAppearance, type Appearance, type WaveformTheme } from "../themes";
+import { colorTokens, defaultAppearance, parseTheme, validateAppearance, type Appearance, type WaveformTheme, type WaveformPaint } from "../themes";
 export type { Appearance, WaveformTheme } from "../themes";
 
 export type Viewport = {
@@ -52,6 +52,14 @@ function merge<T extends object>(
   return next;
 }
 
+function canvasPaint(context: CanvasRenderingContext2D, paint: WaveformPaint | undefined, fallback: string, width: number, height: number): string | CanvasGradient {
+  if (!paint || typeof paint === "string") return fallback;
+  const horizontal = paint.axis === "horizontal";
+  const gradient = context.createLinearGradient(0, 0, horizontal ? width : 0, horizontal ? 0 : height);
+  for (const stop of paint.stops) gradient.addColorStop(stop.offset, stop.color);
+  return gradient;
+}
+
 /** Mount a light-DOM waveform. View disposal never disposes a borrowed player. */
 export function mountWaveform(
   container: HTMLElement,
@@ -98,8 +106,8 @@ export function mountWaveform(
     viewportListeners.forEach(fn => fn());
   };
   const root = document.createElement("div");
-  root.className = "ravl-waveform";
-  root.dataset.ravlView = "";
+  root.className = "raavl-waveform";
+  root.dataset.raavlView = "";
   Object.assign(root.style, {
     position: "relative",
     overflowX: "auto",
@@ -107,12 +115,12 @@ export function mountWaveform(
     width: "100%",
   });
   const surface = document.createElement("div");
-  surface.className = "ravl-surface";
+  surface.className = "raavl-surface";
   Object.assign(surface.style, { position: "relative", height: "100%" });
   const wave = document.createElement("canvas"),
     progress = document.createElement("canvas");
-  wave.className = "ravl-wave";
-  progress.className = "ravl-progress";
+  wave.className = "raavl-wave";
+  progress.className = "raavl-progress";
   for (const canvas of [wave, progress]) {
     canvas.setAttribute("aria-hidden", "true");
     Object.assign(canvas.style, {
@@ -123,13 +131,13 @@ export function mountWaveform(
     surface.append(canvas);
   }
   const cursor = document.createElement("div");
-  cursor.className = "ravl-cursor";
+  cursor.className = "raavl-cursor";
   Object.assign(cursor.style, {
     position: "absolute",
     top: "0",
     bottom: "0",
     width: "2px",
-    background: "var(--ravl-cursor-color, var(--ravl-progress-color, #285d50))",
+    background: "var(--raavl-cursor-color, var(--raavl-progress-color, #285d50))",
     pointerEvents: "none",
   });
   surface.append(cursor);
@@ -175,8 +183,8 @@ export function mountWaveform(
     }
     ctx.setTransform(ratio, 0, 0, ratio, 0, 0);
     const style = getComputedStyle(root);
-    ctx.fillStyle =
-      style.getPropertyValue("--ravl-wave-color").trim() || "#9aafa7";
+    ctx.fillStyle = canvasPaint(ctx, theme?.colors?.wave,
+      style.getPropertyValue("--raavl-wave-color").trim() || "#9aafa7", width, appearance.height);
     if (data) {
       if (lastData !== data) {
         normalization = 0;
@@ -190,12 +198,14 @@ export function mountWaveform(
         lastData = data;
       }
       const scale = appearance.normalize ? 1 / (normalization || 1) : 1;
-      const height = appearance.height / data.channels.length;
+      const rows = appearance.splitChannels ? data.channels : data.channels.slice(0, 1);
+      const bottomChannel = !appearance.splitChannels && data.channels.length > 1 ? data.channels[1] : null;
+      const height = appearance.height / rows.length;
       const step =
         appearance.style === "bars"
           ? appearance.barWidth + appearance.barGap
           : 1;
-      data.channels.forEach((channel, channelIndex) => {
+      rows.forEach((channel, channelIndex) => {
         const center = height * (channelIndex + 0.5);
         const line = appearance.style === "line";
         if (line) {
@@ -222,8 +232,15 @@ export function mountWaveform(
           let lo = 0,
             hi = 0;
           for (let j = start; j < end; j++) {
-            lo = Math.min(lo, channel.min[j]);
-            hi = Math.max(hi, channel.max[j]);
+            if (bottomChannel) {
+              // Keep stereo channels distinct around one center line; do not
+              // average samples, which could cancel opposite-phase signals.
+              hi = Math.max(hi, Math.abs(channel.min[j]), Math.abs(channel.max[j]));
+              lo = Math.min(lo, -Math.abs(bottomChannel.min[j]), -Math.abs(bottomChannel.max[j]));
+            } else {
+              lo = Math.min(lo, channel.min[j]);
+              hi = Math.max(hi, channel.max[j]);
+            }
           }
           const top = center - hi * height * appearance.amplitude / 2 * scale;
           const bottom = center - lo * height * appearance.amplitude / 2 * scale;
@@ -246,20 +263,12 @@ export function mountWaveform(
     }
     playedCtx.drawImage(wave, 0, 0);
     playedCtx.globalCompositeOperation = "source-in";
-    playedCtx.fillStyle =
-      style.getPropertyValue("--ravl-progress-color").trim() || "#285d50";
+    // Progress is composited in device pixels; its gradient must use that same space.
+    playedCtx.fillStyle = canvasPaint(playedCtx, theme?.colors?.progress,
+      style.getPropertyValue("--raavl-progress-color").trim() || "#285d50", progress.width, progress.height);
     playedCtx.fillRect(0, 0, progress.width, progress.height);
     playedCtx.globalCompositeOperation = "source-over";
     root.setAttribute("aria-label", label);
-    if (player && !annotationOptions.annotations) {
-      root.setAttribute("aria-valuemax", String(duration));
-      root.setAttribute(
-        "aria-disabled",
-        String(
-          player.getSnapshot().source !== "ready" || interaction.seek === "off",
-        ),
-      );
-    }
     annotationLayer.sync();
     publishViewport();
     onDraw?.();
@@ -278,6 +287,9 @@ export function mountWaveform(
     cursor.style.left = `${x}px`;
     cursor.hidden = !player || !duration;
     if (player && !annotationOptions.annotations) {
+      // Readiness can change without invalidating already supplied peak pixels.
+      root.setAttribute("aria-valuemax", String(duration));
+      root.setAttribute("aria-disabled", String(state?.source !== "ready" || interaction.seek === "off"));
       root.setAttribute("aria-valuenow", String(time));
       root.setAttribute(
         "aria-valuetext",
@@ -314,7 +326,7 @@ export function mountWaveform(
     if (event.pointerType !== "touch") return;
     lastTouchTime = performance.now();
     if (!event.isPrimary || event.button !== 0 ||
-      (event.target instanceof Element && event.target.closest("[data-ravl-annotation]")) ||
+      (event.target instanceof Element && event.target.closest("[data-raavl-annotation]")) ||
       !player || player.getSnapshot().source !== "ready") {
       touch = null;
       lastTap = null;
@@ -363,19 +375,19 @@ export function mountWaveform(
   };
   const click = (event: MouseEvent) => {
     if (performance.now() - lastTouchTime < 700) return;
-    if (event.target instanceof Element && event.target.closest("[data-ravl-annotation]")) return;
+    if (event.target instanceof Element && event.target.closest("[data-raavl-annotation]")) return;
     if (interaction.seek === "click" && interaction.drag !== "select") seekAt(event.clientX);
   };
   const doubleClick = (event: MouseEvent) => {
     if (performance.now() - lastTouchTime < 700) return;
-    if (event.target instanceof Element && event.target.closest("[data-ravl-annotation]")) return;
+    if (event.target instanceof Element && event.target.closest("[data-raavl-annotation]")) return;
     if (event.button !== 0 || !player || player.getSnapshot().source !== "ready") return;
     if (interaction.seek === "click" && interaction.drag !== "select") seekAt(event.clientX);
     startPlayback();
   };
   const down = (event: PointerEvent) => {
     if (event.pointerType === "touch") return;
-    if (event.target instanceof Element && event.target.closest("[data-ravl-annotation]")) return;
+    if (event.target instanceof Element && event.target.closest("[data-raavl-annotation]")) return;
     if (
       !player ||
       event.button !== 0 ||
@@ -397,7 +409,7 @@ export function mountWaveform(
     pointer = null;
   };
   const key = (event: KeyboardEvent) => {
-    if (event.target instanceof Element && event.target.closest("[data-ravl-annotation]")) return;
+    if (event.target instanceof Element && event.target.closest("[data-raavl-annotation]")) return;
     if (
       !player ||
       interaction.seek === "off" ||
@@ -437,6 +449,7 @@ export function mountWaveform(
     duration: player?.getSnapshot().duration || data?.duration || 0,
     width: totalWidth,
     channels: data?.channels.length ?? 0,
+    splitChannels: appearance.splitChannels,
     selectMode: interaction.drag === "select",
   }));
   const observer = new ResizeObserver(invalidate);
@@ -518,11 +531,11 @@ export function mountWaveform(
       appearanceOverrides = overrides;
       if ("theme" in patch) for (const [key, token] of Object.entries(colorTokens)) {
         const color = nextTheme?.colors?.[key as keyof typeof colorTokens];
-        if (color !== undefined) root.style.setProperty(token, color);
+        if (typeof color === "string") root.style.setProperty(token, color);
         else if (theme?.colors?.[key as keyof typeof colorTokens] !== undefined) root.style.removeProperty(token);
       }
       theme = nextTheme;
-      root.style.setProperty("--ravl-border-radius", `${appearance.borderRadius}px`);
+      root.style.setProperty("--raavl-border-radius", `${appearance.borderRadius}px`);
       cursor.style.width = `${appearance.cursorWidth}px`;
       viewport = v;
       interaction = i;

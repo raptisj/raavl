@@ -1,0 +1,121 @@
+---
+title: Quickstart
+description: A working player in JavaScript or React, with clear ownership and cleanup.
+---
+
+## Install
+
+Add raavl to your application:
+
+```sh
+npm install raavl
+```
+
+Use a bundler that supports ESM and CSS imports, such as Vite or Next.js.
+Import `raavl/styles.css` once in your application for the default waveform
+styles, or supply your own CSS tokens.
+
+For React, use React 19 and React DOM 19 with the `raavl/react` adapter.
+The JavaScript API works independently of React.
+
+## JavaScript
+
+Create your own container and controls:
+
+```html
+<div id="waveform"></div>
+<button id="play" disabled>Play</button>
+<p id="error" role="alert"></p>
+```
+
+```ts
+import { createPlayer, mountWaveform } from 'raavl';
+import 'raavl/styles.css';
+
+const container = document.querySelector<HTMLElement>('#waveform')!;
+const button = document.querySelector<HTMLButtonElement>('#play')!;
+const errorText = document.querySelector<HTMLElement>('#error')!;
+const report = (error: unknown) => {
+  errorText.textContent = error instanceof Error ? error.message : String(error);
+};
+const player = createPlayer();
+const view = mountWaveform(container, {
+  player,
+  appearance: { style: 'bars', height: 160 },
+  interaction: { drag: 'seek' },
+  label: 'Episode waveform',
+});
+
+const off = player.subscribe(() => {
+  const state = player.getSnapshot();
+  button.disabled = state.source !== 'ready';
+  button.textContent = state.playback === 'playing' ? 'Pause' : 'Play';
+  if (state.error) report(state.error);
+  if (state.waveformError) report(state.waveformError);
+});
+
+button.onclick = () => {
+  if (player.getSnapshot().playback === 'playing') player.pause();
+  else void player.play().catch(report);
+};
+
+try {
+  await player.setSource({ kind: 'url', id: 'episode-1', url: '/episode.mp3' });
+} catch (error) {
+  report(error);
+}
+
+// Call when leaving the page or destroying this component.
+function cleanup() {
+  button.onclick = null;
+  off();
+  view.dispose();
+  player.dispose();
+}
+```
+
+## React
+
+The React adapter uses React 19 and React DOM 19. Mark this component as a client component in a Next.js App Router application.
+
+```tsx
+'use client';
+
+import { useState } from 'react';
+import { Waveform, usePlayerState } from 'raavl/react';
+import type { Player } from 'raavl';
+import 'raavl/styles.css';
+
+export function AudioPlayer() {
+  const [player, setPlayer] = useState<Player | null>(null);
+  const [error, setError] = useState('');
+  const ready = usePlayerState(player, state => state?.source === 'ready');
+  const playing = usePlayerState(player, state => state?.playback === 'playing');
+
+  return <>
+    <Waveform
+      source={{ kind: 'url', id: 'episode-1', url: '/episode.mp3' }}
+      onPlayer={setPlayer}
+      onError={error => setError(error.message)}
+      appearance={{ style: 'bars', height: 160 }}
+      interaction={{ drag: 'seek' }}
+      aria-label="Episode waveform"
+    />
+    <button disabled={!ready} onClick={() => {
+      if (playing) player?.pause();
+      else void player?.play().catch(error => setError(error.message));
+    }}>{playing ? 'Pause' : 'Play'}</button>
+    {error && <p role="alert">{error}</p>}
+  </>;
+}
+```
+
+`Waveform` owns and cleans up the player it creates. If you pass an existing `player`, do not also pass `source`; load sources through that player and dispose it yourself.
+
+## Supply your audio
+
+Replace `/episode.mp3` with an actual asset served by your app. Demo audio URLs on the documentation site are not assets installed with the library. For cross-origin waveform decoding, the audio host must permit CORS fetches.
+
+`setSource()` resolves when metadata is available. Waveform preparation and playback buffering have separate states. Handle the `play()` promise because browsers may reject playback without a user gesture.
+
+Next: [sources and peaks](/docs/sources), [styling](/docs/styling), or the [player API](/docs/player).

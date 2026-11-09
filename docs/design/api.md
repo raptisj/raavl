@@ -18,12 +18,12 @@ supported; that does not imply support for an unbounded live stream.
 
 | Proposed import | Responsibility |
 | --- | --- |
-| `ravl` | Convenience exports for controller, HTML media adapter, and DOM view |
-| `ravl/core` | DOM-free data, validation, commands, snapshots, subscriptions |
-| `ravl/dom` | Canvas waveform, viewport, pointer interactions, DOM overlays |
-| `ravl/react` | Components/hooks backed by the same controller and view logic |
-| `ravl/regions` | Annotation store, editing rules, persistence helpers |
-| `ravl/styles.css` | Optional visual theme; geometry remains functional without it |
+| `raavl` | Convenience exports for controller, HTML media adapter, and DOM view |
+| `raavl/core` | DOM-free data, validation, commands, snapshots, subscriptions |
+| `raavl/dom` | Canvas waveform, viewport, pointer interactions, DOM overlays |
+| `raavl/react` | Components/hooks backed by the same controller and view logic |
+| `raavl/regions` | Annotation store, editing rules, persistence helpers |
+| `raavl/styles.css` | Optional visual theme; geometry remains functional without it |
 
 These are entry points of one initial package. React is an optional peer;
 vanilla imports must not pull it into the bundle. Module evaluation is safe on
@@ -270,11 +270,11 @@ play on the server and no DOM globals are accessed at import time.
 
 ## Styling and accessibility
 
-Light DOM uses documented `.ravl-*` classes and `data-ravl-*` attributes.
+Light DOM uses documented `.raavl-*` classes and `data-raavl-*` attributes.
 Optional theme CSS has low specificity. Layout-critical inline geometry is
 documented separately from user-owned appearance. Proposed tokens include
-`--ravl-wave-color`, `--ravl-progress-color`, `--ravl-region-color`, and
-`--ravl-focus-color`. Theme updates go through an explicit view invalidation
+`--raavl-wave-color`, `--raavl-progress-color`, `--raavl-region-color`, and
+`--raavl-focus-color`. Theme updates go through an explicit view invalidation
 when computed canvas colors change; CSS alone cannot redraw canvas pixels.
 
 Appearance options control drawing shape. DOM colors/borders/fonts use CSS.

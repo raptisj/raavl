@@ -1,14 +1,14 @@
-import type { ErrorCode, RavlError, WaveformData } from "./types";
+import type { ErrorCode, RaavlError, WaveformData } from "./types";
 
 export function failure(
   code: ErrorCode,
-  stage: RavlError["stage"],
+  stage: RaavlError["stage"],
   message: string,
   sourceId?: string,
   cause?: unknown,
-): RavlError {
+): RaavlError {
   return Object.assign(new Error(message, { cause }), {
-    name: "RavlError",
+    name: "RaavlError",
     code,
     stage,
     sourceId,

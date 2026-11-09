@@ -1,0 +1,55 @@
+---
+title: React API
+description: The shared player and renderer, with React ownership and subscriptions.
+---
+
+Import from `raavl/react`. React 19 and React DOM 19 are optional peer dependencies; vanilla imports do not include them. Imports and SSR rendering are safe without browser globals. Resources are allocated after mount.
+
+## Waveform
+
+Choose an owned source or a borrowed player:
+
+```tsx
+<Waveform source={{ kind: 'url', id: 'episode', url: '/episode.mp3' }} />
+// Or, using a player you create and dispose:
+<Waveform player={player} />
+```
+
+Never supply `source` and `player` together. Setting an owned `source` to `null` clears it.
+
+| Prop | Purpose |
+| --- | --- |
+| `appearance`, `viewport`, `interaction`, `theme` | Same settings as the DOM renderer |
+| `onPlayer(playerOrNull)` | Observe controller attachment and cleanup; use a stable callback |
+| `onView(viewOrNull)` | Attach optional timeline/minimap modules to the committed view |
+| `ref` | Forwarded player reference, null before commit and after cleanup |
+| `onError(error)` | Source, waveform, playback, and annotation errors; cancellation filtered |
+| `onDraw()` | Observe a completed draw |
+| `themeVersion` | Change to refresh Canvas colors after external CSS changes |
+| `annotations`, `annotationsRevision`, `onAnnotationsCommit` | Controlled annotation document, revision, and proposal callback |
+| `defaultAnnotations` | Initial library-owned annotation document |
+| `annotationStore` | Borrow an existing store |
+| `annotationRules`, `snapAnnotation` | Constraints and pointer snapping |
+| `onSelectionChange`, `onAnnotationSelect` | Selection callbacks |
+| `renderRegionLabel(region)` | Render a ReactNode label |
+
+Ordinary div attributes pass through, including `className`, `style`, and `aria-label`. `children` are not part of the component API. Choose only one annotation ownership mode. Controlled annotations require both a revision and commit callback.
+
+## State hooks
+
+```tsx
+const [player, setPlayer] = useState<Player | null>(null);
+const ready = usePlayerState(player, state => state?.source === 'ready');
+const playing = usePlayerState(player, state => state?.playback === 'playing');
+const time = usePlayerTime(player);
+```
+
+`usePlayerState(player, selector)` observes semantic state. Return primitives or stable objects to avoid unrelated rerenders. `usePlayerTime(player)` observes the separate clock; keep it near the UI that displays time.
+
+`useAnnotations(store)` subscribes to an annotation store and returns its snapshot, or null for a null store.
+
+## Stable inputs and cleanup
+
+An inline URL descriptor with unchanged fields does not reload audio. Keep large peak buffers, Files, and request objects stable; update `revision` when asset data changes. Do not mutate supplied peaks.
+
+An owned `Waveform` disposes its view and player on unmount. A borrowed player/store remains yours. Keep `onView` stable and use an effect to mount and dispose [optional modules](/docs/modules).

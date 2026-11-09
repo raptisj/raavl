@@ -22,7 +22,7 @@ import {
   type WaveformView,
   type WaveformTheme,
 } from "../dom";
-import type { Player, PlayerSnapshot, RavlError, Source } from "../core/types";
+import type { Player, PlayerSnapshot, RaavlError, Source } from "../core/types";
 
 const noopSubscribe = () => () => {};
 export function usePlayerState<T>(
@@ -68,7 +68,7 @@ type CommonProps = Omit<
   viewport?: Viewport;
   interaction?: Interaction;
   themeVersion?: string | number;
-  onError?: (error: RavlError) => void;
+  onError?: (error: RaavlError) => void;
   onPlayer?: (player: Player | null) => void;
   onView?: (view: WaveformView | null) => void;
   snapAnnotation?: AnnotationSnapper;
@@ -121,7 +121,7 @@ export const Waveform = forwardRef<Player | null, WaveformProps>(
       callbacks.current = { onError, onPlayer, onView, onDraw, onAnnotationsCommit, onSelectionChange, onAnnotationSelect };
     });
     const seen = useRef(new WeakSet<Error>());
-    const report = useCallback((error: RavlError) => {
+    const report = useCallback((error: RaavlError) => {
       if (error.code === "CANCELLED" || seen.current.has(error)) return;
       seen.current.add(error);
       callbacks.current.onError?.(error);
@@ -216,6 +216,7 @@ export const Waveform = forwardRef<Player | null, WaveformProps>(
           barWidth: appearance?.barWidth,
           barGap: appearance?.barGap,
           normalize: appearance?.normalize,
+          splitChannels: appearance?.splitChannels,
           lineWidth: appearance?.lineWidth,
           barRadius: appearance?.barRadius,
           amplitude: appearance?.amplitude,
@@ -234,6 +235,7 @@ export const Waveform = forwardRef<Player | null, WaveformProps>(
       appearance?.barWidth,
       appearance?.barGap,
       appearance?.normalize,
+      appearance?.splitChannels,
       appearance?.lineWidth,
       appearance?.barRadius,
       appearance?.amplitude,

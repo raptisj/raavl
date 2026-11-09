@@ -2,7 +2,7 @@ import { createPeaks, failure, finite, validateWaveform } from "./core/data";
 import type {
   Player,
   PlayerSnapshot,
-  RavlError,
+  RaavlError,
   Source,
   WaveformData,
 } from "./core/types";
@@ -31,7 +31,7 @@ export function createPlayer(): Player {
   let media: HTMLMediaElement | null = null;
   let generation = 0;
   let playSerial = 0;
-  let cleanup: ((reason: RavlError["reason"]) => void) | undefined;
+  let cleanup: ((reason: RaavlError["reason"]) => void) | undefined;
   let clock: ReturnType<typeof setInterval> | undefined;
   let clockValue = 0;
   let rangeTimer: ReturnType<typeof setInterval> | undefined;
@@ -85,7 +85,7 @@ export function createPlayer(): Player {
       clock = setInterval(emitTime, 100);
     if (!playing) stopClock();
   };
-  const reset = (reason: RavlError["reason"]) => {
+  const reset = (reason: RaavlError["reason"]) => {
     generation++;
     playSerial++;
     clearRange();
@@ -178,7 +178,7 @@ export function createPlayer(): Player {
       const off: Array<() => void> = [];
       let objectUrl: string | undefined;
       let settled = false;
-      let resolve!: () => void, reject!: (error: RavlError) => void;
+      let resolve!: () => void, reject!: (error: RaavlError) => void;
       const result = new Promise<void>((yes, no) => {
         resolve = yes;
         reject = no;
@@ -187,7 +187,7 @@ export function createPlayer(): Player {
         element.addEventListener(event, fn);
         off.push(() => element.removeEventListener(event, fn));
       };
-      const rejectPending = (error: RavlError) => {
+      const rejectPending = (error: RaavlError) => {
         if (!settled) {
           settled = true;
           reject(error);
@@ -242,8 +242,8 @@ export function createPlayer(): Player {
       };
       const waveformError = (cause: unknown) => {
         if (!current()) return;
-        const error = (cause as RavlError)?.code
-          ? (cause as RavlError)
+        const error = (cause as RaavlError)?.code
+          ? (cause as RaavlError)
           : failure(
               "DECODE",
               "waveform",

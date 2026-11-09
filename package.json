@@ -1,5 +1,5 @@
 {
-  "name": "ravl",
+  "name": "raavl",
   "private": true,
   "version": "0.0.0",
   "type": "module",
@@ -7,13 +7,17 @@
     "node": ">=22"
   },
   "scripts": {
-    "examples": "vite --config vite.config.ts",
-    "examples:build": "vite build --config vite.config.ts",
+    "examples": "npm run docs:dev",
+    "examples:build": "npm run docs:build",
+    "docs:dev": "npm --prefix docs run dev",
+    "docs:build": "npm --prefix docs run build",
+    "docs:typecheck": "npm --prefix docs run typecheck",
     "docs:workflows": "node scripts/write-workflows.mjs",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "build": "vite build --config vite.library.config.ts && tsc -p tsconfig.build.json",
-    "check": "npm run typecheck && npm test && npm run build && npm run examples:build"
+    "check": "npm run typecheck && npm test && npm run build",
+    "check:docs": "npm run docs:typecheck && npm --prefix docs run test:skills && npm run docs:build"
   },
   "devDependencies": {
     "@types/node": "^26.6.6",

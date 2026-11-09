@@ -2,6 +2,7 @@ import { beforeEach, afterEach, describe, expect, it, vi } from "vitest";
 import { createPlayer } from "../src/player";
 import { validateWaveform } from "../src/core/data";
 import type { WaveformData } from "../src/core/types";
+import type { RaavlError } from "../src";
 import { mockMedia } from "./media";
 
 const peaks = (id = "a"): WaveformData => ({
@@ -19,6 +20,54 @@ afterEach(() => {
 });
 
 describe("source lifecycle", () => {
+  it("generates per-channel peaks from a local file without a network request", async () => {
+    const bytes = new ArrayBuffer(4);
+    const file = Object.assign(new File([bytes], "stereo.mp3"), {
+      arrayBuffer: vi.fn(async () => bytes),
+    });
+    const left = Float32Array.from({ length: 48_000 }, (_, i) => i % 2 ? .2 : -.8);
+    const right = Float32Array.from({ length: 48_000 }, (_, i) => i % 2 ? .6 : -.1);
+    const decode = vi.fn(async () => ({
+      duration: 10,
+      numberOfChannels: 2,
+      length: left.length,
+      getChannelData: (channel: number) => channel === 0 ? left : right,
+    }));
+    const close = vi.fn(async () => {});
+    const fetch = vi.fn();
+    const revoke = vi.fn();
+    vi.stubGlobal("fetch", fetch);
+    vi.stubGlobal("URL", Object.assign(URL, {
+      createObjectURL: vi.fn(() => "blob:stereo"), revokeObjectURL: revoke,
+    }));
+    vi.stubGlobal("AudioContext", class {
+      decodeAudioData = decode;
+      close = close;
+    });
+    const player = createPlayer();
+    try {
+      const pending = player.setSource({ kind: "file", id: "upload", file });
+      mock.ready(player.getMediaElement()!);
+      await pending;
+      await vi.waitFor(() => expect(player.getSnapshot().waveform).toBe("ready"));
+      const data = player.getSnapshot().data!;
+      expect(file.arrayBuffer).toHaveBeenCalledOnce();
+      expect(decode).toHaveBeenCalledExactlyOnceWith(bytes);
+      expect(fetch).not.toHaveBeenCalled();
+      expect(data.sourceId).toBe("upload");
+      expect(data.channels).toHaveLength(2);
+      expect(data.channels[0].min).toHaveLength(24_000);
+      expect(data.channels[0].min[0]).toBeCloseTo(-.8);
+      expect(data.channels[0].max[0]).toBeCloseTo(.2);
+      expect(data.channels[1].min[0]).toBeCloseTo(-.1);
+      expect(data.channels[1].max[0]).toBeCloseTo(.6);
+      expect(close).toHaveBeenCalledOnce();
+    } finally {
+      player.dispose();
+    }
+    expect(revoke).toHaveBeenCalledExactlyOnceWith("blob:stereo");
+  });
+
   it("rejects a superseded metadata request and ignores its late events", async () => {
     const player = createPlayer();
     const first = player.setSource({
@@ -77,7 +126,14 @@ describe("source lifecycle", () => {
     });
     mock.ready(player.getMediaElement()!, 20);
     await ready;
-    expect(player.getSnapshot().waveformError?.code).toBe("DURATION_MISMATCH");
+    const error: RaavlError | null = player.getSnapshot().waveformError;
+    expect(error).toBeInstanceOf(Error);
+    expect(error).toMatchObject({
+      name: "RaavlError",
+      code: "DURATION_MISMATCH",
+      stage: "waveform",
+      sourceId: "a",
+    });
     expect(player.getSnapshot().source).toBe("ready");
     player.dispose();
   });

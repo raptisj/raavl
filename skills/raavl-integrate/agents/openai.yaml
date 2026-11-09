@@ -1,0 +1,4 @@
+interface:
+  display_name: "Integrate raavl"
+  short_description: "Add a styled audio waveform player to your app"
+  default_prompt: "Use $raavl-integrate to add an accessible audio waveform player to this app while preserving its design."

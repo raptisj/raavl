@@ -42,7 +42,7 @@ export type ErrorCode =
   | "NOT_READY"
   | "DURATION_MISMATCH";
 
-export type RavlError = Error & {
+export type RaavlError = Error & {
   code: ErrorCode;
   stage: "source" | "waveform" | "playback" | "lifecycle" | "view";
   sourceId?: string;
@@ -61,8 +61,8 @@ export type PlayerSnapshot = Readonly<{
   playbackRate: number;
   loop: boolean;
   data: WaveformData | null;
-  error: RavlError | null;
-  waveformError: RavlError | null;
+  error: RaavlError | null;
+  waveformError: RaavlError | null;
 }>;
 
 export type Player = {

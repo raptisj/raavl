@@ -2,17 +2,14 @@ import { createMDX } from 'fumadocs-mdx/next';
 import { fileURLToPath } from 'node:url';
 
 const withMDX = createMDX();
+const repositoryRoot = fileURLToPath(new URL('../', import.meta.url));
 
 export default withMDX({
   output: 'export',
+  agentRules: false,
   images: { unoptimized: true },
   reactStrictMode: true,
-  turbopack: {
-    // The playground uses the actual library, without requiring an npm release.
-    root: fileURLToPath(new URL('../', import.meta.url)),
-    resolveAlias: {
-      react: { browser: './docs/node_modules/react' },
-      'react-dom': { browser: './docs/node_modules/react-dom' },
-    },
-  },
+  // The live player imports the library source outside the docs application.
+  turbopack: { root: repositoryRoot },
+  outputFileTracingRoot: repositoryRoot,
 });

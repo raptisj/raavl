@@ -1,0 +1,40 @@
+---
+title: Introduction
+description: An audio waveform player that fits the way you build.
+---
+
+raavl is a TypeScript audio waveform player and annotation toolkit for vanilla JavaScript and React. It separates the playback controller, Canvas waveform, and annotation data so you can compose your own experience.
+
+Your app owns the surrounding UI. Use ordinary buttons, your own styles, and the controls your users need. There is no Shadow DOM.
+
+## Start here
+
+- [Quickstart](/docs/quickstart): add your first waveform in JavaScript or React.
+- [Skills](/docs/skills): a reusable integration workflow for your coding agent.
+- [Try the live player](/#playground): play the bundled audio or open a local file.
+- [Explore all examples](/examples): the complete gallery, including the theme builder, annotations, optional modules, and scale lab.
+- [Styling and themes](/docs/styling): keep the player consistent with your app.
+
+## What is available
+
+| Area | Capabilities |
+| --- | --- |
+| Playback | URL, File/Blob, existing media, play/pause, seeking, volume, speed, looping |
+| Waveforms | Min/max peaks, browser decoding, supplied peaks, line/bars, multiple channels |
+| Navigation | Fit or numeric zoom, scrolling, playhead following, timeline, minimap |
+| Annotations | Regions, markers, labels, selections, dragging, resizing, locks |
+| Editing | Controlled documents or a store, validated JSON, grid/magnetic snapping, undo/redo |
+| Integration | Typed ESM, optional React adapter, SSR-safe imports, optional CSS |
+
+## Browser support
+
+Recording and spectrograms are not implemented. Playback uses the browser's media APIs; range loops use best-effort browser timing.
+
+## How the pieces fit
+
+1. A **player** owns or borrows the audio element, loads sources, and exposes state and commands.
+2. A **view** borrows that player and draws its waveform. Multiple views can share a player.
+3. **Annotations** hold source-bound regions and markers, separately from the audio.
+4. Your **application** supplies controls, persistence, and styling.
+
+Dispose what you create. A view does not dispose its player; React cleans up a player it creates, while a supplied player remains yours.

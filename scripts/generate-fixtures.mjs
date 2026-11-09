@@ -1,5 +1,5 @@
 import { mkdir, writeFile } from "node:fs/promises";
-const directory = new URL("../examples/public/", import.meta.url);
+const directory = new URL("../docs/public/", import.meta.url);
 await mkdir(directory, { recursive: true });
 for (const [name, base] of [
   ["demo-a", 220],

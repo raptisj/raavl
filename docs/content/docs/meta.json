@@ -1,0 +1,4 @@
+{
+  "title": "Documentation",
+  "pages": ["index", "quickstart", "skills", "---Core concepts---", "sources", "player", "waveform", "react", "---Build your experience---", "styling", "annotations", "modules", "interactions", "errors"]
+}

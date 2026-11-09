@@ -6,7 +6,7 @@ export type MinimapOptions = { view: WaveformView; height?: number; label?: stri
 export function mountMinimap(container: HTMLElement, options: MinimapOptions) {
   if (options.view.getViewport().disposed) throw failure('DISPOSED', 'view', 'Cannot attach a minimap to a disposed view')
   const root = document.createElement('div'), visual = document.createElement('div')
-  root.className = 'ravl-minimap'
+  root.className = 'raavl-minimap'
   root.style.position = 'relative'
   visual.setAttribute('aria-hidden', 'true'); visual.inert = true
   root.append(visual); container.append(root)
@@ -15,7 +15,7 @@ export function mountMinimap(container: HTMLElement, options: MinimapOptions) {
     overview = mountWaveform(visual, { ...(options.player ? { player: options.player } : { data: options.data! }), appearance: { height: options.height ?? 64 }, viewport: { zoom: 'fit', follow: 'off' }, interaction: { seek: 'off', drag: 'none' } })
   } catch (error) { root.remove(); throw error }
   const control = document.createElement('div'), window = document.createElement('span')
-  control.className = 'ravl-minimap-control'; window.className = 'ravl-minimap-window'
+  control.className = 'raavl-minimap-control'; window.className = 'raavl-minimap-window'
   Object.assign(control.style, { position: 'absolute', inset: '0', touchAction: 'none' })
   Object.assign(window.style, { position: 'absolute', top: '0', bottom: '0', pointerEvents: 'none' })
   control.tabIndex = 0; control.setAttribute('role', 'slider'); control.setAttribute('aria-label', options.label ?? 'Waveform viewport')

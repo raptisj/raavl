@@ -12,7 +12,7 @@ export function mountTimeline(container: HTMLElement, options: TimelineOptions) 
   if (options.view.getViewport().disposed) throw failure('DISPOSED', 'view', 'Cannot attach a timeline to a disposed view')
   const spacing = finite(options.minSpacing ?? 80, 'Timeline spacing', 16, 1000)
   const root = document.createElement('div')
-  root.className = 'ravl-timeline'
+  root.className = 'raavl-timeline'
   root.setAttribute('aria-hidden', 'true') // Time is exposed by the waveform and minimap controls.
   Object.assign(root.style, { position: 'relative', height: '28px', overflow: 'hidden' })
   container.append(root)
@@ -31,7 +31,7 @@ export function mountTimeline(container: HTMLElement, options: TimelineOptions) 
       const time = (first + i) * step
       if (time > state.end) break
       const tick = document.createElement('span')
-      tick.className = 'ravl-timeline-tick'
+      tick.className = 'raavl-timeline-tick'
       tick.dataset.time = String(time)
       tick.textContent = (options.formatTime ?? formatTime)(time)
       Object.assign(tick.style, { position: 'absolute', left: `${(time - state.start) * state.pixelsPerSecond}px`, whiteSpace: 'nowrap' })

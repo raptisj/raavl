@@ -8,7 +8,7 @@ export const workflows = [
       "The shortest path to playback. Loading the waveform and preparing audio have independent status.",
     contract:
       "setSource resolves after metadata is available. Handle rejected loading and play promises. Waveform errors remain observable separately. Dispose both the view and owned player when leaving the page.",
-    vanilla: `import { createPlayer, mountWaveform } from 'ravl'
+    vanilla: `import { createPlayer, mountWaveform } from 'raavl'
 
 const player = createPlayer()
 const view = mountWaveform(container, { player })
@@ -25,7 +25,7 @@ playButton.onclick = () => player.play().catch(showError)
 // On page teardown:
 // unsubscribe(); view.dispose(); player.dispose()`,
     react: `import { useRef } from 'react'
-import { Waveform } from 'ravl/react'
+import { Waveform } from 'raavl/react'
 
 function AudioPlayer() {
   const player = useRef(null)
@@ -106,7 +106,7 @@ function Interview() {
       "Keep annotation data independent of DOM and audio loading. Persist only committed edits.",
     contract:
       "This store owns its document. Regions can be declared before metadata loads. JSON import validates version, IDs, numbers, and source identity. Handle storage errors in application code.",
-    vanilla: `import { createAnnotations } from 'ravl/regions'
+    vanilla: `import { createAnnotations } from 'raavl/regions'
 
 const annotations = createAnnotations({
   document: {
@@ -181,10 +181,10 @@ view.refreshTheme()
 
 /* CSS:
 .podcast-wave {
-  --ravl-wave-color: #6577d4;
-  --ravl-progress-color: #2c2868;
+  --raavl-wave-color: #6577d4;
+  --raavl-progress-color: #2c2868;
 }
-.podcast-wave .ravl-region-label { font-weight: 600; }
+.podcast-wave .raavl-region-label { font-weight: 600; }
 */`,
     react: `function StyledAudio() {
   return <Waveform source={episodeSource}

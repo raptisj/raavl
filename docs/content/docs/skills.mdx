@@ -1,0 +1,83 @@
+---
+title: Skills
+description: Give your coding agent a focused workflow for integrating raavl into your app.
+---
+
+An agent skill is a reusable set of instructions for a specific task. raavl ships
+one shared integration skill for Codex, Cursor, and Claude Code. Its workflow
+adapts to your app's framework and design.
+
+## raavl-integrate
+
+Add a working audio waveform player with accessible controls, real playback,
+error handling, and resource cleanup. The skill helps your agent choose the
+React or DOM API, preserve your existing styles, and add optional capabilities
+when your task needs them.
+
+The skill installs instructions for your agent. Follow the
+[quickstart](/docs/quickstart) to install the raavl library in your application.
+
+## Use it for one task
+
+Copy this prompt into your coding agent from the application you want to change:
+
+<AgentPrompt />
+
+The agent reads [the skill](/skill.md) for this task. This does not permanently
+install it in your agent. The copied URLs point to the public documentation,
+so your agent can read them from any environment.
+
+## Install for repeated use
+
+Run the command for your agent inside your application. It installs the same
+skill content in the appropriate project directory:
+
+<SkillInstall />
+
+Then ask your agent to **add raavl to this project**. In Codex you can explicitly
+mention `$raavl-integrate`; Claude Code exposes `/raavl-integrate`. Discovery and
+invocation depend on your installed agent version. Local installation also does
+not automatically make a skill available in every cloud environment.
+
+Codex's optional `agents/openai.yaml` supplies its display name and a suggested
+prompt. Integration instructions stay in the shared `SKILL.md`; the workflow
+does not depend on an agent-specific tool API or execution mode.
+
+See the official [Codex](https://learn.chatgpt.com/docs/build-skills),
+[Cursor](https://cursor.com/docs/skills), and
+[Claude Code](https://code.claude.com/docs/en/skills) guides, or the
+[skills CLI documentation](https://github.com/vercel-labs/skills).
+
+## Read the instructions
+
+This preview and the downloadable Markdown are generated from the maintained
+skill file in `skills/raavl-integrate/SKILL.md`:
+
+<SkillPreview />
+
+Read it before use. Your agent's normal permissions and tool availability still
+apply. Installation compatibility and a successful integration are separate
+checks: verify playback in your app and report any behavior you could not test.
+
+## Documentation and examples
+
+The skill links to the existing documentation for API details:
+
+- [Quickstart](/docs/quickstart), [React API](/docs/react), and [DOM waveform API](/docs/waveform).
+- [Sources and peaks](/docs/sources), [styling](/docs/styling), and [state and errors](/docs/errors).
+- [Annotations](/docs/annotations), [optional modules](/docs/modules), and [live examples](/examples).
+
+| Endpoint | Purpose |
+| --- | --- |
+| `/skill.md` | The integration skill, ready to read or download |
+| `/skills/raavl-integrate/SKILL.md` | The same skill under its folder path |
+| `/skills/raavl-integrate/agents/openai.yaml` | Optional Codex metadata |
+| `/llms.txt` | Documentation index with links to every Markdown page |
+| `/llms-full.txt` | Complete documentation in one text response |
+| `/markdown/skills/content.md` | Markdown version of this page |
+
+Every documentation page has **Copy Markdown** and an **Open** menu with GitHub,
+Markdown, ChatGPT, Claude, and Cursor options.
+The old `/docs/agents` and `/markdown/agents/content.md` URLs resolve to this
+maintained page as compatibility aliases.
+

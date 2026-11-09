@@ -1,0 +1,247 @@
+---
+title: Styling and themes
+description: Ordinary CSS for the DOM, drawing options for Canvas, and portable JSON themes.
+---
+
+A theme is a versioned JSON object containing drawing settings and CSS color
+tokens. Vanilla and React use the same format and renderer. The four initial
+presets are defined in one file, `src/themes/presets.json`.
+
+| Preset | Shape | Character |
+| --- | --- | --- |
+| `sage` | 1px envelope, 160px tall | Soft green, light background |
+| `studio` | 2px square bars, 1px gaps, 180px tall | Dark slate, blue progress, thin amber playhead |
+| `neon` | 5px rounded bars, 3px gaps, 200px tall | Violet on dark plum, mint playhead, rounded surface |
+| `paper` | 2.5px envelope, 120px tall | Warm ink, reduced amplitude, square surface |
+
+## Use a preset
+
+```ts
+import { createPlayer, mountWaveform } from 'raavl'
+import { waveformThemes } from 'raavl/themes'
+import 'raavl/styles.css'
+
+const player = createPlayer()
+const view = mountWaveform(container, { player, theme: waveformThemes.neon })
+view.update({ theme: waveformThemes.paper })
+```
+
+```tsx
+import { Waveform } from 'raavl/react'
+import { waveformThemes } from 'raavl/themes'
+import 'raavl/styles.css'
+
+<Waveform source={source} theme={waveformThemes.studio} />
+```
+
+## Load one JSON file
+
+Save this as `waveform-theme.json`. No companion CSS configuration is required;
+import the optional `raavl/styles.css` once for background, corners, focus and
+annotation styling. Canvas colors, playhead color/width and drawing geometry
+also work without the stylesheet.
+
+```json
+{
+  "version": 1,
+  "name": "My waveform",
+  "appearance": {
+    "style": "bars",
+    "height": 180,
+    "lineWidth": 2,
+    "barWidth": 4,
+    "barGap": 2,
+    "barRadius": 2,
+    "amplitude": 0.8,
+    "cursorWidth": 1.5,
+    "borderRadius": 12,
+    "normalize": false
+  },
+  "colors": {
+    "wave": "#52657b",
+    "progress": "#74c7ec",
+    "cursor": "#f5c97b",
+    "background": "#111923",
+    "focus": "#f5c97b"
+  }
+}
+```
+
+With a bundler that supports JSON imports:
+
+```ts
+import config from './waveform-theme.json'
+import { parseTheme } from 'raavl/themes'
+
+const theme = parseTheme(config)
+view.update({ theme })
+// React: <Waveform source={source} theme={theme} />
+```
+
+Or fetch it at runtime:
+
+```ts
+const response = await fetch('/waveform-theme.json')
+if (!response.ok) throw new Error(`Theme request failed: ${response.status}`)
+const theme = parseTheme(await response.json())
+view.update({ theme })
+```
+
+`parseTheme` accepts JSON text or an object and returns an immutable copy. It
+rejects unsupported versions, unknown keys, invalid numeric ranges, malformed
+JSON and incorrect value types with a `RaavlError` (`INVALID_DATA`, stage `view`).
+Color values are non-empty CSS color strings. `wave` and `progress` also accept
+the gradient objects described below. CSS/browser parsing determines which color
+syntaxes are supported. Parsing and preset imports work during SSR.
+Applications own file loading and request errors; the renderer does no fetching.
+
+The complete preset catalog is also exported as `raavl/themes.json`:
+
+```ts
+import catalog from 'raavl/themes.json'
+const theme = parseTheme(catalog.neon)
+```
+
+## Waveform gradients
+
+`colors.wave` and `colors.progress` accept serializable linear gradients. The
+renderer sizes them to the drawing area and handles display pixel density. Other
+color fields remain CSS color strings.
+
+```ts
+const theme = parseTheme({
+  version: 1,
+  name: 'Orange gradient',
+  colors: {
+    wave: '#656666',
+    progress: {
+      type: 'linear-gradient',
+      axis: 'vertical',
+      stops: [
+        { offset: 0, color: '#ee772f' },
+        { offset: 1, color: '#eb4926' },
+      ],
+    },
+  },
+})
+view.update({ theme })
+// React: <Waveform source={source} theme={theme} />
+```
+
+`axis` is `vertical` by default, or `horizontal`. Supply at least two stops with
+ordered, finite offsets from 0 to 1 and CSS color strings. Equal offsets create
+a sharp color boundary. Gradients are copied and deeply frozen by `parseTheme`,
+can be saved as JSON, and can be replaced or cleared like any other theme.
+Gradient paints are drawn directly on Canvas; they are not assigned to CSS color
+tokens. Solid colors continue to use the CSS tokens below.
+
+The [SoundCloud-style player](/examples#demos/soundcloud/vanilla) combines gray and
+orange gradients with ordinary DOM time badges and a CSS hover overlay. Both
+JavaScript and React versions include the complete theme and application CSS.
+
+## Drawing settings
+
+All settings are optional. Pixel values are CSS pixels, independent of display
+pixel density. The amplitude setting applies within each displayed waveform row.
+
+| `appearance` field | Default | Allowed values / meaning |
+| --- | --- | --- |
+| `style` | `"line"` | `"line"` (dense envelope of vertical peak strokes) or `"bars"` |
+| `height` | `160` | 24–2000px |
+| `lineWidth` | `1` | 0.5–20px; thickness of envelope strokes, including the idle baseline |
+| `barWidth` | `2` | 0.5–100px |
+| `barGap` | `1` | 0–100px |
+| `barRadius` | `0` | 0–100px; rounded bar corners, clamped to half each bar's width/height |
+| `amplitude` | `0.9` | 0.1–1; fraction of channel height available to amplitudes of ±1 |
+| `cursorWidth` | `2` | 0–20px; 0 hides the playhead |
+| `borderRadius` | `8` | 0–100px; surface corners, using `raavl/styles.css` |
+| `normalize` | `false` | Boolean; normalize against the largest absolute peak across all channels |
+| `splitChannels` | `false` | Boolean; separate channel rows instead of one combined waveform |
+
+Line mode remains a min/max amplitude envelope, not a sample-by-sample signal
+trace. Bar settings are preserved when switching drawing modes. Themes contain
+visual settings; zoom, following, interactions, player state and audio sources
+remain separate view/player options.
+
+## Colors and ordinary CSS
+
+The `colors` keys map to these existing or new tokens on `.raavl-waveform`:
+
+| Key | CSS token |
+| --- | --- |
+| `wave` | `--raavl-wave-color` |
+| `progress` | `--raavl-progress-color` |
+| `cursor` | `--raavl-cursor-color` (falls back to progress) |
+| `background` | `--raavl-background` |
+| `focus` | `--raavl-focus-color` |
+| `region` | `--raavl-region-color` |
+| `marker` | `--raavl-marker-color` |
+| `handle` | `--raavl-handle-color` |
+| `selection` | `--raavl-selection-color` |
+| `label` | `--raavl-label-color` |
+
+Per-annotation colors still take precedence over shared annotation tokens.
+Theme tokens apply to the waveform root and its descendants; sibling timeline,
+minimap and annotation-list elements retain their own ordinary CSS styling.
+
+## Overrides and switching
+
+Resolution order is library defaults → theme appearance → explicit `appearance`.
+Vanilla updates merge explicit overrides. An `undefined` field removes that
+override and reveals the theme value (or the library default with no theme).
+
+```ts
+view.update({ theme: waveformThemes.neon, appearance: { height: 240 } })
+view.update({ theme: waveformThemes.paper }) // Keeps explicit height: 240
+view.update({ appearance: { height: undefined } }) // Uses Paper's height: 120
+view.update({ theme: null }) // Clears theme; restores CSS and drawing defaults
+```
+
+React props describe the whole current configuration: removing an appearance
+field clears its override; removing `theme` restores the unthemed view. A theme
+switch replaces all theme fields, so a partial new theme never inherits missing
+values from the previous one. Invalid updates leave the current configuration
+unchanged. Switching does not replace the player/view or reload audio.
+
+Theme/appearance changes redraw automatically. For external CSS color changes,
+continue to call `view.refreshTheme()` or change React's `themeVersion`.
+
+Try [Style & interaction](/examples#demos/styling/vanilla) in either framework for presets, geometry controls,
+JSON editing, copying and downloading. “Use current settings” puts all current
+control adjustments into the JSON editor before you make further edits.
+
+## Application CSS
+
+
+```css
+.my-player .raavl-waveform {
+  --raavl-wave-color: #9aafa7;
+  --raavl-progress-color: #285d50;
+  --raavl-cursor-color: #bd722e;
+  --raavl-background: #f3f6f2;
+  --raavl-focus-color: #bd722e;
+  border-radius: 8px;
+}
+```
+
+| Token | Purpose |
+| --- | --- |
+| `--raavl-wave-color` | Unplayed waveform |
+| `--raavl-progress-color` | Played waveform |
+| `--raavl-cursor-color` | Playhead |
+| `--raavl-background` | Waveform surface |
+| `--raavl-focus-color` | Keyboard focus |
+| `--raavl-region-color` | Region fill |
+| `--raavl-marker-color` | Marker color |
+| `--raavl-handle-color` | Region handles |
+| `--raavl-selection-color` | Temporary selection |
+| `--raavl-label-color` | Annotation labels |
+
+After external CSS changes, call `view.refreshTheme()` or change React's `themeVersion`. Computed CSS colors must be read again before Canvas pixels can reflect the new theme.
+
+
+## CSS hooks
+
+Core hooks include `.raavl-waveform`, `.raavl-surface`, `.raavl-wave`, `.raavl-progress`, and `.raavl-cursor`. Annotation and optional-module hooks are documented in their respective guides.
+
+Build your controls from ordinary HTML or your app's components. raavl does not prescribe a transport layout, volume control design, or style editor.

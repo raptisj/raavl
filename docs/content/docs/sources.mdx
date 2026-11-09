@@ -1,0 +1,69 @@
+---
+title: Sources and peaks
+description: Load URL audio, local files, or existing media, with decoded or precomputed waveforms.
+---
+
+Every source has a nonempty `id` and an optional `revision`. These identify the audio asset and bind its peaks and annotations.
+
+## Source types
+
+```ts
+await player.setSource({ kind: 'url', id: 'episode', url: '/episode.mp3' });
+await player.setSource({ kind: 'file', id: 'upload', file }); // File or Blob
+await player.setSource({
+  kind: 'media', id: 'episode', element: audioElement,
+  waveform: { kind: 'peaks', data: peaks },
+});
+```
+
+A URL source accepts `request?: RequestInit` for the separate waveform fetch. Native media playback uses the media element's own loading behavior; request options do not automatically configure playback headers.
+
+The file path creates and revokes its own Blob URL. It never uploads the file. Borrowed media is not assigned a new source or paused/reset on disposal. Explicit commands still control it.
+
+## Waveform preparation
+
+| Input | Behavior |
+| --- | --- |
+| `{ kind: 'decode' }` | Default for URL/file; decode audio and generate peaks in the browser |
+| `{ kind: 'peaks', data }` | Use supplied visualization data without full decoding |
+| `{ kind: 'none' }` | Play audio without preparing a waveform |
+
+Borrowed media requires `peaks` or `none`; implicit decoding is unavailable for that source type.
+
+```ts
+await player.setSource({
+  kind: 'url', id: 'episode', url: '/episode.mp3',
+  waveform: { kind: 'peaks', data: peaks },
+});
+```
+
+## Peak format
+
+```ts
+type WaveformData = {
+  version: 1;
+  sourceId: string;
+  sourceRevision?: string;
+  duration: number;
+  channels: ReadonlyArray<{
+    min: Float32Array | readonly number[];
+    max: Float32Array | readonly number[];
+  }>;
+};
+```
+
+Each channel has nonempty, equally sized min/max arrays representing uniform time buckets. Values must be finite and within `[-1, 1]`, with `min <= max`. All channels must have the same bucket count. Duration is positive and finite.
+
+`validateWaveform(input)` validates structure and returns the input or throws `INVALID_DATA`. The player separately validates source identity, revision, and duration against the audio. Use plain number arrays for JSON; treat all supplied buffers as immutable.
+
+`createPeaks(buffer, sourceId, sourceRevision?)` builds at most 24,000 buckets per channel from an AudioBuffer-compatible object.
+
+Local files use this same peak generator after Web Audio decoding. Generated peaks stay in memory for the active source; they are not uploaded or automatically saved. Combining channel rows for display does not modify these per-channel peaks or the audio.
+
+## Readiness and cancellation
+
+`setSource()` resolves after finite metadata loads. Observe `source`, `canPlay`, `waveform`, and `playback` independently. A waveform decoding failure can coexist with valid audio playback.
+
+Pass `{ signal }` as the second argument to cancel a source load. Replacing a source rejects unfinished metadata work with `CANCELLED`; late results cannot replace the active source. Browser decoding already in progress cannot be interrupted, but stale results are ignored.
+
+`clearSource()` releases owned resources and returns to idle. Handle every returned promise, including `play()`.

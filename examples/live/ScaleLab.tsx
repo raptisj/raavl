@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { mountWaveform, type WaveformView, type WaveformData } from '../../src'
 import { createAnnotations, type AnnotationStore } from '../../src/regions'
+import { usePageTheme } from './usePageTheme'
 
 // A deterministic long-duration fixture, not a downloaded or decoded audio file.
 function fixture(): WaveformData {
@@ -12,6 +13,7 @@ function fixture(): WaveformData {
   }) }
 }
 export function ScaleLab() {
+  const pageTheme = usePageTheme()
   const host = useRef<HTMLDivElement>(null), view = useRef<WaveformView | null>(null)
   const store = useRef<AnnotationStore | null>(null), pending = useRef<(() => void) | null>(null), alive = useRef(false)
   const [report, setReport] = useState('Choose Run benchmark to collect timings in this browser.')
@@ -24,6 +26,7 @@ export function ScaleLab() {
     return () => { alive.current = false; pending.current?.(); pending.current = null; view.current?.dispose(); view.current = null; store.current?.dispose(); store.current = null }
   }, [])
   useEffect(() => { view.current?.update({ viewport: { zoom: zoom === 'fit' ? 'fit' : Number(zoom) }, annotations: dense ? store.current : null }) }, [zoom, dense])
+  useEffect(() => { view.current?.refreshTheme() }, [pageTheme])
   async function run() {
     setBusy(true)
     const samples: number[] = []
@@ -35,7 +38,7 @@ export function ScaleLab() {
     if (!alive.current) return
     samples.sort((a, b) => a - b)
     const canvases = [...host.current!.querySelectorAll('canvas')]
-    setReport(JSON.stringify({ fixture: '2 hours, stereo, 100 buckets/sec, 10000 regions', samples: samples.length, redrawLatencyMs: { p50: samples[14], p95: samples[28], max: samples[29] }, zoom, annotations: dense, overlays: host.current!.querySelectorAll('.ravl-region').length, listRows: host.current!.querySelectorAll('li').length, peakBytes: 11520000, canvasBackingBytes: canvases.reduce((sum, canvas) => sum + canvas.width * canvas.height * 4, 0), viewportWidth: host.current!.clientWidth, dpr: devicePixelRatio, userAgent: navigator.userAgent }, null, 2))
+    setReport(JSON.stringify({ fixture: '2 hours, stereo, 100 buckets/sec, 10000 regions', samples: samples.length, redrawLatencyMs: { p50: samples[14], p95: samples[28], max: samples[29] }, zoom, annotations: dense, overlays: host.current!.querySelectorAll('.raavl-region').length, listRows: host.current!.querySelectorAll('li').length, peakBytes: 11520000, canvasBackingBytes: canvases.reduce((sum, canvas) => sum + canvas.width * canvas.height * 4, 0), viewportWidth: host.current!.clientWidth, dpr: devicePixelRatio, userAgent: navigator.userAgent }, null, 2))
     setBusy(false)
   }
   return <article className="player-card">

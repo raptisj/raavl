@@ -16,6 +16,7 @@ import {
   type Selection,
 } from "../../src";
 import { Waveform, usePlayerState, usePlayerTime } from "../../src/react";
+import { usePageTheme } from './usePageTheme';
 
 const initial: AnnotationDocument = {
   version: 1,
@@ -50,6 +51,7 @@ type CanvasProps = {
   onError: (error: Error) => void;
 };
 function VanillaEditor(props: CanvasProps) {
+  const pageTheme = usePageTheme();
   const container = useRef<HTMLDivElement>(null),
     view = useRef<WaveformView | null>(null),
     player = useRef<Player | null>(null);
@@ -66,11 +68,13 @@ function VanillaEditor(props: CanvasProps) {
     latest.current.onPlayer(instance);
     return () => {
       view.current?.dispose();
+      view.current = null;
       instance.dispose();
       latest.current.onPlayer(null);
       player.current = null;
     };
   }, []);
+  useEffect(() => { view.current?.refreshTheme(); }, [pageTheme]);
   useEffect(() => {
     const abort = new AbortController();
     void player
@@ -105,6 +109,7 @@ function Time({ player }: { player: Player | null }) {
 }
 
 export function AnnotationEditor({ mode }: { mode: "vanilla" | "react" }) {
+  const pageTheme = usePageTheme();
   const [document, setDocument] = useState<AnnotationDocument>(initial),
     [revision, setRevision] = useState(0);
   const [ownership, setOwnership] = useState<"controlled" | "store">(
@@ -294,6 +299,7 @@ export function AnnotationEditor({ mode }: { mode: "vanilla" | "react" }) {
       {mode === "react" ? (
         <Waveform
           source={source}
+          themeVersion={pageTheme}
           onPlayer={setPlayer}
           onError={report}
           appearance={{ style: "bars", height: 200 }}
@@ -507,7 +513,7 @@ export function AnnotationEditor({ mode }: { mode: "vanilla" | "react" }) {
             onClick={() =>
               attempt(() => {
                 localStorage.setItem(
-                  "ravl-annotations-demo",
+                  "raavl-annotations-demo",
                   stringifyAnnotations(document),
                 );
                 setNotice("Saved to this browser.");
@@ -519,7 +525,7 @@ export function AnnotationEditor({ mode }: { mode: "vanilla" | "react" }) {
           <button
             onClick={() =>
               attempt(() => {
-                const saved = localStorage.getItem("ravl-annotations-demo");
+                const saved = localStorage.getItem("raavl-annotations-demo");
                 if (!saved) throw new Error("No saved annotations");
                 load(saved);
               })

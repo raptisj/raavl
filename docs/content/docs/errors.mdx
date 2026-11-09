@@ -1,0 +1,55 @@
+---
+title: State and errors
+description: Keep audio loading, waveform preparation, and playback failures separate.
+---
+
+## Snapshot
+
+| Field | Values / meaning |
+| --- | --- |
+| `source` | `idle`, `loading`, `ready`, `error`, `disposed` |
+| `sourceId` | Active source identity or `null` |
+| `playback` | `paused`, `starting`, `playing`, `buffering`, `ended` |
+| `waveform` | `idle`, `fetching`, `decoding`, `ready`, `error`, `cancelled` |
+| `duration` | Audio duration in seconds |
+| `canPlay` | Browser media readiness |
+| `volume`, `muted` | Current audio settings |
+| `playbackRate`, `loop` | Speed and full-recording loop setting |
+| `data` | Prepared `WaveformData` or `null` |
+| `error`, `waveformError` | Independent audio/playback and visualization errors |
+
+`source: 'ready'` means finite metadata is available. It does not guarantee buffering or waveform readiness. A waveform failure need not prevent valid audio playback.
+
+## RaavlError
+
+Errors extend `Error` with a `code`, `stage`, optional `sourceId`, and optional cancellation `reason`.
+
+| Code | Meaning |
+| --- | --- |
+| `CANCELLED` | Work superseded, aborted, disposed, or cleared |
+| `DISPOSED` | Command attempted after disposal |
+| `INVALID_DATA` | Invalid input, peaks, annotations, theme, or options |
+| `NETWORK` | Audio/waveform network fetch failed |
+| `DECODE` | Browser waveform decoding failed |
+| `MEDIA` | Native media or playback failure |
+| `NOT_READY` | Command needs a loaded source |
+| `DURATION_MISMATCH` | Supplied peaks do not match the audio duration |
+
+Stages are `source`, `waveform`, `playback`, `lifecycle`, and `view`. Cancellation reasons are `superseded`, `aborted`, `disposed`, and `cleared`.
+
+## Handling failures
+
+```ts
+try {
+  await player.setSource(source);
+} catch (error) {
+  if ((error as { code?: string }).code !== 'CANCELLED') showError(error);
+}
+
+// In a click handler:
+void player.play().catch(showError);
+```
+
+Subscribe to `waveformError` as well as `error`. In React, pass `onError` to `Waveform` and handle promises from controls separately. Expected cancellation is filtered by the adapter.
+
+For cross-origin audio, check native playback and waveform CORS access separately. A host may allow streaming to an audio element while blocking the fetch needed for decoding.

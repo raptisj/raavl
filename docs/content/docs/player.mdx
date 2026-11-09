@@ -1,0 +1,56 @@
+---
+title: Player API
+description: Control playback and subscribe separately to semantic state and time.
+---
+
+`createPlayer()` returns an independent controller with no constructor options. Import it from `raavl`. Playback requires a finite audio source.
+
+## Commands
+
+| Method | Behavior |
+| --- | --- |
+| `setSource(source, { signal? }?)` | Load a source; resolves after metadata becomes available |
+| `clearSource()` | Cancel work, clear audio, return to idle |
+| `play()` | Start or resume; returns a promise that can reject |
+| `pause()` | Pause playback |
+| `seek(seconds)` | Seek to nonnegative seconds, capped at duration |
+| `seekFraction(fraction)` | Seek using a value in `[0, 1]` |
+| `setVolume(volume)` | Set volume in `[0, 1]` |
+| `setMuted(muted)` | Toggle mute |
+| `setPlaybackRate(rate)` | Set speed from `0.25` to `4` |
+| `setLoop(loop)` | Loop the whole recording |
+| `playRange({ start, end, loop? })` | Play a bounded time range; returns a promise |
+| `dispose()` | Cancel work and release owned resources; idempotent |
+
+Range endpoints use seconds, must lie within duration, and must satisfy `start < end`. Range playback disables full-recording looping and uses best-effort HTML media timing. Pause, seek, source replacement, or disposal clears range scheduling.
+
+## Read and observe
+
+| Method | Result |
+| --- | --- |
+| `getSnapshot()` | Cached immutable `PlayerSnapshot` |
+| `subscribe(listener)` | Unsubscribe function for semantic state changes |
+| `getCurrentTime()` | Cached playback time in seconds |
+| `subscribeTime(listener)` | Unsubscribe function for the independent clock |
+| `getMediaElement()` | Active media element or `null` |
+
+The clock updates at roughly 10 Hz during playback plus media and seek events. Background scheduling may reduce that rate. Read the media element when you need the browser's immediate playback time. The Canvas playhead animates outside React.
+
+```ts
+const off = player.subscribe(() => {
+  const state = player.getSnapshot();
+  playButton.disabled = state.source !== 'ready';
+  if (state.error) showError(state.error);
+  if (state.waveformError) showWaveformError(state.waveformError);
+});
+const offTime = player.subscribeTime(() => {
+  clock.textContent = player.getCurrentTime().toFixed(1);
+});
+// On teardown: off(); offTime(); player.dispose();
+```
+
+## Ownership
+
+The player owns audio it creates for URL/file sources and revokes its own Blob URLs. Borrowed media remains application-owned. A view always borrows its player; disposing a view never disposes that controller.
+
+After disposal, reads expose final state and mutating commands throw or reject with `DISPOSED`. See [state and errors](/docs/errors) for the full snapshot.

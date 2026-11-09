@@ -1,0 +1,26 @@
+---
+title: Touch and keyboard
+description: Seeking, selection, and editing that work beyond a mouse.
+---
+
+## Playback and seeking
+
+- Click or tap the waveform to seek when `interaction.seek` is `'click'`.
+- Set `interaction.drag: 'seek'` to scrub while dragging.
+- Double-click or double-tap waveform background to start playback. Annotation controls retain their editing gestures.
+- Focus the waveform with Tab. Left/Right seek by one second; Shift changes the step to ten seconds. Home/End seek to the start/end.
+- On touch screens, vertical page scrolling remains available; horizontal gestures are used by the configured waveform interaction.
+
+Selection mode suppresses click/tap seeking. Use `interaction.drag: 'select'` for a temporary range and observe `onSelectionChange`. Committing it as a region requires an annotation store or controlled integration.
+
+## Application controls
+
+Use real `button`, `input`, and `select` elements for your playback controls. Provide clear accessible names for icon-only buttons, volume, speed, and waveform regions. Keep source errors visible and disable commands that require a ready source.
+
+Audio may only start in response to a user gesture. Always handle rejected `play()` promises; do not treat an autoplay rejection as a waveform failure.
+
+## Annotation editing
+
+Regions, markers, resize handles, and the accessible annotation list support keyboard editing. The detailed [annotation guide](/docs/annotations) describes keys, locks, constraints, and touch gestures.
+
+The [minimap](/docs/modules) exposes one interactive viewport slider. Left/Right move by 10% of a window, Shift moves a whole window, and Home/End move to the bounds. This pans the view without seeking audio.

@@ -1,11 +1,109 @@
 // These snippets use the implemented public API, independently of the preview.
+import { soundcloudStyles, soundcloudTheme } from './soundcloud';
+
+function soundcloudCode(mode: CodeMode): string {
+  const shared = `const theme = parseTheme(${JSON.stringify(soundcloudTheme, null, 2)})
+const css = ${JSON.stringify(soundcloudStyles.trim())}
+const source = { kind: 'url', id: 'bach-classical', url: '/bach_classical.mp3' }
+const formatTime = seconds => Math.floor(seconds / 60) + ':' + String(Math.floor(seconds % 60)).padStart(2, '0')
+`;
+  if (mode === 'vanilla') return `import { createPlayer, mountWaveform, parseTheme } from 'raavl'
+import 'raavl/styles.css'
+
+// HTML: <div id="soundcloud"></div>
+${shared}
+const style = document.createElement('style')
+style.textContent = css
+document.head.append(style)
+const container = document.querySelector('#soundcloud')
+container.innerHTML = '<div class="sc-demo"><div class="sc-waveform"><div class="sc-canvas"></div><span class="sc-time">0:00</span><span class="sc-duration">0:00</span><div class="sc-hover"></div></div></div>'
+const waveform = container.querySelector('.sc-waveform')
+const time = container.querySelector('.sc-time')
+const duration = container.querySelector('.sc-duration')
+const hover = container.querySelector('.sc-hover')
+const player = createPlayer()
+const view = mountWaveform(container.querySelector('.sc-canvas'), {
+  player, theme, interaction: { seek: 'click', drag: 'none' },
+  label: 'SoundCloud waveform. Arrow keys seek; Space plays or pauses.',
+})
+const off = player.subscribe(() => {
+  const state = player.getSnapshot()
+  duration.textContent = formatTime(state.duration)
+  if (state.error || state.waveformError) console.error(state.error || state.waveformError)
+})
+const offTime = player.subscribeTime(() => { time.textContent = formatTime(player.getCurrentTime()) })
+function toggle() {
+  const state = player.getSnapshot()
+  if (state.source !== 'ready') return
+  if (state.playback === 'playing' || state.playback === 'buffering') player.pause()
+  else player.play().catch(console.error)
+}
+waveform.onclick = toggle
+waveform.onkeydown = event => {
+  if (event.key !== ' ' && event.key !== 'Enter') return
+  event.preventDefault()
+  toggle()
+}
+waveform.onpointermove = event => {
+  const bounds = waveform.getBoundingClientRect()
+  hover.style.width = Math.max(0, Math.min(bounds.width, event.clientX - bounds.left)) + 'px'
+}
+await player.setSource(source).catch(console.error)
+
+// On teardown:
+function dispose() {
+  waveform.onclick = waveform.onkeydown = waveform.onpointermove = null
+  offTime(); off(); view.dispose(); player.dispose()
+  container.replaceChildren(); style.remove()
+}`;
+  return `import { useRef, useState } from 'react'
+import { parseTheme } from 'raavl'
+import { Waveform, usePlayerState, usePlayerTime } from 'raavl/react'
+import 'raavl/styles.css'
+
+${shared}
+export default function SoundCloudPlayer() {
+  const [player, setPlayer] = useState(null)
+  const hover = useRef(null)
+  const state = usePlayerState(player, state => state)
+  const time = usePlayerTime(player)
+  function toggle() {
+    if (!player || state?.source !== 'ready') return
+    if (state.playback === 'playing' || state.playback === 'buffering') player.pause()
+    else player.play().catch(console.error)
+  }
+  return <>
+    <style>{css}</style>
+    <div className="sc-demo">
+      <div className="sc-waveform" onClick={toggle}
+        onKeyDown={event => {
+          if (event.key !== ' ' && event.key !== 'Enter') return
+          event.preventDefault()
+          toggle()
+        }}
+        onPointerMove={event => {
+          const bounds = event.currentTarget.getBoundingClientRect()
+          hover.current.style.width = Math.max(0, Math.min(bounds.width, event.clientX - bounds.left)) + 'px'
+        }}>
+        <Waveform source={source} theme={theme} onPlayer={setPlayer}
+          interaction={{ seek: 'click', drag: 'none' }} onError={console.error}
+          aria-label="SoundCloud waveform. Arrow keys seek; Space plays or pauses." />
+        <span className="sc-time" aria-hidden="true">{formatTime(time)}</span>
+        <span className="sc-duration" aria-hidden="true">{formatTime(state?.duration ?? 0)}</span>
+        <div className="sc-hover" ref={hover} aria-hidden="true" />
+      </div>
+    </div>
+  </>
+}`;
+}
 const source = `{ kind: 'url', id: 'demo-a', url: '/demo-a.wav' }`;
 const appearance = `{ style: 'bars', height: 160, barWidth: 2, barGap: 1 }`;
 
 export type CodeMode = 'vanilla' | 'react';
-export type CodeScene = 'url' | 'file' | 'peaks' | 'external' | 'dual' | 'styling' | 'annotations' | 'scale' | 'modules';
+export type CodeScene = 'url' | 'file' | 'peaks' | 'external' | 'dual' | 'styling' | 'annotations' | 'scale' | 'modules' | 'soundcloud';
 
 export function exampleCode(scene: CodeScene, mode: CodeMode): string {
+  if (scene === 'soundcloud') return soundcloudCode(mode);
   if (scene === 'modules') return modulesCode(mode);
   if (scene === 'scale') return scaleCode(mode);
   const annotations = scene === 'annotations';
@@ -18,8 +116,8 @@ export function exampleCode(scene: CodeScene, mode: CodeMode): string {
       ? `{ kind: 'media', id: 'demo-a', element: media,\n  waveform: { kind: 'peaks', data: peaks } }`
       : source;
   const document = `{ version: 1, sourceId: 'demo-a',\n  regions: [{ id: 'intro', start: 0.5, end: 2.5, label: 'Introduction' }],\n  markers: [{ id: 'cue', time: 8, label: 'Cue' }] }`;
-  if (mode === 'vanilla') return `import { createPlayer, mountWaveform${annotations ? ', createAnnotations, stringifyAnnotations' : ''} } from 'ravl'
-${scene === 'styling' ? "import { waveformThemes, parseTheme } from 'ravl/themes'\n" : ''}import 'ravl/styles.css'
+  if (mode === 'vanilla') return `import { createPlayer, mountWaveform${annotations ? ', createAnnotations, stringifyAnnotations' : ''} } from 'raavl'
+${scene === 'styling' ? "import { waveformThemes, parseTheme } from 'raavl/themes'\n" : ''}import 'raavl/styles.css'
 
 // HTML: <div id="waveform"></div><button id="play">Play</button>${scene === 'file' ? '\n// <input id="file" type="file" accept="audio/*" />' : ''}${scene === 'external' ? '\n// <audio id="audio" src="/demo-a.wav" controls></audio>' : ''}${scene === 'dual' ? '\n// <div id="second-waveform"></div><button id="second-play">Play B</button>' : ''}
 ${setup}${scene === 'external' ? "const media = document.querySelector('#audio')\n" : ''}${annotations ? `const annotations = createAnnotations({ document: ${document} })\n` : ''}const player = createPlayer()
@@ -48,7 +146,7 @@ view.update({ theme: waveformThemes.paper, appearance: { lineWidth: 3 } })
 // view.update({ theme: parseTheme(await response.json()) })
 ` : ''}${annotations ? `
 const stopSaving = annotations.onCommit(value => {
-  localStorage.setItem('ravl-annotations', stringifyAnnotations(value))
+  localStorage.setItem('raavl-annotations', stringifyAnnotations(value))
 })
 // After dragging a selection:
 // view.createRegionFromSelection(crypto.randomUUID(), 'New region')
@@ -57,8 +155,8 @@ const stopSaving = annotations.onCommit(value => {
 // view.dispose(); player.dispose()${scene === 'dual' ? '; secondView.dispose(); second.dispose()' : ''}${annotations ? '; stopSaving(); annotations.dispose()' : ''}`;
 
   return `import { ${scene === 'file' || scene === 'external' ? 'useState, ' : ''}useRef } from 'react'
-import { Waveform } from 'ravl/react'
-${scene === 'styling' ? "import { waveformThemes, parseTheme } from 'ravl/themes'\n" : ''}${annotations ? "import { stringifyAnnotations } from 'ravl'\n" : ''}import 'ravl/styles.css'
+import { Waveform } from 'raavl/react'
+${scene === 'styling' ? "import { waveformThemes, parseTheme } from 'raavl/themes'\n" : ''}${annotations ? "import { stringifyAnnotations } from 'raavl'\n" : ''}import 'raavl/styles.css'
 
 ${setup}${scene !== 'file' && scene !== 'external' ? `const source = ${descriptor}\n` : ''}${annotations ? `const initialAnnotations = ${document}\n` : ''}${scene === 'styling' ? '\n// For a custom JSON file, pass theme={parseTheme(importedJsonConfig)}.\n' : ''}
 export default function AudioExample() {
@@ -78,7 +176,7 @@ ${scene === 'file' ? `    <input type="file" accept="audio/*" aria-label="Choose
       defaultAnnotations={initialAnnotations}
       annotationRules={{ snap: 0.25, minLength: 0.1 }}
       onAnnotationsCommit={value => {
-        localStorage.setItem('ravl-annotations', stringifyAnnotations(value))
+        localStorage.setItem('raavl-annotations', stringifyAnnotations(value))
       }}` : ''}
       onError={console.error}
     />
@@ -111,8 +209,8 @@ const annotations = createAnnotations({ document: {
   })),
 } })`;
   const options = `{ data, annotations, viewport: { zoom: 100 } }`;
-  if (mode === 'vanilla') return `import { mountWaveform, createAnnotations } from 'ravl'
-import 'ravl/styles.css'
+  if (mode === 'vanilla') return `import { mountWaveform, createAnnotations } from 'raavl'
+import 'raavl/styles.css'
 
 ${fixture}
 
@@ -120,8 +218,8 @@ ${fixture}
 const view = mountWaveform(document.querySelector('#waveform'), ${options})
 // On teardown: view.dispose(); annotations.dispose()`;
   return `import { useEffect, useRef } from 'react'
-import { mountWaveform, createAnnotations } from 'ravl'
-import 'ravl/styles.css'
+import { mountWaveform, createAnnotations } from 'raavl'
+import 'raavl/styles.css'
 
 // The data-only benchmark mounts the shared DOM engine in a React effect.
 export default function ScaleExample() {
@@ -136,13 +234,13 @@ ${fixture.split('\n').map(line => '    ' + line).join('\n')}
 }
 
 function modulesCode(mode: CodeMode) {
-  const imports = `import { mountTimeline } from 'ravl/timeline'
-import { mountMinimap } from 'ravl/minimap'
-import { createSnapper } from 'ravl/snapping'
-import { createHistory, recordHistory, undoHistory, redoHistory } from 'ravl/history'
-import 'ravl/styles.css'`
+  const imports = `import { mountTimeline } from 'raavl/timeline'
+import { mountMinimap } from 'raavl/minimap'
+import { createSnapper } from 'raavl/snapping'
+import { createHistory, recordHistory, undoHistory, redoHistory } from 'raavl/history'
+import 'raavl/styles.css'`
   if (mode === 'react') return `import { useEffect, useMemo, useRef, useState } from 'react'
-import { Waveform } from 'ravl/react'
+import { Waveform } from 'raavl/react'
 ${imports}
 
 const initial = { version: 1, sourceId: 'demo-a', regions: [{ id: 'intro', start: 1, end: 3, label: 'Opening' }], markers: [{ id: 'cue', time: 8 }] }
@@ -179,7 +277,7 @@ export default function Editor() {
     <button disabled={!history.future.length} onClick={() => travel(redoHistory)}>Redo</button>
   </>
 }`
-  return `import { createPlayer, createAnnotations, mountWaveform } from 'ravl'
+  return `import { createPlayer, createAnnotations, mountWaveform } from 'raavl'
 ${imports}
 
 // HTML: #waveform, #timeline, #minimap containers and #undo / #redo buttons.

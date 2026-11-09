@@ -2,7 +2,7 @@
 
 Generated from `examples/workflows.js` with `npm run docs:workflows`.
 
-These are API sketches, not executable library examples. Imports named ravl
+These are API sketches, not executable library examples. Imports named raavl
 do not exist yet. Snippets omit surrounding application UI and repeated imports.
 `container`, `showError`, `showStatus`, `saveDocument`, `episodeSource`,
 and `waveformData` are application-provided placeholders. React snippets use
@@ -20,7 +20,7 @@ setSource resolves after metadata is available. Handle rejected loading and play
 ### Vanilla JavaScript
 
 ```js
-import { createPlayer, mountWaveform } from "ravl";
+import { createPlayer, mountWaveform } from "raavl";
 
 const player = createPlayer();
 const view = mountWaveform(container, { player });
@@ -44,7 +44,7 @@ playButton.onclick = () => player.play().catch(showError);
 
 ```jsx
 import { useRef } from "react";
-import { Waveform } from "ravl/react";
+import { Waveform } from "raavl/react";
 
 function AudioPlayer() {
   const player = useRef(null);
@@ -162,7 +162,7 @@ This store owns its document. Regions can be declared before metadata loads. JSO
 ### Vanilla JavaScript
 
 ```js
-import { createAnnotations } from "ravl/regions";
+import { createAnnotations } from "raavl/regions";
 
 const annotations = createAnnotations({
   document: {
@@ -265,10 +265,10 @@ view.refreshTheme();
 
 /* CSS:
 .podcast-wave {
-  --ravl-wave-color: #6577d4;
-  --ravl-progress-color: #2c2868;
+  --raavl-wave-color: #6577d4;
+  --raavl-progress-color: #2c2868;
 }
-.podcast-wave .ravl-region-label { font-weight: 600; }
+.podcast-wave .raavl-region-label { font-weight: 600; }
 */
 ```
 

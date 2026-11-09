@@ -1,4 +1,4 @@
-import { act, StrictMode } from 'react'
+import { act, StrictMode, useState } from 'react'
 import { createRoot, type Root } from 'react-dom/client'
 import { beforeEach, afterEach, expect, it, vi } from 'vitest'
 import { Waveform, usePlayerState } from '../src/react'
@@ -28,26 +28,26 @@ it('switches themes without retaining old fields and resolves explicit overrides
   const data = { version: 1 as const, sourceId: 'theme', duration: 10, channels: [{ min: [-.5], max: [.5] }] }
   const view = mountWaveform(host, { data, theme: waveformThemes.neon, appearance: { height: 240 } })
   flushFrame()
-  const element = host.querySelector<HTMLElement>('.ravl-waveform')!
-  const cursor = host.querySelector<HTMLElement>('.ravl-cursor')!
+  const element = host.querySelector<HTMLElement>('.raavl-waveform')!
+  const cursor = host.querySelector<HTMLElement>('.raavl-cursor')!
   expect(element.style.height).toBe('240px')
-  expect(element.style.getPropertyValue('--ravl-background')).toBe('#191225')
+  expect(element.style.getPropertyValue('--raavl-background')).toBe('#191225')
   expect(cursor.style.width).toBe('3px')
   view.update({ theme: parseTheme({ version: 1, name: 'Minimal', appearance: { cursorWidth: 0 } }) })
   flushFrame()
   expect(element.style.height).toBe('240px')
-  expect(element.style.getPropertyValue('--ravl-background')).toBe('')
-  expect(element.style.getPropertyValue('--ravl-border-radius')).toBe('8px')
+  expect(element.style.getPropertyValue('--raavl-background')).toBe('')
+  expect(element.style.getPropertyValue('--raavl-border-radius')).toBe('8px')
   expect(cursor.style.width).toBe('0px')
   view.update({ theme: waveformThemes.paper, appearance: { height: undefined } })
   flushFrame()
   expect(element.style.height).toBe('120px')
   expect(() => view.update({ theme: waveformThemes.studio, appearance: { barGap: -1 } })).toThrow()
-  expect(element.style.getPropertyValue('--ravl-background')).toBe('#faf6ec')
+  expect(element.style.getPropertyValue('--raavl-background')).toBe('#faf6ec')
   view.update({ theme: null })
   flushFrame()
   expect(element.style.height).toBe('160px')
-  expect(element.style.getPropertyValue('--ravl-progress-color')).toBe('')
+  expect(element.style.getPropertyValue('--raavl-progress-color')).toBe('')
   view.dispose()
 })
 
@@ -71,6 +71,115 @@ it('draws line thickness, rounded bars and amplitude from theme configuration', 
   view.dispose()
 })
 
+it('renders waveform and progress gradients in their respective pixel spaces and restores CSS colors', () => {
+  vi.stubGlobal('devicePixelRatio', 2)
+  const waveGradient = { addColorStop: vi.fn() }, progressGradient = { addColorStop: vi.fn() }
+  const drawing = { setTransform() {}, fillRect() {}, beginPath() {}, moveTo() {}, lineTo() {}, stroke() {}, createLinearGradient: vi.fn(() => waveGradient), fillStyle: '' as unknown }
+  const played = { drawImage() {}, fillRect() {}, createLinearGradient: vi.fn(() => progressGradient), fillStyle: '' as unknown }
+  vi.mocked(HTMLCanvasElement.prototype.getContext)
+    .mockReturnValueOnce(drawing as unknown as CanvasRenderingContext2D)
+    .mockReturnValueOnce(played as unknown as CanvasRenderingContext2D)
+  const data = { version: 1 as const, sourceId: 'gradient', duration: 10, channels: [{ min: [-.5], max: [.5] }] }
+  const view = mountWaveform(host, { data, theme: parseTheme({ version: 1, name: 'Gradient', appearance: { height: 100 }, colors: {
+    wave: { type: 'linear-gradient', stops: [{ offset: 0, color: '#666' }, { offset: 1, color: '#bbb' }] },
+    progress: { type: 'linear-gradient', axis: 'horizontal', stops: [{ offset: 0, color: '#f50' }, { offset: 1, color: '#fa8' }] },
+  } }) })
+  flushFrame()
+  expect(drawing.createLinearGradient).toHaveBeenCalledWith(0, 0, 0, 100)
+  expect(played.createLinearGradient).toHaveBeenCalledWith(0, 0, 2000, 0)
+  expect(waveGradient.addColorStop.mock.calls).toEqual([[0, '#666'], [1, '#bbb']])
+  expect(progressGradient.addColorStop.mock.calls).toEqual([[0, '#f50'], [1, '#fa8']])
+  expect(drawing.fillStyle).toBe(waveGradient)
+  expect(played.fillStyle).toBe(progressGradient)
+  view.update({ theme: waveformThemes.studio }); flushFrame()
+  expect(drawing.fillStyle).toBe('#52657b')
+  view.update({ theme: null }); flushFrame()
+  expect(drawing.fillStyle).toBe('#9aafa7')
+  view.dispose()
+})
+
+it.each(['line', 'bars'] as const)('combines stereo peaks in %s mode and supports separate channel rows', style => {
+  const drawing = { setTransform: vi.fn(), fillRect: vi.fn(), beginPath: vi.fn(), moveTo: vi.fn(), lineTo: vi.fn(), stroke: vi.fn() }
+  vi.mocked(HTMLCanvasElement.prototype.getContext).mockReturnValueOnce(drawing as unknown as CanvasRenderingContext2D)
+  const data = { version: 1 as const, sourceId: 'stereo', duration: 10, channels: [
+    { min: [-.8, 0], max: [-.2, 0] },
+    { min: [.1, 0], max: [.4, 0] },
+  ] }
+  const original = JSON.stringify(data)
+  const view = mountWaveform(host, { data, appearance: { style, height: 100, amplitude: 1, barWidth: 1, barGap: 0 } })
+  const expectStroke = (top: number, bottom: number) => {
+    if (style === 'line') {
+      expect(drawing.moveTo).toHaveBeenCalledWith(.5, top)
+      expect(drawing.lineTo).toHaveBeenCalledWith(.5, bottom)
+    } else expect(drawing.fillRect).toHaveBeenCalledWith(0, top, 1, bottom - top)
+  }
+  flushFrame()
+  expectStroke(10, 70)
+  expect(style === 'line' ? drawing.moveTo : drawing.fillRect).toHaveBeenCalledTimes(1000)
+  if (style === 'line') expect(drawing.moveTo).toHaveBeenCalledWith(500.5, 50)
+  else expect(drawing.fillRect).toHaveBeenCalledWith(500, 50, 1, 1)
+  vi.clearAllMocks()
+  view.update({ appearance: { splitChannels: true } })
+  flushFrame()
+  expectStroke(25, 45)
+  expectStroke(65, 75)
+  expect(style === 'line' ? drawing.moveTo : drawing.fillRect).toHaveBeenCalledTimes(2000)
+  vi.clearAllMocks()
+  view.update({ appearance: { splitChannels: undefined, normalize: true } })
+  flushFrame()
+  expectStroke(0, 75)
+  expect(JSON.stringify(data)).toBe(original)
+  view.dispose()
+})
+
+it('updates React split-channel appearance without reloading audio and resets when the prop is removed', async () => {
+  const drawing = { setTransform() {}, fillRect: vi.fn(), drawImage() {}, beginPath() {}, moveTo: vi.fn(), lineTo: vi.fn(), stroke() {} }
+  vi.mocked(HTMLCanvasElement.prototype.getContext).mockReturnValue(drawing as unknown as CanvasRenderingContext2D)
+  const player = createPlayer()
+  const data = { version: 1 as const, sourceId: 'stereo', duration: 10, channels: [
+    { min: [-.8], max: [-.2] }, { min: [.1], max: [.4] },
+  ] }
+  const pending = player.setSource({ kind: 'url', id: 'stereo', url: '/stereo.wav', waveform: { kind: 'peaks', data } })
+  mock.ready(player.getMediaElement()!); await pending
+  await player.play(); player.seek(3)
+  const media = player.getMediaElement(), loads = mock.load.mock.calls.length
+  root = createRoot(host)
+  for (const splitChannels of [undefined, true, undefined]) {
+    await act(async () => root!.render(<Waveform player={player} appearance={{ height: 100, amplitude: 1, splitChannels }} />))
+    drawing.moveTo.mockClear()
+    flushFrame()
+    expect(drawing.moveTo).toHaveBeenCalledTimes(splitChannels ? 2000 : 1000)
+  }
+  expect(player.getMediaElement()).toBe(media)
+  expect(player.getSnapshot().data).toBe(data)
+  expect(player.getSnapshot().playback).toBe('playing')
+  expect(player.getCurrentTime()).toBe(3)
+  expect(mock.load.mock.calls.length).toBe(loads)
+  await act(async () => root!.unmount()); root = undefined
+  player.dispose()
+})
+
+it('keeps channel annotation assignments while switching between combined and split rows', () => {
+  const data = { version: 1 as const, sourceId: 'stereo', duration: 10, channels: [
+    { min: [-.5], max: [.5] }, { min: [-.5], max: [.5] },
+  ] }
+  const store = createAnnotations({ document: { version: 1, sourceId: 'stereo', regions: [
+    { id: 'right', start: 2, end: 4, channel: 1 },
+  ], markers: [] } })
+  const view = mountWaveform(host, { data, annotations: store })
+  flushFrame()
+  const region = host.querySelector<HTMLElement>('[data-raavl-annotation="right"]')!
+  expect(region.style.top).toBe('0px')
+  expect(region.style.height).toBe('100%')
+  view.update({ appearance: { splitChannels: true } }); flushFrame()
+  expect(region.style.top).toBe('50%')
+  expect(region.style.height).toBe('50%')
+  view.update({ appearance: { splitChannels: false } }); flushFrame()
+  expect(region.style.height).toBe('100%')
+  expect(store.getSnapshot().document.regions[0].channel).toBe(1)
+  view.dispose(); store.dispose()
+})
+
 it('applies and removes React themes and drawing overrides without reloading or replacing the view', async () => {
   const player = createPlayer(), loaded = player.setSource(source)
   mock.ready(player.getMediaElement()!); await loaded
@@ -79,17 +188,17 @@ it('applies and removes React themes and drawing overrides without reloading or 
   root = createRoot(host)
   await act(async () => { root!.render(<StrictMode><Waveform player={player} theme={waveformThemes.neon} appearance={{ height: 250 }} /></StrictMode>) })
   flushFrame()
-  const waveform = host.querySelector<HTMLElement>('.ravl-waveform')!
+  const waveform = host.querySelector<HTMLElement>('.raavl-waveform')!
   expect(waveform.style.height).toBe('250px')
   await act(async () => { root!.render(<StrictMode><Waveform player={player} theme={waveformThemes.paper} /></StrictMode>) })
   flushFrame()
-  expect(host.querySelector('.ravl-waveform')).toBe(waveform)
+  expect(host.querySelector('.raavl-waveform')).toBe(waveform)
   expect(waveform.style.height).toBe('120px')
-  expect(host.querySelector<HTMLElement>('.ravl-cursor')!.style.width).toBe('1px')
+  expect(host.querySelector<HTMLElement>('.raavl-cursor')!.style.width).toBe('1px')
   await act(async () => { root!.render(<StrictMode><Waveform player={player} /></StrictMode>) })
   flushFrame()
   expect(waveform.style.height).toBe('160px')
-  expect(waveform.style.getPropertyValue('--ravl-background')).toBe('')
+  expect(waveform.style.getPropertyValue('--raavl-background')).toBe('')
   expect(player.getMediaElement()).toBe(element)
   expect(player.getCurrentTime()).toBe(3)
   expect(player.getSnapshot().playback).toBe('playing')
@@ -111,7 +220,7 @@ it('keeps media identity, time, and playback through React appearance updates an
   expect(player).toBe(active); expect(active.getMediaElement()).toBe(element)
   expect(active.getCurrentTime()).toBe(4); expect(active.getSnapshot().playback).toBe('playing')
   expect(mock.load.mock.calls.length).toBe(loads)
-  expect(host.querySelectorAll('.ravl-waveform')).toHaveLength(1)
+  expect(host.querySelectorAll('.raavl-waveform')).toHaveLength(1)
   await act(async () => root!.unmount()); root = undefined
   expect(active.getSnapshot().source).toBe('disposed'); expect(frames.size).toBe(0)
 })
@@ -139,6 +248,24 @@ it('narrow React subscriptions skip unrelated volume and clock changes', async (
   await act(async () => player.play())
   expect(host.textContent).toBe('playing')
   await act(async () => root!.unmount()); root = undefined; player.dispose()
+})
+
+it('updates accessible seeking readiness when supplied peaks arrive before metadata', async () => {
+  const player = createPlayer()
+  const data = { version: 1 as const, sourceId: 'demo', duration: 10, channels: [{ min: [-.5], max: [.5] }] }
+  const pending = player.setSource({ ...source, waveform: { kind: 'peaks', data } })
+  const view = mountWaveform(host, { player })
+  flushFrame()
+  const slider = host.querySelector('[role=slider]')!
+  expect(slider.getAttribute('aria-disabled')).toBe('true')
+  mock.ready(player.getMediaElement()!, 10)
+  await pending
+  flushFrame()
+  expect(slider.getAttribute('aria-disabled')).toBe('false')
+  expect(slider.getAttribute('aria-valuemax')).toBe('10')
+  slider.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowRight', bubbles: true }))
+  expect(player.getCurrentTime()).toBe(1)
+  view.dispose(); player.dispose()
 })
 
 it('supports keyboard seeking and validates view updates before applying them', async () => {
@@ -169,7 +296,7 @@ async function annotationView(controlled = false) {
   const store = controlled ? createAnnotations({ value: annotations, revision: 0, onCommit }) : createAnnotations({ document: annotations })
   if (!controlled) store.onCommit(onCommit)
   const view = mountWaveform(host, { player, annotations: store, interaction: { drag: 'select' } })
-  const viewport = host.querySelector<HTMLElement>('.ravl-waveform')!
+  const viewport = host.querySelector<HTMLElement>('.raavl-waveform')!
   Object.defineProperty(viewport, 'clientWidth', { value: 1000 })
   viewport.setPointerCapture = vi.fn(); viewport.releasePointerCapture = vi.fn(); viewport.hasPointerCapture = () => false
   flushFrame()
@@ -177,7 +304,7 @@ async function annotationView(controlled = false) {
 }
 it('previews dragging without commits, commits once on release, and keeps selection separate', async () => {
   const test = await annotationView()
-  const body = host.querySelector('.ravl-region-body')!
+  const body = host.querySelector('.raavl-region-body')!
   pointer(body, 'pointerdown', 200); pointer(test.viewport, 'pointermove', 300); pointer(test.viewport, 'pointermove', 400)
   expect(test.onCommit).not.toHaveBeenCalled()
   expect(test.store.getSnapshot().document.regions[0].start).toBe(2)
@@ -192,28 +319,97 @@ it('previews dragging without commits, commits once on release, and keeps select
   expect(test.view.getSelection()).toBe(null)
   test.cleanup()
 })
+it.each(['move', 'resize'] as const)('preserves an active region %s preview through redraws and player updates', async action => {
+  const test = await annotationView()
+  const region = host.querySelector<HTMLElement>('.raavl-region')!
+  const target = host.querySelector(action === 'move' ? '.raavl-region-body' : '.raavl-region-handle-end')!
+  const startX = action === 'move' ? 200 : 400
+  pointer(target, 'pointerdown', startX)
+  pointer(test.viewport, 'pointermove', startX + 100)
+  expect(region.style.left).toBe(action === 'move' ? '30%' : '20%')
+  expect(region.style.width).toBe(action === 'move' ? '20%' : '30%')
+  test.view.refreshTheme(); flushFrame()
+  test.player.setVolume(.5)
+  expect(region.style.left).toBe(action === 'move' ? '30%' : '20%')
+  expect(region.style.width).toBe(action === 'move' ? '20%' : '30%')
+  expect(test.onCommit).not.toHaveBeenCalled()
+  pointer(test.viewport, 'pointerup', startX + 100)
+  expect(test.onCommit).toHaveBeenCalledOnce()
+  expect(test.store.getSnapshot().document.regions[0]).toMatchObject(action === 'move' ? { start: 3, end: 5 } : { start: 2, end: 5 })
+  test.cleanup()
+})
+it('keeps a controlled React drag through a rerender and commits its final coordinates', async () => {
+  const player = createPlayer()
+  const ready = player.setSource(source); mock.ready(player.getMediaElement()!); await ready
+  const onCommit = vi.fn()
+  function Editor() {
+    const [value, setValue] = useState({ document: annotations, revision: 0 })
+    const [selected, setSelected] = useState<string | null>(null)
+    const [themeVersion, setThemeVersion] = useState(0)
+    return <>
+      <button onClick={() => setThemeVersion(current => current + 1)}>Refresh theme</button>
+      <span>{selected}</span>
+      <Waveform player={player} annotations={value.document} annotationsRevision={value.revision}
+        onAnnotationSelect={setSelected} themeVersion={themeVersion}
+        onAnnotationsCommit={(document, change) => {
+          onCommit(document, change)
+          setValue(current => change.baseRevision === current.revision ? { document, revision: current.revision + 1 } : current)
+        }} />
+    </>
+  }
+  root = createRoot(host)
+  await act(async () => root!.render(<Editor />))
+  flushFrame()
+  const waveform = host.querySelector<HTMLElement>('.raavl-waveform')!
+  waveform.setPointerCapture = vi.fn(); waveform.releasePointerCapture = vi.fn(); waveform.hasPointerCapture = () => false
+  await act(async () => pointer(host.querySelector('.raavl-region-body')!, 'pointerdown', 200))
+  await act(async () => pointer(waveform, 'pointermove', 300))
+  await act(async () => host.querySelector('button')!.click())
+  flushFrame()
+  expect(host.querySelector<HTMLElement>('.raavl-region')!.style.left).toBe('30%')
+  expect(onCommit).not.toHaveBeenCalled()
+  await act(async () => pointer(waveform, 'pointerup', 300))
+  expect(onCommit).toHaveBeenCalledOnce()
+  expect(onCommit.mock.calls[0][0].regions[0]).toMatchObject({ start: 3, end: 5 })
+  expect(host.querySelector<HTMLElement>('.raavl-region')!.style.left).toBe('30%')
+  await act(async () => root!.unmount()); root = undefined
+  player.dispose()
+})
+it.each(['pointercancel', 'lostpointercapture', 'Escape'])('restores saved region bounds when a gesture is cancelled with %s', async event => {
+  const test = await annotationView()
+  pointer(host.querySelector('.raavl-region-body')!, 'pointerdown', 200)
+  pointer(test.viewport, 'pointermove', 300)
+  test.view.refreshTheme(); flushFrame()
+  expect(host.querySelector<HTMLElement>('.raavl-region')!.style.left).toBe('30%')
+  if (event === 'Escape') test.viewport.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }))
+  else pointer(test.viewport, event, 300)
+  pointer(test.viewport, 'pointerup', 300)
+  expect(host.querySelector<HTMLElement>('.raavl-region')!.style.left).toBe('20%')
+  expect(test.onCommit).not.toHaveBeenCalled()
+  test.cleanup()
+})
 it('reverts rejected controlled drags and cancels gestures on an external revision', async () => {
   const test = await annotationView(true)
-  pointer(host.querySelector('.ravl-region-body')!, 'pointerdown', 200)
+  pointer(host.querySelector('.raavl-region-body')!, 'pointerdown', 200)
   pointer(test.viewport, 'pointermove', 400); pointer(test.viewport, 'pointerup', 400)
   expect(test.onCommit).toHaveBeenCalledOnce()
-  expect(host.querySelector<HTMLElement>('.ravl-region')!.style.left).toBe('20%')
+  expect(host.querySelector<HTMLElement>('.raavl-region')!.style.left).toBe('20%')
   test.onCommit.mockClear()
-  pointer(host.querySelector('.ravl-region-body')!, 'pointerdown', 200); pointer(test.viewport, 'pointermove', 300)
+  pointer(host.querySelector('.raavl-region-body')!, 'pointerdown', 200); pointer(test.viewport, 'pointermove', 300)
   test.store.setControlled({ value: { ...annotations, regions: [{ ...annotations.regions[0], start: 1 }] }, revision: 1, onCommit: test.onCommit })
   pointer(test.viewport, 'pointerup', 300)
   expect(test.onCommit).not.toHaveBeenCalled()
-  expect(host.querySelector<HTMLElement>('.ravl-region')!.style.left).toBe('10%')
+  expect(host.querySelector<HTMLElement>('.raavl-region')!.style.left).toBe('10%')
   test.cleanup()
 })
 it('edits region boundaries with the keyboard without seeking playback, and hides annotations on source switch', async () => {
   const test = await annotationView()
-  host.querySelector('.ravl-region-handle-end')!.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowRight', bubbles: true }))
+  host.querySelector('.raavl-region-handle-end')!.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowRight', bubbles: true }))
   expect(test.store.getSnapshot().document.regions[0].end).toBeCloseTo(4.1)
   expect(test.player.getCurrentTime()).toBe(0)
   const ready = test.player.setSource({ ...source, id: 'different' }); mock.ready(test.player.getMediaElement()!); await ready
   flushFrame()
-  expect(host.querySelector<HTMLElement>('.ravl-annotations')!.hidden).toBe(true)
+  expect(host.querySelector<HTMLElement>('.raavl-annotations')!.hidden).toBe(true)
   expect(test.store.getSnapshot().document.regions).toHaveLength(1)
   expect(host.textContent).toContain('another source')
   test.cleanup()
@@ -226,19 +422,19 @@ it('renders React-owned custom region labels and receives controlled keyboard pr
   const active = player as unknown as Player
   await act(async () => { mock.ready(active.getMediaElement()!); flushFrame() })
   expect(host.querySelector('[data-custom-label]')?.textContent).toBe('Intro')
-  await act(async () => host.querySelector('.ravl-region-handle-end')!.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowRight', bubbles: true })))
+  await act(async () => host.querySelector('.raavl-region-handle-end')!.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowRight', bubbles: true })))
   expect(onCommit).toHaveBeenCalledOnce()
   expect(onCommit.mock.calls[0][0].regions[0].end).toBeCloseTo(4.1)
-  expect(host.querySelector<HTMLElement>('.ravl-region')!.style.width).toBe('20%')
+  expect(host.querySelector<HTMLElement>('.raavl-region')!.style.width).toBe('20%')
 })
 
 it('focuses a clicked resize handle and preserves focus after committing a keyboard edit', async () => {
   const test = await annotationView()
-  const handle = host.querySelector<HTMLElement>('.ravl-region-handle-end')!
+  const handle = host.querySelector<HTMLElement>('.raavl-region-handle-end')!
   pointer(handle, 'pointerdown', 400); pointer(test.viewport, 'pointerup', 400)
   expect(document.activeElement).toBe(handle)
   handle.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowRight', bubbles: true }))
-  expect(document.activeElement?.classList.contains('ravl-region-handle-end')).toBe(true)
+  expect(document.activeElement?.classList.contains('raavl-region-handle-end')).toBe(true)
   expect(test.store.getSnapshot().document.regions[0].end).toBeCloseTo(4.1)
   test.cleanup()
 })
@@ -250,9 +446,9 @@ it('supports React-owned default annotations through Strict Mode remount and cle
   await act(async () => root!.render(<StrictMode><Waveform source={source} onPlayer={value => { player = value }} defaultAnnotations={annotations} onAnnotationsCommit={onCommit} /></StrictMode>))
   const active = player as unknown as Player
   await act(async () => { mock.ready(active.getMediaElement()!); flushFrame() })
-  await act(async () => host.querySelector('.ravl-region-handle-end')!.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowRight', bubbles: true })))
+  await act(async () => host.querySelector('.raavl-region-handle-end')!.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowRight', bubbles: true })))
   expect(onCommit).toHaveBeenCalledOnce()
-  expect(parseFloat(host.querySelector<HTMLElement>('.ravl-region')!.style.width)).toBeCloseTo(21)
+  expect(parseFloat(host.querySelector<HTMLElement>('.raavl-region')!.style.width)).toBeCloseTo(21)
   await act(async () => root!.unmount()); root = undefined
   expect(host.children).toHaveLength(0)
   expect(frames.size).toBe(0)
@@ -263,7 +459,7 @@ it('starts playback at a double-clicked position and removes the handler on disp
   const ready = player.setSource(source); mock.ready(player.getMediaElement()!); await ready
   const view = mountWaveform(host, { player })
   flushFrame()
-  const waveform = host.querySelector('.ravl-waveform')!
+  const waveform = host.querySelector('.raavl-waveform')!
   waveform.dispatchEvent(new MouseEvent('dblclick', { clientX: 400, bubbles: true }))
   await Promise.resolve()
   expect(player.getCurrentTime()).toBe(4)
@@ -278,7 +474,7 @@ it('starts playback at a double-clicked position and removes the handler on disp
 it('ignores double-click playback before a source is ready and reports play failures through state', async () => {
   const player = createPlayer()
   const view = mountWaveform(host, { player })
-  const waveform = host.querySelector('.ravl-waveform')!
+  const waveform = host.querySelector('.raavl-waveform')!
   waveform.dispatchEvent(new MouseEvent('dblclick', { bubbles: true }))
   expect(mock.play).not.toHaveBeenCalled()
   const ready = player.setSource(source); mock.ready(player.getMediaElement()!); await ready
@@ -292,7 +488,7 @@ it('ignores double-click playback before a source is ready and reports play fail
 
 it('keeps annotation double-clicks separate from waveform playback', async () => {
   const test = await annotationView()
-  host.querySelector('.ravl-region-body')!.dispatchEvent(new MouseEvent('dblclick', { bubbles: true }))
+  host.querySelector('.raavl-region-body')!.dispatchEvent(new MouseEvent('dblclick', { bubbles: true }))
   expect(mock.play).not.toHaveBeenCalled()
   test.player.seek(3)
   test.viewport.dispatchEvent(new MouseEvent('dblclick', { clientX: 500, bubbles: true }))
@@ -318,7 +514,7 @@ async function touchView(drag: 'none' | 'seek' = 'none') {
   const ready = player.setSource(source); mock.ready(player.getMediaElement()!); await ready
   const view = mountWaveform(host, { player, interaction: { drag } })
   flushFrame()
-  const waveform = host.querySelector<HTMLElement>('.ravl-waveform')!
+  const waveform = host.querySelector<HTMLElement>('.raavl-waveform')!
   waveform.hasPointerCapture = () => false
   return { player, view, waveform, cleanup: () => { view.dispose(); player.dispose() } }
 }
@@ -398,7 +594,7 @@ it('rejects multi-touch and clears cancelled or lost touch gestures', async () =
 
 it('keeps touch annotation gestures separate and supports double-tap playback in selection mode', async () => {
   const test = await annotationView()
-  const body = host.querySelector('.ravl-region-body')!
+  const body = host.querySelector('.raavl-region-body')!
   tap(body, 300); tap(body, 300)
   expect(mock.play).not.toHaveBeenCalled()
   tap(test.viewport, 500); tap(test.viewport, 500)
@@ -420,9 +616,9 @@ it('synchronizes optional timeline/minimap with zoom, keyboard navigation and di
   const timeline = mountTimeline(ruler, { view }), minimap = mountMinimap(overview, { view, player })
   flushFrame()
   expect(view.getViewport()).toMatchObject({ start: 0, end: 10, duration: 100 })
-  expect(ruler.querySelectorAll('.ravl-timeline-tick').length).toBeLessThan(16)
+  expect(ruler.querySelectorAll('.raavl-timeline-tick').length).toBeLessThan(16)
   const changed = vi.fn(), off = view.subscribeViewport(changed)
-  const slider = overview.querySelector<HTMLElement>('.ravl-minimap-control')!
+  const slider = overview.querySelector<HTMLElement>('.raavl-minimap-control')!
   slider.setPointerCapture = vi.fn(); slider.hasPointerCapture = () => false
   const event = (type: string, x: number) => { const value = new MouseEvent(type, { bubbles: true, clientX: x, button: 0 }); Object.defineProperty(value, 'pointerId', { value: 2 }); return value }
   slider.dispatchEvent(event('pointerdown', 500)); slider.dispatchEvent(event('pointermove', 600)); slider.dispatchEvent(event('pointerup', 600)); flushFrame()
@@ -458,9 +654,9 @@ it('applies magnetic snapping to final pointer coordinates while excluding the m
   const store = createAnnotations({ document: annotations })
   const view = mountWaveform(host, { data: { version: 1, sourceId: 'demo', duration: 10, channels: [{ min: [-.5], max: [.5] }] }, annotations: store, snapAnnotation: createSnapper({ tolerancePixels: 10 }), viewport: { zoom: 100 } })
   flushFrame()
-  const surface = host.querySelector<HTMLElement>('.ravl-waveform')!
+  const surface = host.querySelector<HTMLElement>('.raavl-waveform')!
   surface.setPointerCapture = vi.fn(); surface.hasPointerCapture = () => false
-  const target = host.querySelector('.ravl-region-handle-end')!
+  const target = host.querySelector('.raavl-region-handle-end')!
   const pointerEvent = (type: string, x: number) => { const event = new MouseEvent(type, { bubbles: true, clientX: x, button: 0 }); Object.defineProperty(event, 'pointerId', { value: 1 }); return event }
   target.dispatchEvent(pointerEvent('pointerdown', 400))
   surface.dispatchEvent(pointerEvent('pointermove', 695)); surface.dispatchEvent(pointerEvent('pointerup', 695))
@@ -478,7 +674,7 @@ it('runs the composed React modules example through Strict Mode, history and tea
   expect(host.textContent).toContain('Undo steps: 1')
   await act(async () => button('Undo').click())
   expect(host.textContent).toContain('Redo steps: 1')
-  expect(host.querySelectorAll('.ravl-minimap')).toHaveLength(1)
+  expect(host.querySelectorAll('.raavl-minimap')).toHaveLength(1)
   await act(async () => root!.unmount()); root = undefined
   expect(frames.size).toBe(0); expect(host.childElementCount).toBe(0)
 })

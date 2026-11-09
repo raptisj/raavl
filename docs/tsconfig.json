@@ -14,11 +14,12 @@
     "jsx": "react-jsx",
     "incremental": true,
     "plugins": [{ "name": "next" }],
+    "typeRoots": ["./node_modules/@types"],
     "paths": {
       "@/*": ["./*"],
-      "ravl": ["../src/index.ts"],
-      "ravl/react": ["../src/react/index.tsx"],
-      "ravl/styles.css": ["../src/styles.css"]
+      "raavl": ["../src/index.ts"],
+      "raavl/react": ["../src/react/index.tsx"],
+      "raavl/styles.css": ["../src/styles.css"]
     }
   },
   "include": ["next-env.d.ts", "**/*.ts", "**/*.tsx", ".next/types/**/*.ts", ".next/dev/types/**/*.ts"],

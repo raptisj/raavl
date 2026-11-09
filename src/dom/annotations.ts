@@ -11,7 +11,7 @@ import {
   type Marker,
   type Selection,
 } from "../regions";
-import type { RavlError } from "../core/types";
+import type { RaavlError } from "../core/types";
 
 export type LabelSlot = HTMLElement | { element: HTMLElement; dispose(): void };
 export type AnnotationSnapper = (time: number, context: {
@@ -24,13 +24,14 @@ export type AnnotationViewOptions = {
   renderRegionLabel?: (region: Region) => LabelSlot;
   onSelectionChange?: (selection: Selection) => void;
   onAnnotationSelect?: (id: string | null) => void;
-  onAnnotationError?: (error: RavlError) => void;
+  onAnnotationError?: (error: RaavlError) => void;
 };
 export type AnnotationGeometry = {
   sourceId: string | null;
   duration: number;
   width: number;
   channels: number;
+  splitChannels: boolean;
   selectMode: boolean;
 };
 type Gesture = {
@@ -63,34 +64,34 @@ export function mountAnnotations(
   let rules = validateRules(),
     rendering = false;
   const overlay = document.createElement("div");
-  overlay.className = "ravl-annotations";
+  overlay.className = "raavl-annotations";
   Object.assign(overlay.style, {
     position: "absolute",
     inset: "0",
     pointerEvents: "none",
   });
   const preview = document.createElement("div");
-  preview.className = "ravl-selection";
+  preview.className = "raavl-selection";
   preview.hidden = true;
   Object.assign(preview.style, {
     position: "absolute",
     top: "0",
     bottom: "0",
     pointerEvents: "none",
-    background: "var(--ravl-selection-color, #538ce644)",
+    background: "var(--raavl-selection-color, #538ce644)",
     border: "1px dashed currentColor",
   });
   overlay.append(preview);
   surface.append(overlay);
   const list = document.createElement("section");
-  list.className = "ravl-annotation-list";
+  list.className = "raavl-annotation-list";
   list.setAttribute("aria-label", "Annotations");
   const status = document.createElement("p");
-  status.className = "ravl-annotation-status";
+  status.className = "raavl-annotation-status";
   status.setAttribute("role", "status");
   const rows = document.createElement("ul");
   const pagination = document.createElement("div");
-  pagination.className = "ravl-annotation-pagination";
+  pagination.className = "raavl-annotation-pagination";
   const previous = document.createElement("button"), next = document.createElement("button"), pageLabel = document.createElement("span");
   previous.type = next.type = "button";
   previous.textContent = "Previous annotations";
@@ -116,7 +117,7 @@ export function mountAnnotations(
     }
   >();
   const report = (error: unknown) => {
-    const err = error as RavlError;
+    const err = error as RaavlError;
     status.textContent = err.message;
     options.onAnnotationError?.(err);
   };
@@ -132,7 +133,7 @@ export function mountAnnotations(
   const active = () => matches() && geometry().duration > 0;
   const annotationTarget = (target: EventTarget | null) =>
     target instanceof Element
-      ? target.closest<HTMLElement>("[data-ravl-annotation]")
+      ? target.closest<HTMLElement>("[data-raavl-annotation]")
       : null;
   const timeAt = (x: number) =>
     Math.max(
@@ -175,13 +176,13 @@ export function mountAnnotations(
     if (previous && !previous.id) setSelection(null);
   };
   const position = (element: HTMLElement, item: Region | Marker) => {
-    const { duration, channels } = geometry();
+    const { duration, channels, splitChannels } = geometry();
     element.style.left = `${(("start" in item ? item.start : item.time) / duration) * 100}%`;
     element.style.width =
       "start" in item
         ? `${((item.end - item.start) / duration) * 100}%`
         : "2px";
-    const channel = "channel" in item ? item.channel : undefined;
+    const channel = splitChannels && "channel" in item ? item.channel : undefined;
     element.style.top =
       channel === undefined ? "0" : `${(channel / channels) * 100}%`;
     element.style.height =
@@ -233,7 +234,7 @@ export function mountAnnotations(
         ...snapshot.document.markers,
       ];
       const focus = document.activeElement instanceof HTMLElement ? document.activeElement : null;
-      const focusId = focus?.dataset.ravlAnnotation, focusSide = focus?.dataset.side;
+      const focusId = focus?.dataset.raavlAnnotation, focusSide = focus?.dataset.side;
       const from = root.scrollLeft / geometry().width * duration;
       const to = (root.scrollLeft + root.clientWidth) / geometry().width * duration;
       const visible = active() && geometry().width > 0 ? items.filter((item) => !invalid.has(item.id) && (
@@ -257,21 +258,21 @@ export function mountAnnotations(
           node?.cleanup?.();
           node?.element.remove();
           const element = document.createElement("div");
-          element.className = "start" in item ? "ravl-region" : "ravl-marker";
-          element.dataset.ravlAnnotation = item.id;
+          element.className = "start" in item ? "raavl-region" : "raavl-marker";
+          element.dataset.raavlAnnotation = item.id;
           element.dataset.selected = String(selected === item.id);
           Object.assign(element.style, {
             position: "absolute",
             pointerEvents: "auto",
             background:
               "start" in item
-                ? "var(--ravl-region-color, #a67ce333)"
-                : "var(--ravl-marker-color, #b65d29)",
+                ? "var(--raavl-region-color, #a67ce333)"
+                : "var(--raavl-marker-color, #b65d29)",
           });
           const body = document.createElement("button");
           body.type = "button";
-          body.className = "ravl-region-body";
-          body.dataset.ravlAnnotation = item.id;
+          body.className = "raavl-region-body";
+          body.dataset.raavlAnnotation = item.id;
           Object.assign(body.style, {
             position: "absolute",
             inset: "0",
@@ -287,7 +288,7 @@ export function mountAnnotations(
             `${item.label || item.id}${item.locked ? ", locked" : ""}. ${"start" in item ? `${item.start.toFixed(2)} to ${item.end.toFixed(2)}` : item.time.toFixed(2)} seconds. Arrow keys move; Delete removes.`,
           );
           const label = document.createElement("span");
-          label.className = "ravl-region-label";
+          label.className = "raavl-region-label";
           label.style.pointerEvents = "none";
           let cleanup: (() => void) | undefined;
           if ("start" in item && options.renderRegionLabel) {
@@ -303,8 +304,8 @@ export function mountAnnotations(
             for (const side of ["start", "end"] as const) {
               const handle = document.createElement("button");
               handle.type = "button";
-              handle.className = `ravl-region-handle ravl-region-handle-${side}`;
-              handle.dataset.ravlAnnotation = item.id;
+              handle.className = `raavl-region-handle raavl-region-handle-${side}`;
+              handle.dataset.raavlAnnotation = item.id;
               handle.dataset.side = side;
               handle.disabled = !!item.locked;
               handle.setAttribute(
@@ -319,7 +320,7 @@ export function mountAnnotations(
                 width: "8px",
                 padding: "0",
                 border: "0",
-                background: "var(--ravl-handle-color, #8055ba88)",
+                background: "var(--raavl-handle-color, #8055ba88)",
                 cursor: "ew-resize",
                 touchAction: "none",
               });
@@ -334,13 +335,14 @@ export function mountAnnotations(
           };
           nodes.set(item.id, node);
         }
-        position(node.element, item);
+        // Redraws and unrelated player updates must preserve the live gesture.
+        position(node.element, gesture?.id === item.id && gesture.next ? gesture.next : item);
       }
       if (focusId && !focus?.isConnected) {
         const element = nodes.get(focusId)?.element;
         const target = focusSide
           ? element?.querySelector<HTMLElement>(`[data-side="${focusSide}"]`)
-          : element?.querySelector<HTMLElement>(".ravl-region-body");
+          : element?.querySelector<HTMLElement>(".raavl-region-body");
         target?.focus({ preventScroll: true });
       }
       // The list is the non-spatial alternative to overlays; no hidden canvas data.
@@ -371,7 +373,7 @@ export function mountAnnotations(
               );
               render();
               nodes.get(item.id)?.element
-                .querySelector<HTMLElement>(".ravl-region-body")
+                .querySelector<HTMLElement>(".raavl-region-body")
                 ?.focus({ preventScroll: true });
             }
           };
@@ -389,13 +391,13 @@ export function mountAnnotations(
     const target = annotationTarget(event.target);
     if (target) {
       event.stopPropagation();
-      select(target.dataset.ravlAnnotation!);
+      select(target.dataset.raavlAnnotation!);
     }
   };
   const down = (event: PointerEvent) => {
     if (event.button !== 0 || !active()) return;
     const target = annotationTarget(event.target);
-    const id = target?.dataset.ravlAnnotation;
+    const id = target?.dataset.raavlAnnotation;
     const item = id
       ? [
           ...store!.getSnapshot().document.regions,
@@ -515,7 +517,7 @@ export function mountAnnotations(
       return;
     event.preventDefault();
     event.stopPropagation();
-    const id = target.dataset.ravlAnnotation!,
+    const id = target.dataset.raavlAnnotation!,
       item = [
         ...store!.getSnapshot().document.regions,
         ...store!.getSnapshot().document.markers,

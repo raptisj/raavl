@@ -5,9 +5,11 @@ import { mountTimeline } from '../../src/timeline'
 import { mountMinimap } from '../../src/minimap'
 import { createSnapper } from '../../src/snapping'
 import { createHistory, recordHistory, undoHistory, redoHistory } from '../../src/history'
+import { usePageTheme } from './usePageTheme'
 
 const initial = { version: 1 as const, sourceId: 'demo-a', regions: [{ id: 'intro', start: 1, end: 3, label: 'Opening' }, { id: 'phrase', start: 5, end: 7, label: 'Phrase' }], markers: [{ id: 'cue', time: 8, label: 'Snap target' }] }
 function Vanilla({ player, store, zoom, snapper, onView, onSelection, report }: { player: Player; store: AnnotationStore; zoom: number | 'fit'; snapper?: AnnotationSnapper; onView: (view: WaveformView | null) => void; onSelection: (selection: Selection) => void; report: (error: Error) => void }) {
+  const pageTheme = usePageTheme()
   const host = useRef<HTMLDivElement>(null), view = useRef<WaveformView | null>(null)
   useEffect(() => {
     const mounted = mountWaveform(host.current!, { player, annotations: store, interaction: { drag: 'select' }, onSelectionChange: onSelection, onAnnotationError: report })
@@ -15,19 +17,25 @@ function Vanilla({ player, store, zoom, snapper, onView, onSelection, report }: 
     return () => { onView(null); mounted.dispose(); view.current = null }
   }, [player, store, onView, onSelection, report])
   useEffect(() => { view.current?.update({ viewport: { zoom, follow: 'off' }, snapAnnotation: snapper, annotationRules: { snap: .1 } }) }, [zoom, snapper])
+  useEffect(() => { view.current?.refreshTheme() }, [pageTheme])
   return <div ref={host} />
 }
 function Accessories({ view, player }: { view: WaveformView | null; player: Player }) {
+  const pageTheme = usePageTheme()
   const timeline = useRef<HTMLDivElement>(null), minimap = useRef<HTMLDivElement>(null)
+  const overview = useRef<ReturnType<typeof mountMinimap> | null>(null)
   useEffect(() => {
     if (!view || view.getViewport().disposed) return
     const ruler = mountTimeline(timeline.current!, { view })
-    const overview = mountMinimap(minimap.current!, { view, player })
-    return () => { overview.dispose(); ruler.dispose() }
+    const mounted = mountMinimap(minimap.current!, { view, player })
+    overview.current = mounted
+    return () => { overview.current = null; mounted.dispose(); ruler.dispose() }
   }, [view, player])
+  useEffect(() => { overview.current?.refreshTheme() }, [pageTheme])
   return <><div ref={timeline} /><p className="helper">Overview: drag to pan · arrows move the window · Shift moves a full window · Home / End</p><div ref={minimap} /></>
 }
 export function ModulesEditor({ mode }: { mode: 'vanilla' | 'react' }) {
+  const pageTheme = usePageTheme()
   const [resources, setResources] = useState<{ player: Player; store: AnnotationStore } | null>(null)
   const [view, setView] = useState<WaveformView | null>(null), activeView = useRef<WaveformView | null>(null)
   const onView = useCallback((value: WaveformView | null) => { activeView.current = value; setView(value) }, [])
@@ -67,7 +75,7 @@ export function ModulesEditor({ mode }: { mode: 'vanilla' | 'react' }) {
     </div>
     <p role="status">Undo steps: {history.past.length} · Redo steps: {history.future.length} · Source: {snapshot?.document.sourceId ?? 'loading'}</p>
     {resources && <>
-      {mode === 'react' ? <Waveform player={resources.player} annotationStore={resources.store} onView={onView} viewport={{ zoom, follow: 'off' }} interaction={{ drag: 'select' }} annotationRules={{ snap: .1 }} snapAnnotation={snapper} onSelectionChange={setSelection} onError={report} /> : <Vanilla player={resources.player} store={resources.store} onView={onView} zoom={zoom} snapper={snapper} onSelection={setSelection} report={report} />}
+      {mode === 'react' ? <Waveform player={resources.player} themeVersion={pageTheme} annotationStore={resources.store} onView={onView} viewport={{ zoom, follow: 'off' }} interaction={{ drag: 'select' }} annotationRules={{ snap: .1 }} snapAnnotation={snapper} onSelectionChange={setSelection} onError={report} /> : <Vanilla player={resources.player} store={resources.store} onView={onView} zoom={zoom} snapper={snapper} onSelection={setSelection} report={report} />}
       <Accessories view={view} player={resources.player} />
     </>}
     <div className="transport">
