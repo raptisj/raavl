@@ -36,5 +36,3 @@ Recording and spectrograms are not implemented. Playback uses the browser's medi
 2. A **view** borrows that player and draws its waveform. Multiple views can share a player.
 3. **Annotations** hold source-bound regions and markers, separately from the audio.
 4. Your **application** supplies controls, persistence, and styling.
-
-Dispose what you create. A view does not dispose its player; React cleans up a player it creates, while a supplied player remains yours.

@@ -173,13 +173,14 @@ finite time. Context contains `document`, `excludeId`, `duration`, and
 `pixelsPerSecond`. A nonfinite result falls back to the raw time. A custom
 callback should not mutate stores, allocate resources, or throw during gestures.
 
-## Runnable examples
-
-```sh
-npm run examples
-```
+## Try the modules together
 
 Open [the React composition](/examples#demos/modules/react) or
-[the JavaScript composition](/examples#demos/modules/vanilla). The framework switch on this example
-remounts the actual corresponding implementation and resets demo edits. Rename,
-undo/redo, resize near the cue, pan with the minimap, and switch sources. This page is the canonical API reference. Source: `examples/live/ModulesEditor.tsx`.
+[the JavaScript composition](/examples#demos/modules/vanilla) to try the timeline,
+minimap, undo/redo history, and magnetic snapping together.
+
+Rename a region, undo and redo an edit, resize a region near the cue at 8 seconds,
+pan with the minimap, and switch audio sources. Switching between React and
+JavaScript restarts the demo with the selected implementation and resets your edits.
+
+Source: `examples/live/ModulesEditor.tsx`.

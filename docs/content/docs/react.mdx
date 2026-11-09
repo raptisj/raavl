@@ -17,6 +17,208 @@ Choose an owned source or a borrowed player:
 
 Never supply `source` and `player` together. Setting an owned `source` to `null` clears it.
 
+### Choosing who owns the player
+
+Both forms render a waveform and support the same interactions. The difference
+is the lifetime of the audio player behind it. Choose based on how long playback
+needs to live, rather than whether you need custom controls: **both forms support
+custom controls**.
+
+| Question | `source={source}` | `player={player}` |
+| --- | --- | --- |
+| Who creates the player? | `Waveform`, after mount | Your component or application |
+| Who loads or changes the audio? | `Waveform`, when `source` changes | Your code, with `player.setSource(source)` |
+| How do controls access it? | Capture it with `onPlayer={setPlayer}` | Use the player you already created |
+| What happens when the waveform unmounts? | Its view and player are disposed; playback stops | Its view is disposed; the player can keep playing |
+| Who disposes the player? | `Waveform` | Your code, when the owning component or application is done |
+
+The examples below use the same controls so you can see that ownership, rather
+than the buttons, is what changes. Replace `/episode.mp3` with an audio asset
+served by your app. Import `raavl/styles.css` once in your application. In a
+Next.js App Router application, keep these components in client modules.
+
+### Shared playback controls
+
+Save this as `PlaybackControls.tsx` alongside the example you want to use. The
+controls accept a player without taking ownership of it. They stay disabled
+until source metadata is ready, and handle the `play()` promise because a
+browser can reject playback.
+
+```tsx
+'use client';
+
+import type { Player } from 'raavl';
+import { usePlayerState, usePlayerTime } from 'raavl/react';
+
+type Props = {
+  player: Player | null;
+  onError: (error: Error) => void;
+};
+
+function PlaybackTime({ player }: { player: Player | null }) {
+  const seconds = usePlayerTime(player);
+  return <output aria-label="Playback time">{seconds.toFixed(1)} s</output>;
+}
+
+export function PlaybackControls({ player, onError }: Props) {
+  const ready = usePlayerState(player, state => state?.source === 'ready');
+  const playing = usePlayerState(player, state => state?.playback === 'playing');
+
+  function togglePlayback() {
+    if (!player || !ready) return;
+    if (playing) player.pause();
+    else void player.play().catch(onError);
+  }
+
+  return (
+    <div>
+      <button disabled={!ready} onClick={togglePlayback}>
+        {playing ? 'Pause' : 'Play'}
+      </button>
+      <PlaybackTime player={player} />
+    </div>
+  );
+}
+```
+
+Keeping the clock subscription in `PlaybackTime` means time updates rerender
+that small component instead of the whole card or editor.
+
+### Example 1: a podcast episode card with `source`
+
+Use this when the audio belongs to one visible component, such as an episode
+card, a voice message, or a sound preview. Removing the card should stop its
+audio and release its resources.
+
+```tsx
+'use client';
+
+import { useState } from 'react';
+import type { Player } from 'raavl';
+import { Waveform } from 'raavl/react';
+import { PlaybackControls } from './PlaybackControls';
+
+export function EpisodeCard() {
+  const [player, setPlayer] = useState<Player | null>(null);
+  const [error, setError] = useState('');
+
+  return (
+    <article>
+      <h2>Episode 1: Behind the recording</h2>
+      <Waveform
+        source={{ kind: 'url', id: 'episode-1', url: '/episode.mp3' }}
+        onPlayer={setPlayer}
+        onError={error => setError(error.message)}
+        appearance={{ style: 'bars', height: 120 }}
+        interaction={{ drag: 'seek' }}
+        aria-label="Episode 1 waveform"
+      />
+      <PlaybackControls
+        player={player}
+        onError={error => setError(error.message)}
+      />
+      {error && <p role="alert">{error}</p>}
+    </article>
+  );
+}
+```
+
+After mount, `Waveform` creates a player, loads the episode, and passes the
+player to `onPlayer`. `setPlayer` is a stable callback, so the controls can
+subscribe to that instance. Holding this reference does **not** transfer
+ownership: do not dispose it yourself. On cleanup, `onPlayer` receives `null`.
+
+Try pressing Play and then removing `EpisodeCard` from its parent: playback
+stops. To show another episode, change the `source` descriptor; `Waveform`
+loads it through the existing player. You do not need a `createPlayer()` call
+or a cleanup effect in this component.
+
+### Example 2: an audio editor with a shared `player`
+
+Use this when the player needs to outlive a particular waveform view. In an
+editor, a persistent toolbar can keep playing while the user hides the waveform
+panel. The parent editor owns playback; the panel borrows it.
+
+```tsx
+'use client';
+
+import { useEffect, useState } from 'react';
+import { createPlayer, type Player } from 'raavl';
+import { Waveform, usePlayerState } from 'raavl/react';
+import { PlaybackControls } from './PlaybackControls';
+
+export function AudioEditor() {
+  const [player, setPlayer] = useState<Player | null>(null);
+  const [showWaveform, setShowWaveform] = useState(true);
+  const [error, setError] = useState('');
+  const playerError = usePlayerState(
+    player,
+    state => state?.error?.message ?? state?.waveformError?.message ?? '',
+  );
+
+  useEffect(() => {
+    // This editor owns the player, even when its waveform panel is hidden.
+    const instance = createPlayer();
+    const abort = new AbortController();
+    setPlayer(instance);
+
+    void instance.setSource(
+      { kind: 'url', id: 'episode-1', url: '/episode.mp3' },
+      { signal: abort.signal },
+    ).catch(error => {
+      if (!abort.signal.aborted) setError(error.message);
+    });
+
+    return () => {
+      abort.abort();
+      instance.dispose();
+    };
+  }, []);
+
+  return (
+    <section>
+      <h2>Episode editor</h2>
+      <PlaybackControls
+        player={player}
+        onError={error => setError(error.message)}
+      />
+      <button
+        aria-expanded={showWaveform}
+        onClick={() => setShowWaveform(visible => !visible)}
+      >
+        {showWaveform ? 'Hide waveform' : 'Show waveform'}
+      </button>
+      {showWaveform && player && (
+        <Waveform
+          player={player}
+          appearance={{ style: 'bars', height: 180 }}
+          interaction={{ drag: 'seek' }}
+          aria-label="Episode editor waveform"
+        />
+      )}
+      {(error || playerError) && <p role="alert">{error || playerError}</p>}
+    </section>
+  );
+}
+```
+
+Try pressing Play, then Hide waveform: the audio and toolbar clock continue.
+Show waveform reconnects a new view to the same player at its current playback
+position. Removing `AudioEditor` runs the effect cleanup, cancels any pending
+source load, and disposes the player. The error subscription lives in the editor
+so player errors remain visible even while the waveform panel is hidden.
+
+Create the player inside the effect so setup and cleanup remain paired,
+including React Strict Mode's development setup/cleanup cycle. To select a
+different recording, call `player.setSource(nextSource)` from the owner and
+handle its promise. Do not also pass `source` to the borrowed `Waveform`.
+Multiple waveforms can borrow this same player, but they share one audio source,
+playback position, and transport; use separate players for independent audio.
+For playback across routes, put the owner above the route content so it stays
+mounted during navigation.
+
+### Waveform props
+
 | Prop | Purpose |
 | --- | --- |
 | `appearance`, `viewport`, `interaction`, `theme` | Same settings as the DOM renderer |
