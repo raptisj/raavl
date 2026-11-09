@@ -536,6 +536,10 @@ export function mountAnnotations(
   const up = (event: PointerEvent) => {
     if (!gesture || event.pointerId !== gesture.pointer) return;
     const g = gesture;
+    // Fast gestures may release before the next pointermove is delivered.
+    // Apply the final coordinates through the same threshold, bounds and snapping.
+    move(event);
+    if (gesture !== g) return;
     gesture = null;
     if (root.hasPointerCapture(g.pointer))
       root.releasePointerCapture(g.pointer);

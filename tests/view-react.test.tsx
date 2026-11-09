@@ -319,6 +319,60 @@ it('previews dragging without commits, commits once on release, and keeps select
   expect(test.view.getSelection()).toBe(null)
   test.cleanup()
 })
+it.each(['move', 'resize-start', 'resize-end', 'marker'] as const)('commits a fast %s from the release position when movement events are sparse', async action => {
+  const selector = action === 'move' ? '.raavl-region-body' : action === 'marker' ? '.raavl-marker .raavl-region-body' : `.raavl-region-handle-${action === 'resize-start' ? 'start' : 'end'}`
+  const startX = action === 'resize-end' ? 400 : action === 'marker' ? 700 : 200
+  for (const smallMove of [false, true]) {
+    const test = await annotationView()
+    const before = test.store.getSnapshot().document
+    pointer(host.querySelector(selector)!, 'pointerdown', startX)
+    if (smallMove) pointer(test.viewport, 'pointermove', startX + 1)
+    pointer(test.viewport, 'pointerup', startX + 100)
+    const after = test.store.getSnapshot().document
+    if (action === 'marker') expect(after.markers[0].time).toBeCloseTo(before.markers[0].time + 1)
+    else expect(after.regions[0]).toMatchObject({
+      start: before.regions[0].start + (action === 'resize-end' ? 0 : 1),
+      end: before.regions[0].end + (action === 'resize-start' ? 0 : 1),
+    })
+    expect(test.onCommit).toHaveBeenCalledOnce()
+    test.cleanup()
+  }
+})
+it.each(['move', 'resize-start', 'resize-end', 'marker'] as const)('uses the release position after the last %s preview', async action => {
+  const test = await annotationView()
+  const selector = action === 'move' ? '.raavl-region-body' : action === 'marker' ? '.raavl-marker .raavl-region-body' : `.raavl-region-handle-${action === 'resize-start' ? 'start' : 'end'}`
+  const startX = action === 'resize-end' ? 400 : action === 'marker' ? 700 : 200
+  pointer(host.querySelector(selector)!, 'pointerdown', startX)
+  pointer(test.viewport, 'pointermove', startX + 50)
+  pointer(test.viewport, 'pointerup', startX + 100)
+  const after = test.store.getSnapshot().document
+  if (action === 'marker') expect(after.markers[0].time).toBe(8)
+  else expect(after.regions[0]).toMatchObject({
+    start: action === 'resize-end' ? 2 : 3,
+    end: action === 'resize-start' ? 4 : 5,
+  })
+  expect(test.onCommit).toHaveBeenCalledOnce()
+  test.cleanup()
+})
+it('finishes a fast range selection at the release position', async () => {
+  const test = await annotationView()
+  pointer(test.viewport, 'pointerdown', 100)
+  pointer(test.viewport, 'pointerup', 300)
+  expect(test.view.getSelection()).toEqual({ start: 1, end: 3 })
+  expect(test.onCommit).not.toHaveBeenCalled()
+  test.cleanup()
+})
+it('keeps the click threshold while using release coordinates after a drag returns to its origin', async () => {
+  const test = await annotationView()
+  pointer(host.querySelector('.raavl-region-body')!, 'pointerdown', 200)
+  pointer(test.viewport, 'pointerup', 202)
+  expect(test.onCommit).not.toHaveBeenCalled()
+  pointer(host.querySelector('.raavl-region-body')!, 'pointerdown', 200)
+  pointer(test.viewport, 'pointermove', 300)
+  pointer(test.viewport, 'pointerup', 200)
+  expect(test.store.getSnapshot().document.regions[0]).toMatchObject({ start: 2, end: 4 })
+  test.cleanup()
+})
 it.each(['move', 'resize'] as const)('preserves an active region %s preview through redraws and player updates', async action => {
   const test = await annotationView()
   const region = host.querySelector<HTMLElement>('.raavl-region')!
@@ -368,10 +422,10 @@ it('keeps a controlled React drag through a rerender and commits its final coord
   flushFrame()
   expect(host.querySelector<HTMLElement>('.raavl-region')!.style.left).toBe('30%')
   expect(onCommit).not.toHaveBeenCalled()
-  await act(async () => pointer(waveform, 'pointerup', 300))
+  await act(async () => pointer(waveform, 'pointerup', 400))
   expect(onCommit).toHaveBeenCalledOnce()
-  expect(onCommit.mock.calls[0][0].regions[0]).toMatchObject({ start: 3, end: 5 })
-  expect(host.querySelector<HTMLElement>('.raavl-region')!.style.left).toBe('30%')
+  expect(onCommit.mock.calls[0][0].regions[0]).toMatchObject({ start: 4, end: 6 })
+  expect(host.querySelector<HTMLElement>('.raavl-region')!.style.left).toBe('40%')
   await act(async () => root!.unmount()); root = undefined
   player.dispose()
 })
@@ -659,7 +713,7 @@ it('applies magnetic snapping to final pointer coordinates while excluding the m
   const target = host.querySelector('.raavl-region-handle-end')!
   const pointerEvent = (type: string, x: number) => { const event = new MouseEvent(type, { bubbles: true, clientX: x, button: 0 }); Object.defineProperty(event, 'pointerId', { value: 1 }); return event }
   target.dispatchEvent(pointerEvent('pointerdown', 400))
-  surface.dispatchEvent(pointerEvent('pointermove', 695)); surface.dispatchEvent(pointerEvent('pointerup', 695))
+  surface.dispatchEvent(pointerEvent('pointermove', 650)); surface.dispatchEvent(pointerEvent('pointerup', 695))
   expect(store.getSnapshot().document.regions[0].end).toBe(7)
   view.dispose(); store.dispose()
 })
