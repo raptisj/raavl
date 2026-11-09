@@ -348,6 +348,10 @@ it('synchronizes optional timeline/minimap with zoom, keyboard navigation and di
   expect(ruler.querySelectorAll('.ravl-timeline-tick').length).toBeLessThan(16)
   const changed = vi.fn(), off = view.subscribeViewport(changed)
   const slider = overview.querySelector<HTMLElement>('.ravl-minimap-control')!
+  slider.setPointerCapture = vi.fn(); slider.hasPointerCapture = () => false
+  const event = (type: string, x: number) => { const value = new MouseEvent(type, { bubbles: true, clientX: x, button: 0 }); Object.defineProperty(value, 'pointerId', { value: 2 }); return value }
+  slider.dispatchEvent(event('pointerdown', 500)); slider.dispatchEvent(event('pointermove', 600)); slider.dispatchEvent(event('pointerup', 600)); flushFrame()
+  expect(view.getViewport().start).toBe(55)
   slider.dispatchEvent(new KeyboardEvent('keydown', { key: 'End', bubbles: true })); flushFrame()
   expect(view.getViewport()).toMatchObject({ start: 90, end: 100 })
   expect(player.getCurrentTime()).toBe(0)
@@ -359,6 +363,8 @@ it('synchronizes optional timeline/minimap with zoom, keyboard navigation and di
   view.dispose()
   expect(slider.getAttribute('aria-disabled')).toBe('true')
   expect(() => view.scrollTo(1)).toThrow()
+  expect(() => mountTimeline(ruler, { view })).toThrow()
+  expect(() => mountMinimap(overview, { view, player })).toThrow()
   off(); minimap.dispose(); minimap.dispose(); timeline.dispose(); player.dispose()
   expect(overview.childElementCount).toBe(0); expect(ruler.childElementCount).toBe(0); expect(frames.size).toBe(0)
 })
@@ -385,4 +391,19 @@ it('applies magnetic snapping to final pointer coordinates while excluding the m
   surface.dispatchEvent(pointerEvent('pointermove', 695)); surface.dispatchEvent(pointerEvent('pointerup', 695))
   expect(store.getSnapshot().document.regions[0].end).toBe(7)
   view.dispose(); store.dispose()
+})
+
+import { ModulesEditor } from '../examples/live/ModulesEditor'
+it('runs the composed React modules example through Strict Mode, history and teardown', async () => {
+  root = createRoot(host)
+  await act(async () => root!.render(<StrictMode><ModulesEditor mode="react" /></StrictMode>))
+  await act(async () => { mock.ready(mock.load.mock.contexts.at(-1) as HTMLMediaElement, 12); flushFrame() })
+  const button = (text: string) => [...host.querySelectorAll('button')].find(node => node.textContent === text)!
+  await act(async () => button('Rename opening').click())
+  expect(host.textContent).toContain('Undo steps: 1')
+  await act(async () => button('Undo').click())
+  expect(host.textContent).toContain('Redo steps: 1')
+  expect(host.querySelectorAll('.ravl-minimap')).toHaveLength(1)
+  await act(async () => root!.unmount()); root = undefined
+  expect(frames.size).toBe(0); expect(host.childElementCount).toBe(0)
 })

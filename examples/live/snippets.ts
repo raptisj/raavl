@@ -3,9 +3,10 @@ const source = `{ kind: 'url', id: 'demo-a', url: '/demo-a.wav' }`;
 const appearance = `{ style: 'bars', height: 160, barWidth: 2, barGap: 1 }`;
 
 export type CodeMode = 'vanilla' | 'react';
-export type CodeScene = 'url' | 'file' | 'peaks' | 'external' | 'dual' | 'styling' | 'annotations' | 'scale';
+export type CodeScene = 'url' | 'file' | 'peaks' | 'external' | 'dual' | 'styling' | 'annotations' | 'scale' | 'modules';
 
 export function exampleCode(scene: CodeScene, mode: CodeMode): string {
+  if (scene === 'modules') return modulesCode(mode);
   if (scene === 'scale') return scaleCode(mode);
   const annotations = scene === 'annotations';
   const setup = scene === 'peaks' || scene === 'external'
@@ -131,4 +132,81 @@ ${fixture.split('\n').map(line => '    ' + line).join('\n')}
   }, [])
   return <div ref={host} />
 }`;
+}
+
+function modulesCode(mode: CodeMode) {
+  const imports = `import { mountTimeline } from 'ravl/timeline'
+import { mountMinimap } from 'ravl/minimap'
+import { createSnapper } from 'ravl/snapping'
+import { createHistory, recordHistory, undoHistory, redoHistory } from 'ravl/history'
+import 'ravl/styles.css'`
+  if (mode === 'react') return `import { useEffect, useMemo, useRef, useState } from 'react'
+import { Waveform } from 'ravl/react'
+${imports}
+
+const initial = { version: 1, sourceId: 'demo-a', regions: [{ id: 'intro', start: 1, end: 3, label: 'Opening' }], markers: [{ id: 'cue', time: 8 }] }
+export default function Editor() {
+  const [state, setState] = useState(() => ({ history: createHistory(initial), revision: 0 }))
+  const { history, revision } = state
+  const [player, setPlayer] = useState(null), [view, setView] = useState(null)
+  const ruler = useRef(null), overview = useRef(null)
+  const snapper = useMemo(() => createSnapper({ grid: 0.1 }), [])
+  useEffect(() => {
+    if (!view || !player || view.getViewport().disposed) return
+    const timeline = mountTimeline(ruler.current, { view })
+    const minimap = mountMinimap(overview.current, { view, player })
+    return () => { minimap.dispose(); timeline.dispose() }
+  }, [view, player])
+  function travel(transform) {
+    setState(current => {
+      const next = transform(current.history)
+      return next === current.history ? current : { history: next, revision: current.revision + 1 }
+    })
+  }
+  return <>
+    <Waveform source={{ kind: 'url', id: 'demo-a', url: '/demo-a.wav' }}
+      onView={setView} onPlayer={setPlayer} onError={console.error}
+      annotations={history.present} annotationsRevision={revision}
+      onAnnotationsCommit={(document, change) => {
+        setState(current => change.baseRevision === current.revision
+          ? { history: recordHistory(current.history, document), revision: current.revision + 1 }
+          : current)
+      }}
+      snapAnnotation={snapper} viewport={{ zoom: 150, follow: 'off' }} />
+    <div ref={ruler} /><div ref={overview} />
+    <button disabled={!history.past.length} onClick={() => travel(undoHistory)}>Undo</button>
+    <button disabled={!history.future.length} onClick={() => travel(redoHistory)}>Redo</button>
+  </>
+}`
+  return `import { createPlayer, createAnnotations, mountWaveform } from 'ravl'
+${imports}
+
+// HTML: #waveform, #timeline, #minimap containers and #undo / #redo buttons.
+const player = createPlayer()
+const annotations = createAnnotations({ document: {
+  version: 1, sourceId: 'demo-a', regions: [{ id: 'intro', start: 1, end: 3, label: 'Opening' }], markers: [{ id: 'cue', time: 8 }],
+} })
+let history = createHistory(annotations.getSnapshot().document)
+let restoring = false
+const off = annotations.onCommit(document => {
+  if (!restoring) history = recordHistory(history, document)
+})
+const view = mountWaveform(document.querySelector('#waveform'), {
+  player, annotations, viewport: { zoom: 150, follow: 'off' },
+  snapAnnotation: createSnapper({ grid: 0.1 }),
+})
+const timeline = mountTimeline(document.querySelector('#timeline'), { view })
+const minimap = mountMinimap(document.querySelector('#minimap'), { view, player })
+function travel(transform) {
+  const next = transform(history)
+  if (next === history) return
+  restoring = true
+  try { annotations.replaceDocument(next.present); history = next }
+  finally { restoring = false }
+}
+document.querySelector('#undo').onclick = () => travel(undoHistory)
+document.querySelector('#redo').onclick = () => travel(redoHistory)
+player.setSource({ kind: 'url', id: 'demo-a', url: '/demo-a.wav' }).catch(console.error)
+// On teardown: minimap.dispose(); timeline.dispose(); view.dispose();
+// off(); annotations.dispose(); player.dispose(); remove button handlers.`
 }

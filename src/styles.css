@@ -26,3 +26,5 @@
 :where(.ravl-minimap-control) { cursor: grab; border-radius: 8px; }
 :where(.ravl-minimap-window) { background: var(--ravl-minimap-window-color, #538ce622); border: 2px solid var(--ravl-focus-color, #bd722e); box-sizing: border-box; }
 :where(.ravl-minimap-control:focus-visible) { outline: 3px solid var(--ravl-focus-color, #bd722e); outline-offset: 2px; }
+
+:where(.ravl-annotation-pagination[hidden]) { display: none; }

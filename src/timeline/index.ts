@@ -1,4 +1,4 @@
-import { finite } from '../core/data'
+import { failure, finite } from '../core/data'
 import type { WaveformView } from '../dom'
 export type TimelineOptions = { view: WaveformView; minSpacing?: number; formatTime?: (seconds: number) => string }
 export function formatTime(seconds: number): string {
@@ -9,6 +9,7 @@ export function formatTime(seconds: number): string {
 }
 /** A light-DOM ruler, bounded by viewport width rather than recording duration. */
 export function mountTimeline(container: HTMLElement, options: TimelineOptions) {
+  if (options.view.getViewport().disposed) throw failure('DISPOSED', 'view', 'Cannot attach a timeline to a disposed view')
   const spacing = finite(options.minSpacing ?? 80, 'Timeline spacing', 16, 1000)
   const root = document.createElement('div')
   root.className = 'ravl-timeline'

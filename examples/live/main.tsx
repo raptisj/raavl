@@ -14,6 +14,7 @@ import type {
   WaveformData,
 } from "../../src";
 import { Waveform, usePlayerState, usePlayerTime } from "../../src/react";
+import { ModulesEditor } from './ModulesEditor'
 import { ScaleLab } from './ScaleLab'
 import { AnnotationEditor } from './AnnotationEditor'
 import { VanillaWaveform } from "./VanillaWaveform";
@@ -451,6 +452,7 @@ function PlaybackExample({ scene, mode }: { scene: Scene; mode: Mode }) {
   );
 }
 function Example({ scene, mode }: { scene: Scene; mode: Mode }) {
+  if (scene === 'modules') return <ModulesEditor mode={mode} />
   if (scene === 'scale') return <ScaleLab />
   return scene === 'annotations' ? <AnnotationEditor mode={mode} /> : <PlaybackExample scene={scene} mode={mode} />
 }
@@ -502,7 +504,7 @@ function App() {
           <section className="intro">
             <p className="eyebrow">Real components. Real audio.</p>
             <h1>{scene ? scene[2] : 'Make some waves.'}</h1>
-            <p>{scene ? scene[3] : 'Explore eight interactive playgrounds. Each demo includes Vanilla JavaScript and React code to copy.'}</p>
+            <p>{scene ? scene[3] : 'Explore nine interactive playgrounds. Each demo includes Vanilla JavaScript and React code to copy.'}</p>
           </section>
           {!scene ? <>
             <div className="demo-grid">
@@ -517,7 +519,7 @@ function App() {
               {scenes.map(([id, number, title]) => <a key={id} href={`#demos/${id}/${route.mode}`} aria-current={route.scene === id ? 'page' : undefined}><span>{number}</span>{title}</a>)}
             </nav>
             <section className="demo" aria-label={scene[2]}>
-              <Example key={scene[0]} scene={scene[0]} mode="vanilla" />
+              <Example key={scene[0] === 'modules' ? `preview/${scene[0]}/${route.mode}` : scene[0]} scene={scene[0]} mode={scene[0] === 'modules' ? route.mode : 'vanilla'} />
               <CodeExample key={`${scene[0]}/${route.mode}`} scene={scene[0]} mode={route.mode} />
             </section>
           </div>}

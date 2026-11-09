@@ -7,11 +7,12 @@ export const scenes = [
   ['styling', '06', 'Style & interaction', 'Change the appearance while audio keeps playing.'],
   ['annotations', '07', 'Annotation editor', 'Create, resize, label, and persist regions and markers.'],
   ['scale', '08', 'Scale lab', 'Measure a two-hour waveform and 10,000 editable annotations.'],
+  ['modules', '09', 'Optional modules', 'Timeline, minimap, undo/redo, and magnetic snapping.'],
 ] as const
 export const topics = [
   ['start', 'Getting started'], ['sources', 'Sources & peaks'], ['player', 'Player API'],
   ['waveform', 'Waveform options'], ['react', 'React API'], ['annotations', 'Annotations'],
-  ['styling', 'Styling'], ['interactions', 'Touch & keyboard'], ['errors', 'State & errors'],
+  ['modules', 'Optional modules'], ['styling', 'Styling'], ['interactions', 'Touch & keyboard'], ['errors', 'State & errors'],
 ] as const
 export type Scene = typeof scenes[number][0]
 export type Topic = typeof topics[number][0]

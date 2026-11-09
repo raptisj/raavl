@@ -31,6 +31,7 @@ const interaction: Row[] = [
 ]
 const annotationOptions: Row[] = [
   ['annotations', 'AnnotationStore | ControlledAnnotations | null', 'Attach a store or a controlled document. Null detaches annotations.'],
+  ['snapAnnotation', '(time, context) => number', 'Optional pointer snap function; import createSnapper from ravl/snapping. Keyboard edits retain the grid step.'],
   ['annotationRules', 'AnnotationRules', 'Constraints for interactive edits; see Annotations.'],
   ['renderRegionLabel', '(region) => HTMLElement | { element, dispose }', 'Provide a DOM label and optional cleanup callback. React uses a ReactNode instead.'],
   ['onSelectionChange', '(Selection) => void', 'Receive { start, end } in seconds, or null when the selection clears.'],
@@ -51,7 +52,7 @@ function Content({ topic }: { topic: Topic }) {
         ['ravl/regions', 'Annotations', 'Stores, validation, serialization, snapTime, validateRules, and annotation types.'],
         ['ravl/styles.css', 'Optional stylesheet', 'Default waveform theme, annotation labels, handles, focus styles, and list styling.'],
       ]} /></Section>
-      <Section title="Lifecycle"><p>Dispose each DOM view and each player you create, and call unsubscribe functions when leaving a page. Disposing a view does not dispose its player. React cleans up its own player and view on unmount; a player supplied through the player prop remains yours. Never pass both player and source.</p><a href="#demos">Explore all eight playgrounds →</a></Section>
+      <Section title="Lifecycle"><p>Dispose each DOM view and each player you create, and call unsubscribe functions when leaving a page. Disposing a view does not dispose its player. React cleans up its own player and view on unmount; a player supplied through the player prop remains yours. Never pass both player and source.</p><a href="#demos">Explore all nine playgrounds →</a></Section>
     </>
     case 'sources': return <>
       <p>Call <code>player.setSource(source, {'{ signal }'})</code> to load audio. The promise resolves when metadata is available; waveform preparation has a separate state. Replacing a source cancels the previous load.</p>
@@ -114,6 +115,7 @@ const offTime = player.subscribeTime(() => {
       <Section title="Returned WaveformView"><Reference rows={[
         ['update(options)', 'void', 'Patch appearance, viewport, interaction, label, onDraw, data, or annotation options. Nested drawing/viewport/interaction settings merge with existing values.'],
         ['refreshTheme()', 'void', 'Re-read computed canvas colors after a CSS theme change.'],
+        ['getViewport()', 'ViewportSnapshot', 'Cached source, duration, visible start/end, CSS width, pixelsPerSecond, and disposed flag.'], ['subscribeViewport(callback)', 'unsubscribe function', 'Observe changed viewport snapshots. Initial geometry is published after the first draw.'], ['scrollTo(seconds)', 'void', 'Pan to a nonnegative start time; clamps at the end without seeking audio.'],
         ['getSelection()', '{ start, end } | null', 'Read the selected time range in seconds.'], ['clearSelection()', 'void', 'Clear the current time selection.'], ['createRegionFromSelection(id, label?)', 'void', 'Commit the current time selection as a region. Requires an annotation store.'], ['dispose()', 'void', 'Remove the view and listeners while leaving its borrowed player alive.'],
       ]} /><Usage scene="styling" /></Section>
     </>
@@ -124,10 +126,11 @@ const offTime = player.subscribeTime(() => {
         ['player', 'Player', 'Borrow an existing player instead of supplying source. You own its lifecycle.'],
         ['ref', 'Ref<Player | null>', 'Access the player after commit; null before mount and after cleanup.'],
         ['appearance / viewport / interaction', 'Appearance / Viewport / Interaction', 'Same options and defaults as the DOM renderer.'],
-        ['themeVersion', 'string | number', 'Change to refresh computed canvas colors without replacing the player.'], ['onPlayer', '(Player | null) => void', 'Observe attachment and cleanup of the active player.'], ['onError', '(RavlError) => void', 'Receive source, waveform, playback, and annotation errors. Cancellation is filtered.'], ['onDraw', '() => void', 'Called after each draw.'],
+        ['themeVersion', 'string | number', 'Change to refresh computed canvas colors without replacing the player.'], ['onView', '(WaveformView | null) => void', 'Attach optional visual modules in an effect; null signals teardown.'], ['snapAnnotation', 'AnnotationSnapper', 'Memoize a createSnapper function for magnetic pointer edits.'], ['onPlayer', '(Player | null) => void', 'Observe attachment and cleanup of the active player.'], ['onError', '(RavlError) => void', 'Receive source, waveform, playback, and annotation errors. Cancellation is filtered.'], ['onDraw', '() => void', 'Called after each draw.'],
         ['annotations', 'AnnotationDocument', 'Controlled document. Requires annotationsRevision and onAnnotationsCommit.'], ['annotationsRevision', 'number', 'Controlled revision; advance when accepting an edit or supplying an external update.'],
         ['defaultAnnotations', 'AnnotationDocument', 'Initial document for an internal, uncontrolled store.'], ['annotationStore', 'AnnotationStore', 'Borrow an existing store. Choose exactly one annotation ownership mode.'],
-        ['annotationRules', 'AnnotationRules', 'Minimum/maximum region length and snap interval.'], ['onAnnotationsCommit', '(document, change) => void', 'Observe uncontrolled commits or accept/reject controlled proposals.'], ['onSelectionChange', '(Selection) => void', 'Time selection changes.'], ['onAnnotationSelect', '(string | null) => void', 'Selected annotation identity.'],
+        ['snapAnnotation', '(time, context) => number', 'Optional pointer snap function; import createSnapper from ravl/snapping. Keyboard edits retain the grid step.'],
+  ['annotationRules', 'AnnotationRules', 'Minimum/maximum region length and snap interval.'], ['onAnnotationsCommit', '(document, change) => void', 'Observe uncontrolled commits or accept/reject controlled proposals.'], ['onSelectionChange', '(Selection) => void', 'Time selection changes.'], ['onAnnotationSelect', '(string | null) => void', 'Selected annotation identity.'],
         ['renderRegionLabel', '(Region) => ReactNode', 'Render custom labels through React portals.'], ['HTML attributes', 'HTMLAttributes<HTMLDivElement>', 'className, style, aria-label, and other ordinary div attributes. children is not supported.'],
       ]} /></Section>
       <Section title="Hooks"><Reference rows={[
@@ -196,6 +199,27 @@ try {
         ['Vertical swipe / pinch', 'Scroll / zoom', 'Page scrolling and browser pinch zoom remain available on the waveform background. Annotation handles reserve touch gestures for editing.'], ['ArrowLeft / ArrowRight', 'Seek ±1s', 'Focus the waveform with Tab. Shift changes the step to 10 seconds.'], ['Home / End', 'Seek to bounds', 'Go to the beginning or end of the audio.'],
       ]} /><Section title="Touch recognition"><p>A double-tap requires two short taps within 350 ms and 24 CSS pixels. Movement beyond 10 pixels, a long press, multiple fingers, or pointer cancellation breaks the gesture. Synthesized mouse events are ignored briefly after touch to avoid duplicate playback.</p></Section>
       <Section title="Annotation editing"><p>Drag a region body to move it, its handles to resize, or a marker to reposition it. Arrow keys edit focused handles and markers; locked annotations cannot be edited. The list provides focusable controls as an alternative to manipulating the overlay. Annotation double-taps do not start playback.</p><a href="#demos/annotations/vanilla">Open the annotation editor →</a></Section>
+    </>
+    case 'modules': return <>
+      <Section title="Separately imported features"><p>Use ravl/timeline, ravl/minimap, ravl/history, and ravl/snapping independently. The core entry does not import them. The <a href="#demos/modules/react">optional modules playground</a> runs the actual React or vanilla implementation selected by its code switch.</p></Section>
+      <Section title="Timeline and minimap"><Reference rows={[
+        ['mountTimeline(container, { view, minSpacing?, formatTime? })', '{ dispose() }', 'Renders visible ruler ticks; minimum spacing defaults to 80 CSS pixels. formatTime receives seconds.'],
+        ['mountMinimap(container, { view, player | data, height?, label? })', '{ refreshTheme(), dispose() }', 'Full waveform overview; height defaults to 64. Drag or use arrows/Home/End to pan without seeking audio. Supply exactly one player or immutable data source matching the main view.'],
+        ['Waveform.onView', '(WaveformView | null) => void', 'Capture the committed view, then mount accessories in an effect. Dispose accessories when that view changes.'],
+      ]} /><p>Dispose accessories before their view. They never dispose the borrowed player. Disable playback-follow scrolling when manually panning. A data-only minimap is fixed to its supplied data; remount it when that data changes.</p></Section>
+      <Section title="Immutable annotation history"><Reference rows={[
+        ['createHistory(document, { limit?: 100 })', 'AnnotationHistory', 'Validated, frozen present/past/future snapshots. The limit bounds undo entries.'],
+        ['recordHistory(history, acceptedDocument)', 'AnnotationHistory', 'Record accepted state only; no-op documents preserve identity. A divergent edit clears redo; a different source resets history.'],
+        ['undoHistory(history) / redoHistory(history)', 'AnnotationHistory', 'Return new state without changing stores or playback. Empty traversal returns the input.'],
+      ]} /><p>For controlled React, render history.present with a new revision and record only accepted proposals. With an external store, apply next.present first; advance history only if validation succeeds, and suppress history recording during restoration. This history stores full annotation documents, not audio or DOM.</p></Section>
+      <Section title="Magnetic snapping"><Reference rows={[
+        ['createSnapper(options)', 'AnnotationSnapper', 'Pass to snapAnnotation on a DOM view or React Waveform.'],
+        ['tolerancePixels', 'number · 8', 'Maximum target distance in CSS pixels; converted at the current zoom.'],
+        ['markers / regionBoundaries', 'boolean · true', 'Include other annotation coordinates; the moved annotation is excluded.'],
+        ['playhead / targets', '() => number | null / () => readonly number[]', 'Read dynamic playhead or custom time targets in seconds.'],
+        ['grid', 'number · 0', 'Optional magnetic grid interval. Outside tolerance, retain the unsnapped time.'],
+      ]} /><p>Pointer edits only. Keyboard uses AnnotationRules.snap. Nearest target wins; equal distances use the earlier time. Region movement snaps its start; resizing snaps the edited boundary. Duration and length constraints take precedence. No automatic zero-crossing, beat detection, or audio analysis.</p></Section>
+      <Section title="Usage"><Usage scene="modules" /></Section>
     </>
     case 'errors': return <>
       <p>Playback, audio loading, and waveform preparation have separate states. A waveform failure does not necessarily prevent audio playback.</p>

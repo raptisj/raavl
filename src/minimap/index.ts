@@ -1,15 +1,18 @@
+import { failure } from '../core/data'
 import { mountWaveform, type WaveformView } from '../dom'
 import type { Player, WaveformData } from '../core/types'
 export type MinimapOptions = { view: WaveformView; height?: number; label?: string } & ({ player: Player; data?: never } | { data: WaveformData; player?: never })
 /** An overview that changes viewport position without seeking audio. */
 export function mountMinimap(container: HTMLElement, options: MinimapOptions) {
-  const root = document.createElement('div')
+  if (options.view.getViewport().disposed) throw failure('DISPOSED', 'view', 'Cannot attach a minimap to a disposed view')
+  const root = document.createElement('div'), visual = document.createElement('div')
   root.className = 'ravl-minimap'
   root.style.position = 'relative'
-  container.append(root)
+  visual.setAttribute('aria-hidden', 'true'); visual.inert = true
+  root.append(visual); container.append(root)
   let overview: WaveformView
   try {
-    overview = mountWaveform(root, { ...(options.player ? { player: options.player } : { data: options.data! }), appearance: { height: options.height ?? 64 }, viewport: { zoom: 'fit', follow: 'off' }, interaction: { seek: 'off', drag: 'none' } })
+    overview = mountWaveform(visual, { ...(options.player ? { player: options.player } : { data: options.data! }), appearance: { height: options.height ?? 64 }, viewport: { zoom: 'fit', follow: 'off' }, interaction: { seek: 'off', drag: 'none' } })
   } catch (error) { root.remove(); throw error }
   const control = document.createElement('div'), window = document.createElement('span')
   control.className = 'ravl-minimap-control'; window.className = 'ravl-minimap-window'
@@ -18,7 +21,7 @@ export function mountMinimap(container: HTMLElement, options: MinimapOptions) {
   control.tabIndex = 0; control.setAttribute('role', 'slider'); control.setAttribute('aria-label', options.label ?? 'Waveform viewport')
   control.setAttribute('aria-orientation', 'horizontal'); control.setAttribute('aria-valuemin', '0')
   control.append(window); root.append(control)
-  let disposed = false, pointer: number | null = null, anchor = 0
+  let disposed = false, pointer: number | null = null, anchor = 0, pointerSource: string | null = null
   const state = () => options.view.getViewport()
   const available = () => !state().disposed && state().duration > 0 && state().sourceId === (options.player?.getSnapshot().sourceId ?? options.data?.sourceId)
   const span = () => state().end - state().start
@@ -35,7 +38,8 @@ export function mountMinimap(container: HTMLElement, options: MinimapOptions) {
   }
   const timeAt = (x: number) => (x - control.getBoundingClientRect().left) / Math.max(1, control.clientWidth) * state().duration
   const move = (event: PointerEvent) => {
-    if (pointer !== event.pointerId || !available()) return
+    if (pointer !== event.pointerId) return
+    if (!available() || state().sourceId !== pointerSource) { release(); return }
     options.view.scrollTo(Math.max(0, timeAt(event.clientX) - anchor))
   }
   const down = (event: PointerEvent) => {
@@ -43,7 +47,7 @@ export function mountMinimap(container: HTMLElement, options: MinimapOptions) {
     event.preventDefault(); control.focus({ preventScroll: true })
     const time = timeAt(event.clientX)
     anchor = time >= state().start && time <= state().end ? time - state().start : span() / 2
-    pointer = event.pointerId; control.setPointerCapture(pointer); move(event)
+    pointer = event.pointerId; pointerSource = state().sourceId; control.setPointerCapture(pointer); move(event)
   }
   const release = () => { if (pointer !== null && control.hasPointerCapture(pointer)) control.releasePointerCapture(pointer); pointer = null }
   const up = (event: PointerEvent) => { if (event.pointerId === pointer) release() }
