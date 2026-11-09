@@ -49,6 +49,10 @@ body { font-family: var(--font-sans); }
 .skill-preview-links { display: flex; flex-wrap: wrap; gap: 12px 22px; padding: 14px 18px; border-top: 1px solid var(--color-fd-border); font-size: 12px; }
 .skill-preview-links a { text-decoration: underline; text-underline-offset: 3px; }
 
+/* Reuse Fumadocs' light/dark token colors inside the existing example panels. */
+.example-code-tokens.shiki { display: block; --padding-left: 0px; --padding-right: 0px; }
+.example-code-tokens > code { display: flex; flex-direction: column; }
+
 .landing { max-width: 1184px; width: 100%; margin: auto; padding: 0 36px; }
 .hero { display: grid; grid-template-columns: 1.12fr 1fr; align-items: center; gap: 65px; padding: 100px 0 85px; }
 .eyebrow, .little-label { font: 600 10px/1.5 var(--font-mono); letter-spacing: 1.65px; color: #5c7362; }

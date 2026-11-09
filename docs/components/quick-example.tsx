@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import { CopyButton } from './copy-button';
+import { HighlightedCode } from './highlighted-code';
 
 const code = {
   JavaScript: `import { createPlayer, mountWaveform } from 'raavl';
@@ -41,5 +42,5 @@ export function QuickExample() {
     const next = event.key === 'Home' ? 'React' : event.key === 'End' ? 'JavaScript' : mode === 'React' ? 'JavaScript' : 'React';
     setMode(next);
     document.getElementById(`tab-${next}`)?.focus();
-  }}>{(['React', 'JavaScript'] as const).map(value => <button key={value} id={`tab-${value}`} type="button" role="tab" tabIndex={mode === value ? 0 : -1} aria-selected={mode === value} aria-controls="quick-code" onClick={() => setMode(value)}>{value}</button>)}</div><CopyButton text={code[mode]} /></div><pre id="quick-code" role="tabpanel" aria-labelledby={`tab-${mode}`} tabIndex={0}><code>{code[mode]}</code></pre></div>;
+  }}>{(['React', 'JavaScript'] as const).map(value => <button key={value} id={`tab-${value}`} type="button" role="tab" tabIndex={mode === value ? 0 : -1} aria-selected={mode === value} aria-controls="quick-code" onClick={() => setMode(value)}>{value}</button>)}</div><CopyButton text={code[mode]} /></div><HighlightedCode code={code[mode]} language={mode === 'React' ? 'tsx' : 'js'} id="quick-code" role="tabpanel" aria-labelledby={`tab-${mode}`} tabIndex={0} /></div>;
 }

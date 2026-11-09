@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, type ComponentType } from "react";
 import type {
   Player,
   PlayerSnapshot,
@@ -21,6 +21,7 @@ import { VanillaWaveform } from "./VanillaWaveform";
 import "./style.css";
 import { exampleCode } from "./snippets";
 import { CopyButton } from "./CopyButton";
+import { PlainCodeSnippet, type CodeSnippetProps } from "./CodeSnippet";
 import { usePageTheme } from "./usePageTheme";
 
 import {
@@ -628,7 +629,7 @@ function Example({ scene, mode }: { scene: Scene; mode: Mode }) {
     <PlaybackExample scene={scene} mode={mode} />
   );
 }
-function CodeExample({ scene, mode }: { scene: Scene; mode: Mode }) {
+function CodeExample({ scene, mode, Code }: { scene: Scene; mode: Mode; Code: ComponentType<CodeSnippetProps> }) {
   const code = exampleCode(scene, mode);
   return (
     <section className="code-example" aria-label="Example code">
@@ -648,17 +649,17 @@ function CodeExample({ scene, mode }: { scene: Scene; mode: Mode }) {
         </div>
         <CopyButton code={code} />
       </div>
-      <pre
+      <Code
+        code={code}
+        language={mode === "vanilla" ? "js" : "tsx"}
         id="example-code"
         tabIndex={0}
         aria-label={`${mode === "vanilla" ? "Vanilla JavaScript" : "React"} example`}
-      >
-        <code>{code}</code>
-      </pre>
+      />
     </section>
   );
 }
-export function Examples() {
+export function Examples({ Code = PlainCodeSnippet }: { Code?: ComponentType<CodeSnippetProps> } = {}) {
   const [route, setRoute] = useState(() => parseRoute(""));
   useEffect(() => {
     const change = () => {
@@ -736,6 +737,7 @@ export function Examples() {
                 mode={scene[0] === "modules" || scene[0] === "soundcloud" ? route.mode : "vanilla"}
               />
               <CodeExample
+                Code={Code}
                 key={`${scene[0]}/${route.mode}`}
                 scene={scene[0]}
                 mode={route.mode}

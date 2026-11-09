@@ -1,5 +1,5 @@
 import type { Metadata } from 'next';
-import { Examples } from '../../../../examples/live/Examples';
+import { ExamplesGallery } from '@/components/examples-gallery';
 
 export const metadata: Metadata = {
   title: 'Examples',
@@ -8,5 +8,5 @@ export const metadata: Metadata = {
 };
 
 export default function ExamplesPage() {
-  return <Examples />;
+  return <ExamplesGallery />;
 }
