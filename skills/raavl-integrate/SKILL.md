@@ -17,12 +17,12 @@ When a raavl checkout is available, read the matching files in
 
 If neither is available, the maintained guides are in the raavl repository:
 
-- [Quickstart](https://github.com/raptisj/ravl/blob/main/docs/content/docs/quickstart.mdx): installation and a first JavaScript or React player.
-- [Sources](https://github.com/raptisj/ravl/blob/main/docs/content/docs/sources.mdx): URL, File/Blob, borrowed media, and supplied peaks.
-- [Player](https://github.com/raptisj/ravl/blob/main/docs/content/docs/player.mdx), [waveform](https://github.com/raptisj/ravl/blob/main/docs/content/docs/waveform.mdx), and [React](https://github.com/raptisj/ravl/blob/main/docs/content/docs/react.mdx): use the reference matching the selected API.
-- [Styling](https://github.com/raptisj/ravl/blob/main/docs/content/docs/styling.mdx): CSS tokens and validated JSON themes.
-- [Annotations](https://github.com/raptisj/ravl/blob/main/docs/content/docs/annotations.mdx) and [optional modules](https://github.com/raptisj/ravl/blob/main/docs/content/docs/modules.mdx): read when the requested task needs them.
-- [State and errors](https://github.com/raptisj/ravl/blob/main/docs/content/docs/errors.mdx): separate playback and visualization failures.
+- [Quickstart](https://github.com/raptisj/raavl/blob/main/docs/content/docs/quickstart.mdx): installation and a first JavaScript or React player.
+- [Sources](https://github.com/raptisj/raavl/blob/main/docs/content/docs/sources.mdx): URL, File/Blob, borrowed media, and supplied peaks.
+- [Player](https://github.com/raptisj/raavl/blob/main/docs/content/docs/player.mdx), [waveform](https://github.com/raptisj/raavl/blob/main/docs/content/docs/waveform.mdx), and [React](https://github.com/raptisj/raavl/blob/main/docs/content/docs/react.mdx): use the reference matching the selected API.
+- [Styling](https://github.com/raptisj/raavl/blob/main/docs/content/docs/styling.mdx): CSS tokens and validated JSON themes.
+- [Annotations](https://github.com/raptisj/raavl/blob/main/docs/content/docs/annotations.mdx) and [optional modules](https://github.com/raptisj/raavl/blob/main/docs/content/docs/modules.mdx): read when the requested task needs them.
+- [State and errors](https://github.com/raptisj/raavl/blob/main/docs/content/docs/errors.mdx): separate playback and visualization failures.
 
 Match documentation to the installed version. If documentation cannot be fetched,
 use the available checkout or installed declarations; report missing information

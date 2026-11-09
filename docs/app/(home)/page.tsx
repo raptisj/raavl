@@ -128,7 +128,7 @@ export default function Home() {
           raavl
         </Link>
         <div>
-          <a href="https://github.com/raptisj/ravl">
+          <a href="https://github.com/raptisj/raavl">
             GitHub <ArrowUpRight size={12} aria-hidden="true" />
           </a>
           <Link href="/docs">Documentation</Link>

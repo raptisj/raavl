@@ -155,7 +155,7 @@ MDX and are linked from the skill.
 node docs/scripts/prepare-skills.mjs --check
 ```
 
-The install commands use `npx skills add raptisj/ravl` and require the skill to
+The install commands use `npx skills add raptisj/raavl` and require the skill to
 be pushed to a repository the installer can access. Before pushing, test with
 `npx skills add /absolute/path/to/raavl --skill raavl-integrate` from a consuming
 project. This installs agent instructions, not the raavl library. Actual discovery

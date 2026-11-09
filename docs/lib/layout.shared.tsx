@@ -11,7 +11,7 @@ export function baseOptions(): BaseLayoutProps {
       { text: 'Examples', url: '/examples', active: 'nested-url' },
       { text: 'Skills', url: '/docs/skills', active: 'nested-url' },
     ],
-    githubUrl: 'https://github.com/raptisj/ravl',
+    githubUrl: 'https://github.com/raptisj/raavl',
     themeSwitch: { enabled: true, mode: 'light-dark-system' },
   };
 }

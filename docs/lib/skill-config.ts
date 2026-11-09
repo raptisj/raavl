@@ -1,7 +1,7 @@
 import { publicUrl } from './site-config.mjs';
 
 export const skillName = 'raavl-integrate';
-export const skillRepository = 'raptisj/ravl';
+export const skillRepository = 'raptisj/raavl';
 export const skillPage = '/docs/skills';
 export const skillMarkdown = '/skill.md';
 export const skillSourceUrl = `https://github.com/${skillRepository}/tree/main/skills/${skillName}`;

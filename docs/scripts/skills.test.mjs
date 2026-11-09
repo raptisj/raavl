@@ -58,7 +58,7 @@ test('rejects a skill whose discovery name does not match its directory', async 
 
 test('skill reference links point to the canonical docs in this repository', async () => {
   const markdown = await readFile(join(original, 'SKILL.md'), 'utf8');
-  const links = [...markdown.matchAll(/https:\/\/github\.com\/raptisj\/ravl\/blob\/main\/(docs\/content\/docs\/[^)\s]+)/g)];
+  const links = [...markdown.matchAll(/https:\/\/github\.com\/raptisj\/raavl\/blob\/main\/(docs\/content\/docs\/[^)\s]+)/g)];
   assert(links.length > 0);
   for (const [, path] of links) await readFile(new URL(`../../${path}`, import.meta.url));
   const metadata = await readFile(join(original, 'agents/openai.yaml'), 'utf8');

@@ -28,7 +28,7 @@ export default async function Page({ params }: Props) {
         <PageOpenMenu
           pageUrl={publicUrl(page.url)}
           markdownUrl={markdownUrl(page.slugs)}
-          githubUrl={`https://github.com/raptisj/ravl/blob/main/docs/content/docs/${page.path}`}
+          githubUrl={`https://github.com/raptisj/raavl/blob/main/docs/content/docs/${page.path}`}
         />
       </div>
       <DocsBody>
