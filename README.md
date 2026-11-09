@@ -1,4 +1,4 @@
-# raavl
+# 🌊 raavl
 
 An ergonomic TypeScript audio waveform player and annotation toolkit for
 JavaScript and React, with reliable playback, customizable waveforms, and
