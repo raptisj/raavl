@@ -1,7 +1,7 @@
 import { act, StrictMode, useState } from 'react'
 import { createRoot, type Root } from 'react-dom/client'
 import { beforeEach, afterEach, expect, it, vi } from 'vitest'
-import { Waveform, usePlayerState } from '../src/react'
+import { Waveform, usePlayerState, usePlayerTime } from '../src/react'
 import { createPlayer } from '../src/player'
 import { mountWaveform } from '../src/dom'
 import type { Player, Source } from '../src/core/types'
@@ -429,7 +429,7 @@ it('keeps a controlled React drag through a rerender and commits its final coord
   await act(async () => root!.unmount()); root = undefined
   player.dispose()
 })
-it.each(['pointercancel', 'lostpointercapture', 'Escape'])('restores saved region bounds when a gesture is cancelled with %s', async event => {
+it.each(['pointercancel', 'Escape'])('restores saved region bounds when a gesture is cancelled with %s', async event => {
   const test = await annotationView()
   pointer(host.querySelector('.raavl-region-body')!, 'pointerdown', 200)
   pointer(test.viewport, 'pointermove', 300)
@@ -731,4 +731,218 @@ it('runs the composed React modules example through Strict Mode, history and tea
   expect(host.querySelectorAll('.raavl-minimap')).toHaveLength(1)
   await act(async () => root!.unmount()); root = undefined
   expect(frames.size).toBe(0); expect(host.childElementCount).toBe(0)
+})
+
+function captureEvent(element: EventTarget, name: string, x: number, buttons = name === 'pointerdown' || name === 'pointermove' ? 1 : 0, pointerId = 1) {
+  const event = new MouseEvent(name, { clientX: x, button: 0, buttons, bubbles: true, cancelable: true })
+  Object.defineProperties(event, { pointerId: { value: pointerId }, pointerType: { value: 'mouse' } })
+  element.dispatchEvent(event)
+}
+const captureActions = [
+  { action: 'move', selector: '.raavl-region .raavl-region-body', x: 200, expected: { start: 3, end: 5 } },
+  { action: 'resize-start', selector: '.raavl-region-handle-start', x: 200, expected: { start: 3, end: 4 } },
+  { action: 'resize-end', selector: '.raavl-region-handle-end', x: 400, expected: { start: 2, end: 5 } },
+  { action: 'marker', selector: '.raavl-marker .raavl-region-body', x: 700, expected: { time: 8 } },
+]
+it.each(captureActions)('finishes a $action during playback when trackpad release only delivers lostpointercapture', async ({ action, selector, x, expected }) => {
+  const test = await annotationView()
+  await test.player.play()
+  captureEvent(host.querySelector(selector)!, 'pointerdown', x)
+  captureEvent(test.viewport, 'pointermove', x + 50)
+  const media = test.player.getMediaElement()!
+  media.currentTime = 3; media.dispatchEvent(new Event('timeupdate')); flushFrame()
+  test.player.setVolume(.5)
+  expect(test.onCommit).not.toHaveBeenCalled()
+  captureEvent(test.viewport, 'lostpointercapture', x + 100)
+  expect(test.onCommit).toHaveBeenCalledOnce()
+  expect(action === 'marker' ? test.store.getSnapshot().document.markers[0] : test.store.getSnapshot().document.regions[0]).toMatchObject(expected)
+  captureEvent(test.viewport, 'pointerup', x + 100)
+  captureEvent(test.viewport, 'lostpointercapture', x + 100)
+  expect(test.onCommit).toHaveBeenCalledOnce()
+  expect(test.player.getSnapshot().playback).toBe('playing')
+  test.cleanup()
+})
+it('finishes a fast trackpad release even without a preceding move event', async () => {
+  const test = await annotationView()
+  captureEvent(host.querySelector('.raavl-region-body')!, 'pointerdown', 200)
+  captureEvent(test.viewport, 'lostpointercapture', 300)
+  expect(test.store.getSnapshot().document.regions[0]).toMatchObject({ start: 3, end: 5 })
+  expect(test.onCommit).toHaveBeenCalledOnce()
+  test.cleanup()
+})
+it.each(captureActions)('continues a $action outside the waveform after capture is lost while pressed', async ({ action, selector, x, expected }) => {
+  const test = await annotationView()
+  captureEvent(host.querySelector(selector)!, 'pointerdown', x)
+  captureEvent(test.viewport, 'pointermove', x + 50)
+  captureEvent(test.viewport, 'lostpointercapture', x + 50, 1)
+  expect(test.onCommit).not.toHaveBeenCalled()
+  captureEvent(document.body, 'pointermove', x + 80)
+  captureEvent(document.body, 'pointerup', x + 100)
+  expect(test.onCommit).toHaveBeenCalledOnce()
+  expect(action === 'marker' ? test.store.getSnapshot().document.markers[0] : test.store.getSnapshot().document.regions[0]).toMatchObject(expected)
+  test.cleanup()
+})
+it('ignores cancellation, capture loss, and a second pointerdown from another pointer', async () => {
+  const test = await annotationView()
+  captureEvent(host.querySelector('.raavl-region-body')!, 'pointerdown', 200)
+  captureEvent(test.viewport, 'pointermove', 250)
+  captureEvent(test.viewport, 'pointercancel', 250, 0, 2)
+  captureEvent(test.viewport, 'lostpointercapture', 250, 0, 2)
+  captureEvent(host.querySelector('.raavl-region-handle-end')!, 'pointerdown', 400, 1, 2)
+  captureEvent(test.viewport, 'pointerup', 300)
+  expect(test.onCommit).toHaveBeenCalledOnce()
+  expect(test.store.getSnapshot().document.regions[0]).toMatchObject({ start: 3, end: 5 })
+  test.cleanup()
+})
+it('ignores obsolete capture-loss events while the waveform still owns capture', async () => {
+  const test = await annotationView()
+  captureEvent(host.querySelector('.raavl-region-body')!, 'pointerdown', 200)
+  test.viewport.hasPointerCapture = () => true
+  captureEvent(test.viewport, 'lostpointercapture', 250)
+  expect(test.onCommit).not.toHaveBeenCalled()
+  captureEvent(test.viewport, 'pointerup', 300)
+  expect(test.onCommit).toHaveBeenCalledOnce()
+  expect(test.store.getSnapshot().document.regions[0]).toMatchObject({ start: 3, end: 5 })
+  test.cleanup()
+})
+it('tracks document events even when setPointerCapture is unavailable', async () => {
+  const test = await annotationView()
+  vi.mocked(test.viewport.setPointerCapture).mockImplementationOnce(() => { throw new DOMException('Pointer is no longer active', 'NotFoundError') })
+  captureEvent(host.querySelector('.raavl-region-body')!, 'pointerdown', 200)
+  captureEvent(document.body, 'pointermove', 250)
+  captureEvent(document.body, 'pointerup', 300)
+  expect(test.onCommit).toHaveBeenCalledOnce()
+  expect(test.store.getSnapshot().document.regions[0]).toMatchObject({ start: 3, end: 5 })
+  test.cleanup()
+})
+it.each(['pointercancel', 'Escape', 'blur', 'dispose'])('cleans up a capture-lost gesture on %s without committing', async reason => {
+  const test = await annotationView()
+  captureEvent(host.querySelector('.raavl-region-body')!, 'pointerdown', 200)
+  captureEvent(test.viewport, 'pointermove', 250)
+  captureEvent(test.viewport, 'lostpointercapture', 250, 1)
+  if (reason === 'Escape') test.viewport.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }))
+  else if (reason === 'blur') window.dispatchEvent(new Event('blur'))
+  else if (reason === 'dispose') test.view.dispose()
+  else captureEvent(document.body, 'pointercancel', 250)
+  captureEvent(document.body, 'pointermove', 300)
+  captureEvent(document.body, 'pointerup', 300)
+  captureEvent(test.viewport, 'lostpointercapture', 300)
+  expect(test.onCommit).not.toHaveBeenCalled()
+  expect(test.store.getSnapshot().document.regions[0]).toMatchObject({ start: 2, end: 4 })
+  test.cleanup()
+})
+it('finishes range selections on trackpad release without committing annotations', async () => {
+  const test = await annotationView()
+  captureEvent(test.viewport, 'pointerdown', 100)
+  captureEvent(test.viewport, 'pointermove', 200)
+  captureEvent(test.viewport, 'lostpointercapture', 300)
+  expect(test.view.getSelection()).toEqual({ start: 1, end: 3 })
+  expect(test.onCommit).not.toHaveBeenCalled()
+  test.cleanup()
+})
+it('does not turn a stationary capture-lost click into an edit', async () => {
+  const test = await annotationView()
+  captureEvent(host.querySelector('.raavl-region-body')!, 'pointerdown', 200)
+  captureEvent(test.viewport, 'lostpointercapture', 201)
+  expect(test.onCommit).not.toHaveBeenCalled()
+  test.cleanup()
+})
+
+it('keeps repeated controlled React edits during playback ticks and trackpad capture-loss releases', async () => {
+  const player = createPlayer()
+  const ready = player.setSource(source); mock.ready(player.getMediaElement()!); await ready
+  const onCommit = vi.fn()
+  function Editor() {
+    const [value, setValue] = useState({ document: annotations, revision: 0 })
+    const [selected, setSelected] = useState<string | null>(null)
+    const time = usePlayerTime(player)
+    return <>
+      <output>{time} {selected}</output>
+      <Waveform player={player} annotations={value.document} annotationsRevision={value.revision}
+        onAnnotationSelect={setSelected}
+        onAnnotationsCommit={(document, change) => {
+          onCommit(document, change)
+          setValue(current => change.baseRevision === current.revision ? { document, revision: current.revision + 1 } : current)
+        }} />
+    </>
+  }
+  root = createRoot(host)
+  await act(async () => { root!.render(<StrictMode><Editor /></StrictMode>) })
+  flushFrame()
+  const waveform = host.querySelector<HTMLElement>('.raavl-waveform')!
+  waveform.setPointerCapture = vi.fn(); waveform.releasePointerCapture = vi.fn(); waveform.hasPointerCapture = () => false
+  await act(async () => { await player.play() })
+  const media = player.getMediaElement()!
+  for (let step = 0; step < 12; step++) {
+    const selector = ['.raavl-region .raavl-region-body', '.raavl-region-handle-start', '.raavl-region-handle-end'][step % 3]
+    const x = step % 3 === 2 ? 400 : 200
+    await act(async () => { captureEvent(host.querySelector(selector)!, 'pointerdown', x) })
+    await act(async () => {
+      captureEvent(waveform, 'pointermove', x + 25)
+      media.currentTime = step / 10
+      media.dispatchEvent(new Event('timeupdate'))
+      flushFrame()
+      player.setVolume(step % 2 ? .5 : 1)
+    })
+    expect(onCommit).toHaveBeenCalledTimes(step)
+    await act(async () => { captureEvent(waveform, 'lostpointercapture', x + 50) })
+    expect(onCommit).toHaveBeenCalledTimes(step + 1)
+    const [document, change] = onCommit.mock.calls[step]
+    expect(change.baseRevision).toBe(step)
+    const region = document.regions[0]
+    const element = host.querySelector<HTMLElement>('.raavl-region')!
+    expect(parseFloat(element.style.left)).toBeCloseTo(region.start * 10)
+    expect(parseFloat(element.style.width)).toBeCloseTo((region.end - region.start) * 10)
+    captureEvent(waveform, 'pointerup', x + 50)
+    expect(onCommit).toHaveBeenCalledTimes(step + 1)
+  }
+  expect(player.getSnapshot().playback).toBe('playing')
+  await act(async () => root!.unmount()); root = undefined
+  player.dispose()
+})
+
+it.each(['pointerup', 'lostpointercapture'].flatMap(release => ['move', 'resize-start', 'resize-end'].map(action => ({ release, action }))))('never redraws old controlled bounds during $action release via $release', async ({ release, action }) => {
+  const player = createPlayer()
+  const ready = player.setSource(source); mock.ready(player.getMediaElement()!); await ready
+  const onCommit = vi.fn()
+  function Editor() {
+    const [value, setValue] = useState({ document: annotations, revision: 0 })
+    const time = usePlayerTime(player)
+    return <>
+      <output>{time}</output>
+      <Waveform player={player} annotations={value.document} annotationsRevision={value.revision}
+        onAnnotationsCommit={(document, change) => {
+          onCommit(document, change)
+          setValue(current => change.baseRevision === current.revision ? { document, revision: current.revision + 1 } : current)
+        }} />
+    </>
+  }
+  root = createRoot(host)
+  await act(async () => { root!.render(<StrictMode><Editor /></StrictMode>) })
+  flushFrame()
+  const waveform = host.querySelector<HTMLElement>('.raavl-waveform')!
+  waveform.setPointerCapture = vi.fn(); waveform.releasePointerCapture = vi.fn(); waveform.hasPointerCapture = () => false
+  await act(async () => { await player.play() })
+  const selector = action === 'move' ? '.raavl-region .raavl-region-body' : `.raavl-region-handle-${action === 'resize-start' ? 'start' : 'end'}`
+  const x = action === 'resize-end' ? 400 : 200
+  await act(async () => { captureEvent(host.querySelector(selector)!, 'pointerdown', x) })
+  await act(async () => {
+    captureEvent(waveform, 'pointermove', x + 100)
+    player.getMediaElement()!.currentTime = 1
+    player.getMediaElement()!.dispatchEvent(new Event('timeupdate'))
+    flushFrame()
+  })
+  const region = host.querySelector<HTMLElement>('.raavl-region')!
+  // Observe intermediate style writes: checking final geometry misses the flash.
+  const left = vi.spyOn(region.style, 'left', 'set')
+  const width = vi.spyOn(region.style, 'width', 'set')
+  await act(async () => { captureEvent(waveform, release, x + 100) })
+  expect(onCommit).toHaveBeenCalledOnce()
+  if (action === 'resize-end') expect(width).not.toHaveBeenCalledWith('20%')
+  else expect(left).not.toHaveBeenCalledWith('20%')
+  const final = host.querySelector<HTMLElement>('.raavl-region')!
+  expect(final.style.left).toBe(action === 'resize-end' ? '20%' : '30%')
+  expect(final.style.width).toBe(action === 'move' ? '20%' : action === 'resize-end' ? '30%' : '10%')
+  await act(async () => root!.unmount()); root = undefined
+  player.dispose()
 })

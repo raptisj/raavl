@@ -10,7 +10,7 @@ import {
   type HTMLAttributes,
   type ReactNode,
 } from "react";
-import { createPortal } from "react-dom";
+import { createPortal, flushSync } from "react-dom";
 import {
   createAnnotations,
   type AnnotationDocument,
@@ -323,8 +323,16 @@ export const Waveform = forwardRef<Player | null, WaveformProps>(
           ? {
               value: annotations,
               revision: annotationsRevision!,
-              onCommit: (document, change) =>
-                callbacks.current.onAnnotationsCommit?.(document, change),
+              onCommit: (document, change) => {
+                const commit = () =>
+                  callbacks.current.onAnnotationsCommit?.(document, change);
+                // Native input handlers redraw immediately after proposing an edit.
+                // Publish accepted React props first so that redraw cannot flash
+                // the previous bounds. This runs once per edit, never per move.
+                if (change.origin === "pointer" || change.origin === "keyboard")
+                  flushSync(commit);
+                else commit();
+              },
             }
           : (annotationStore ?? localAnnotations),
         annotationRules,

@@ -58,6 +58,8 @@ export function mountAnnotations(
   surface: HTMLElement,
   geometry: () => AnnotationGeometry,
 ) {
+  const gestureDocument = root.ownerDocument;
+  const gestureWindow = gestureDocument.defaultView;
   let options: AnnotationViewOptions = {},
     store: AnnotationStore | null = null,
     owned = false;
@@ -192,6 +194,7 @@ export function mountAnnotations(
   const cancel = () => {
     const previous = gesture;
     gesture = null;
+    trackGesture(false);
     if (previous && root.hasPointerCapture?.(previous.pointer))
       root.releasePointerCapture(previous.pointer);
     if (previous && !previous.id) setSelection(null);
@@ -454,6 +457,7 @@ export function mountAnnotations(
   };
   const down = (event: PointerEvent) => {
     if (event.button !== 0 || !active()) return;
+    if (gesture && event.pointerId !== gesture.pointer) return;
     const target = annotationTarget(event.target);
     const id = target?.dataset.raavlAnnotation;
     const item = id
@@ -488,7 +492,12 @@ export function mountAnnotations(
       revision: store!.getSnapshot().revision,
       moved: false,
     };
-    root.setPointerCapture(event.pointerId);
+    trackGesture(true);
+    try {
+      root.setPointerCapture(event.pointerId);
+    } catch {
+      // The pointer may already have been released. Document tracking still works.
+    }
   };
   const move = (event: PointerEvent) => {
     if (!gesture || event.pointerId !== gesture.pointer) return;
@@ -541,6 +550,7 @@ export function mountAnnotations(
     move(event);
     if (gesture !== g) return;
     gesture = null;
+    trackGesture(false);
     if (root.hasPointerCapture(g.pointer))
       root.releasePointerCapture(g.pointer);
     if (
@@ -560,12 +570,54 @@ export function mountAnnotations(
       });
     render(); // Controlled rejection restores the committed geometry immediately.
   };
-  const lost = () => {
-    if (gesture) {
-      cancel();
-      render();
-    }
+  const abort = (event: PointerEvent) => {
+    if (!gesture || event.pointerId !== gesture.pointer) return;
+    cancel();
+    render();
   };
+  const lost = (event: PointerEvent) => {
+    if (
+      !gesture ||
+      event.pointerId !== gesture.pointer ||
+      event.target !== root ||
+      root.hasPointerCapture(event.pointerId)
+    )
+      return;
+    // Trackpads can release capture without delivering pointerup. No pressed
+    // buttons means finish the edit at the release position, rather than revert it.
+    // If still pressed, document tracking carries on until release or cancellation.
+    if (event.buttons === 0) up(event);
+  };
+  const blur = () => {
+    if (!gesture) return;
+    cancel();
+    render();
+  };
+  const visibility = () => {
+    if (gestureDocument.hidden) blur();
+  };
+  const escape = (event: KeyboardEvent) => {
+    if (event.key === "Escape") blur();
+  };
+  function trackGesture(listen: boolean) {
+    // Capture-phase tracking survives capture loss, releases outside the waveform,
+    // and propagation stopped by controls. Only an active gesture owns listeners.
+    if (listen) {
+      gestureDocument.addEventListener("pointermove", move, true);
+      gestureDocument.addEventListener("pointerup", up, true);
+      gestureDocument.addEventListener("pointercancel", abort, true);
+      gestureDocument.addEventListener("keydown", escape, true);
+      gestureDocument.addEventListener("visibilitychange", visibility);
+      gestureWindow?.addEventListener("blur", blur);
+    } else {
+      gestureDocument.removeEventListener("pointermove", move, true);
+      gestureDocument.removeEventListener("pointerup", up, true);
+      gestureDocument.removeEventListener("pointercancel", abort, true);
+      gestureDocument.removeEventListener("keydown", escape, true);
+      gestureDocument.removeEventListener("visibilitychange", visibility);
+      gestureWindow?.removeEventListener("blur", blur);
+    }
+  }
   const key = (event: KeyboardEvent) => {
     if (event.key === "Escape") {
       cancel();
@@ -636,9 +688,6 @@ export function mountAnnotations(
     render();
   };
   root.addEventListener("pointerdown", down);
-  root.addEventListener("pointermove", move);
-  root.addEventListener("pointerup", up);
-  root.addEventListener("pointercancel", lost);
   root.addEventListener("lostpointercapture", lost);
   root.addEventListener("click", click);
   root.addEventListener("keydown", key);
@@ -689,9 +738,6 @@ export function mountAnnotations(
       overlay.remove();
       list.remove();
       root.removeEventListener("pointerdown", down);
-      root.removeEventListener("pointermove", move);
-      root.removeEventListener("pointerup", up);
-      root.removeEventListener("pointercancel", lost);
       root.removeEventListener("lostpointercapture", lost);
       root.removeEventListener("click", click);
       root.removeEventListener("keydown", key);
