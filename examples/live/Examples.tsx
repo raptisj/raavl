@@ -715,13 +715,12 @@ export function Examples() {
           <div className="workspace">
             <nav className="section-nav" aria-label="Examples">
               <a href="#demos">← All examples</a>
-              {scenes.map(([id, number, title]) => (
+              {scenes.map(([id, , title]) => (
                 <a
                   key={id}
                   href={`#demos/${id}/${route.mode}`}
                   aria-current={route.scene === id ? "page" : undefined}
                 >
-                  <span>{number}</span>
                   {title}
                 </a>
               ))}
