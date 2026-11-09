@@ -31,6 +31,11 @@ button.primary { background: #245e49; color: white; border-color: #245e49; } but
 .status { display: flex; gap: 18px; flex-wrap: wrap; margin-top: 20px; padding-top: 16px; border-top: 1px solid #edf0e8; font-size: 10px; color: #7a897d; } .status b { font-weight: 550; margin-left: 5px; color: #365b46; }
 .customize { margin-top: 20px; padding: 16px; background: #f8faf5; border-radius: 8px; } summary { font-size: 12px; font-weight: 650; cursor: pointer; }
 .view-settings { display: flex; align-items: end; gap: 18px; flex-wrap: wrap; margin-top: 16px; } .view-settings label { display: flex; flex-direction: column; gap: 7px; }
+.theme-json { margin-top: 20px; border-top: 1px solid #dce3d5; padding-top: 16px; }
+.theme-json p { font-size: 12px; line-height: 1.6; color: #5c7362; }
+.theme-json label { display: block; margin-top: 14px; }
+.theme-json textarea { display: block; width: 100%; margin-top: 8px; resize: vertical; border: 1px solid #ced8ca; border-radius: 6px; padding: 12px; font: 12px/1.6 ui-monospace, monospace; color: #183d34; background: white; }
+.theme-json a { color: #277e67; font-size: 12px; }
 input[type="color"] { height: 34px; width: 45px; border: 1px solid #ced8ca; border-radius: 6px; padding: 3px; background: white; }
 .source-form { margin-bottom: 22px; } .source-form > div { display: flex; gap: 8px; margin-top: 8px; }
 .source-form input { min-width: 0; flex: 1; border: 1px solid #ced8ca; border-radius: 6px; padding: 10px 12px; font-size: 13px; } .source-form p { font-size: 11px; color: #718370; }

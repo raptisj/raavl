@@ -3,7 +3,6 @@ import {
   useEffect,
   useMemo,
   useState,
-  type CSSProperties,
 } from "react";
 import { createRoot } from "react-dom/client";
 import type {
@@ -12,7 +11,11 @@ import type {
   RavlError,
   Source,
   WaveformData,
+  Appearance,
+  WaveformTheme,
 } from "../../src";
+import { parseTheme, waveformThemes } from "../../src";
+import { defaultAppearance } from "../../src/themes";
 import { Waveform, usePlayerState, usePlayerTime } from "../../src/react";
 import { ModulesEditor } from './ModulesEditor'
 import { ScaleLab } from './ScaleLab'
@@ -177,28 +180,30 @@ function PlayerCard({
 }) {
   const [player, setPlayer] = useState<Player | null>(null),
     [error, setError] = useState<RavlError | null>(null);
-  const [style, setStyle] = useState<"line" | "bars">("bars"),
-    [zoom, setZoom] = useState("fit");
+  const [theme, setTheme] = useState<WaveformTheme>(waveformThemes.sage);
+  const [themeText, setThemeText] = useState(JSON.stringify(waveformThemes.sage, null, 2));
+  const [themeError, setThemeError] = useState("");
+  const [overrides, setOverrides] = useState<Appearance>({});
+  const [zoom, setZoom] = useState("fit");
   const [follow, setFollow] = useState<"off" | "visible" | "center">("visible");
-  const [color, setColor] = useState("#277e67"),
-    [height, setHeight] = useState(160);
+  const [color, setColor] = useState<string | null>(null);
   useEffect(() => {
     setError(null);
   }, [source]);
-  const appearance = useMemo(
-    () => ({ style, height, barWidth: 2, barGap: 1 }),
-    [style, height],
-  );
+  // Send every field so Vanilla's patch API also clears removed overrides.
+  const appearance = useMemo(() => ({ ...defaultAppearance, ...theme.appearance, ...overrides }), [theme, overrides]);
+  const activeTheme = useMemo(() => color ? { ...theme, colors: { ...theme.colors, progress: color } } : theme, [theme, color]);
+  const applyTheme = (next: WaveformTheme) => {
+    setTheme(next); setOverrides({}); setColor(null); setThemeError("");
+    setThemeText(JSON.stringify(next, null, 2));
+  };
+  const exportedTheme = useMemo(() => ({ ...activeTheme, appearance }), [activeTheme, appearance]);
   const viewport = useMemo(
     () => ({ zoom: zoom === "fit" ? ("fit" as const) : Number(zoom), follow }),
     [zoom, follow],
   );
-  const colors = {
-    "--ravl-progress-color": color,
-    "--ravl-wave-color": `${color}70`,
-  } as CSSProperties;
   return (
-    <article className="player-card" style={colors}>
+    <article className="player-card">
       <div className="card-heading">
         <h3>{title}</h3>
         <span className="badge">
@@ -216,21 +221,21 @@ function PlayerCard({
         <Waveform
           source={source}
           appearance={appearance}
+          theme={activeTheme}
           viewport={viewport}
           interaction={{ drag: "seek" }}
           onPlayer={setPlayer}
           onError={setError}
-          themeVersion={color}
           aria-label={`${title} waveform`}
         />
       ) : (
         <VanillaWaveform
           source={source}
           appearance={appearance}
+          theme={activeTheme}
           viewport={viewport}
           onPlayer={setPlayer}
           onError={setError}
-          themeVersion={color}
         />
       )}
       <Transport player={player} report={setError} />
@@ -238,10 +243,18 @@ function PlayerCard({
         <summary>Customize this waveform</summary>
         <div className="view-settings">
           <label>
+            Theme
+            <select aria-label="Waveform theme" value={Object.entries(waveformThemes).find(([, preset]) => preset === theme)?.[0] ?? "custom"}
+              onChange={event => applyTheme(waveformThemes[event.target.value as keyof typeof waveformThemes])}>
+              {Object.entries(waveformThemes).map(([id, preset]) => <option key={id} value={id}>{preset.name}</option>)}
+              {!Object.values(waveformThemes).includes(theme) && <option value="custom">{theme.name} (custom)</option>}
+            </select>
+          </label>
+          <label>
             Drawing
             <select
-              value={style}
-              onChange={(e) => setStyle(e.target.value as typeof style)}
+              value={appearance.style}
+              onChange={(e) => setOverrides(current => ({ ...current, style: e.target.value as "line" | "bars" }))}
             >
               <option value="bars">Bars</option>
               <option value="line">Envelope</option>
@@ -272,11 +285,11 @@ function PlayerCard({
             <input
               aria-label="Waveform height"
               type="range"
-              min="80"
-              max="260"
-              step="20"
-              value={height}
-              onChange={(e) => setHeight(Number(e.target.value))}
+              min="24"
+              max="2000"
+              step="1"
+              value={appearance.height}
+              onChange={(e) => setOverrides(current => ({ ...current, height: Number(e.target.value) }))}
             />
           </label>
           <label>
@@ -284,11 +297,44 @@ function PlayerCard({
             <input
               aria-label="Waveform color"
               type="color"
-              value={color}
+              value={color ?? theme.colors?.progress ?? "#285d50"}
               onChange={(e) => setColor(e.target.value)}
             />
           </label>
+          {(appearance.style === 'line' ? [
+            ['lineWidth', 'Line thickness', 0.5, 20, 0.5],
+          ] as const : [
+            ['barWidth', 'Bar width', 0.5, 100, 0.5],
+            ['barGap', 'Bar gap', 0, 100, 0.5],
+            ['barRadius', 'Bar rounding', 0, 100, 0.5],
+          ] as const).map(([key, label, min, max, step]) => <label key={key}>
+            {label} · {appearance[key]}px
+            <input type="range" aria-label={label} min={min} max={max} step={step} value={appearance[key]}
+              onChange={event => setOverrides(current => ({ ...current, [key]: Number(event.target.value) }))} />
+          </label>)}
+          <label>
+            Amplitude · {Math.round(appearance.amplitude * 100)}%
+            <input type="range" aria-label="Waveform amplitude" min="0.1" max="1" step="0.01" value={appearance.amplitude}
+              onChange={event => setOverrides(current => ({ ...current, amplitude: Number(event.target.value) }))} />
+          </label>
+          <label>
+            Playhead · {appearance.cursorWidth}px
+            <input type="range" aria-label="Playhead width" min="0" max="20" step="0.5" value={appearance.cursorWidth}
+              onChange={event => setOverrides(current => ({ ...current, cursorWidth: Number(event.target.value) }))} />
+          </label>
         </div>
+        <details className="theme-json">
+          <summary>Edit or export theme JSON</summary>
+          <p>Presets come from one JSON file. Apply your own values here; audio keeps playing. Export includes your control adjustments.</p>
+          <label>Theme JSON<textarea aria-label="Theme JSON" rows={12} spellCheck={false} value={themeText} onChange={event => setThemeText(event.target.value)} /></label>
+          <div className="editor-actions">
+            <button onClick={() => { try { applyTheme(parseTheme(themeText)); } catch (error) { setThemeError((error as Error).message); } }}>Apply JSON</button>
+            <button onClick={() => setThemeText(JSON.stringify(exportedTheme, null, 2))}>Use current settings</button>
+            <CopyButton code={JSON.stringify(exportedTheme, null, 2)} />
+            <a download="waveform-theme.json" href={`data:application/json;charset=utf-8,${encodeURIComponent(JSON.stringify(exportedTheme, null, 2))}`}>Download JSON</a>
+          </div>
+          {themeError && <p role="alert">{themeError}</p>}
+        </details>
       </details>
       {error && (
         <div className="error" role="alert">

@@ -8,7 +8,7 @@ it('bounds zoomed annotation DOM and releases repeated mounts', () => {
   vi.stubGlobal('cancelAnimationFrame', (key: number) => frames.delete(key))
   vi.stubGlobal('ResizeObserver', class { observe() {} disconnect() {} })
   vi.spyOn(HTMLElement.prototype, 'clientWidth', 'get').mockReturnValue(1000)
-  vi.spyOn(HTMLCanvasElement.prototype, 'getContext').mockReturnValue({ setTransform() {}, fillRect() {}, drawImage() {} } as unknown as CanvasRenderingContext2D)
+  vi.spyOn(HTMLCanvasElement.prototype, 'getContext').mockReturnValue({ setTransform() {}, fillRect() {}, drawImage() {}, beginPath() {}, moveTo() {}, lineTo() {}, stroke() {} } as unknown as CanvasRenderingContext2D)
   const host = document.createElement('div'); document.body.append(host)
   const store = createAnnotations({ document: { version: 1, sourceId: 'long', regions: Array.from({ length: 10000 }, (_, i) => ({ id: `r${i}`, start: i * .72, end: i * .72 + .5 })), markers: [] } })
   const data = { version: 1 as const, sourceId: 'long', duration: 7200, channels: [{ min: new Float32Array(720000).fill(-.5), max: new Float32Array(720000).fill(.5) }] }

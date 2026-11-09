@@ -193,6 +193,23 @@ return final state and mutating commands reject or throw `DISPOSED`.
 
 ## Styling and view options
 
+Waveform themes are JSON configuration, including geometry as well as colors.
+Choose `sage`, `studio`, `neon`, or `paper`, or load your own JSON:
+
+```ts
+import { waveformThemes, parseTheme } from 'ravl/themes'
+
+view.update({ theme: waveformThemes.neon })
+// Or: view.update({ theme: parseTheme(importedJson) })
+// React: <Waveform source={source} theme={waveformThemes.neon} />
+```
+
+Presets live in [one JSON file](src/themes/presets.json). They cover line thickness,
+bar width/gaps/rounding, amplitude, height, playhead width, surface corners, and
+colors. Explicit `appearance` fields override theme values. See the
+[theme format and loading guide](docs/THEMES.md) and try the
+[theme playground](http://127.0.0.1:4173/#demos/styling/react) to edit/export JSON.
+
 There is no Shadow DOM. Style `.ravl-waveform`, `.ravl-cursor`, and other documented
 classes with ordinary CSS. Appearance controls Canvas drawing; CSS controls the
 surrounding DOM and shared color tokens.
@@ -212,13 +229,14 @@ After changing an external CSS theme, call `view.refreshTheme()`; in React, chan
 
 | Group       | Implemented options                                                        |
 | ----------- | -------------------------------------------------------------------------- |
-| Appearance  | `style: 'line' \| 'bars'`, `height`, `barWidth`, `barGap`, `normalize`     |
+| Appearance  | `style: 'line' \| 'bars'`, `height`, `lineWidth`, `barWidth`, `barGap`, `barRadius`, `amplitude`, `cursorWidth`, `borderRadius`, `normalize` |
 | Viewport    | `zoom: 'fit' \| pixelsPerSecond`, `follow: 'off' \| 'visible' \| 'center'` |
 | Interaction | `seek: 'click' \| 'off'`, `drag: 'none' \| 'seek' \| 'select'`                         |
 
 Vanilla updates merge fields within a group; `undefined` resets a field to its
-default. React props describe the current configuration, so removing a prop
-restores its default. All time-based commands use seconds; `seekFraction()` uses
+theme value or library default. React props describe the current configuration,
+so removing a prop restores its theme value or library default. All time-based
+commands use seconds; `seekFraction()` uses
 an explicit fraction from 0 to 1. Playback rate supports 0.25–4×.
 
 ## Regions, markers, and annotation editing

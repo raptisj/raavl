@@ -1,10 +1,10 @@
 import { useEffect, useRef } from 'react'
-import { createPlayer, mountWaveform, type Player, type Source, type WaveformView, type Appearance, type Viewport, type RavlError } from '../../src'
+import { createPlayer, mountWaveform, type Player, type Source, type WaveformView, type Appearance, type Viewport, type RavlError, type WaveformTheme } from '../../src'
 
 // The demo shell uses React; this view exercises only the vanilla library API.
-export function VanillaWaveform({ source, appearance, viewport, onPlayer, onError, themeVersion }: {
+export function VanillaWaveform({ source, appearance, viewport, onPlayer, onError, themeVersion, theme }: {
   source: Source | null; appearance: Appearance; viewport: Viewport
-  onPlayer: (player: Player | null) => void; onError: (error: RavlError) => void; themeVersion: string
+  onPlayer: (player: Player | null) => void; onError: (error: RavlError) => void; themeVersion?: string; theme?: WaveformTheme
 }) {
   const container = useRef<HTMLDivElement>(null)
   const player = useRef<Player | null>(null), view = useRef<WaveformView | null>(null)
@@ -30,7 +30,7 @@ export function VanillaWaveform({ source, appearance, viewport, onPlayer, onErro
     else player.current!.clearSource()
     return () => abort.abort()
   }, [source])
-  useEffect(() => { view.current?.update({ appearance, viewport }) }, [appearance, viewport])
+  useEffect(() => { view.current?.update({ theme, appearance, viewport }) }, [theme, appearance, viewport])
   useEffect(() => { view.current?.refreshTheme() }, [themeVersion])
   return <div ref={container} />
 }

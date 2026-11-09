@@ -3,20 +3,16 @@ import type { Selection } from "../regions";
 export type { AnnotationViewOptions, AnnotationSnapper, LabelSlot } from "./annotations";
 import { failure, finite, validateWaveform } from "../core/data";
 import type { Player, WaveformData } from "../core/types";
+import { colorTokens, defaultAppearance, parseTheme, validateAppearance, type Appearance, type WaveformTheme } from "../themes";
+export type { Appearance, WaveformTheme } from "../themes";
 
-export type Appearance = {
-  style?: "line" | "bars";
-  height?: number;
-  barWidth?: number;
-  barGap?: number;
-  normalize?: boolean;
-};
 export type Viewport = {
   zoom?: number | "fit";
   follow?: "off" | "visible" | "center";
 };
 export type Interaction = { seek?: "click" | "off"; drag?: "none" | "seek" | "select" };
 export type ViewOptions = AnnotationViewOptions & {
+  theme?: WaveformTheme | null;
   appearance?: Appearance;
   viewport?: Viewport;
   interaction?: Interaction;
@@ -25,7 +21,7 @@ export type ViewOptions = AnnotationViewOptions & {
 } & ({ player: Player; data?: never } | { data: WaveformData; player?: never });
 export type ViewUpdate = Pick<
   ViewOptions,
-  "appearance" | "viewport" | "interaction" | "label" | "onDraw"
+  "theme" | "appearance" | "viewport" | "interaction" | "label" | "onDraw"
 > & AnnotationViewOptions & { data?: WaveformData };
 export type ViewportSnapshot = Readonly<{ sourceId: string | null; duration: number; start: number; end: number; width: number; pixelsPerSecond: number; disposed: boolean }>;
 export type WaveformView = {
@@ -41,13 +37,7 @@ export type WaveformView = {
 };
 
 const defaults = {
-  appearance: {
-    style: "line",
-    height: 160,
-    barWidth: 2,
-    barGap: 1,
-    normalize: false,
-  } as Required<Appearance>,
+  appearance: defaultAppearance,
   viewport: { zoom: "fit", follow: "visible" } as Required<Viewport>,
   interaction: { seek: "click", drag: "none" } as Required<Interaction>,
 };
@@ -76,6 +66,8 @@ export function mountWaveform(
   let appearance = { ...defaults.appearance },
     viewport = { ...defaults.viewport },
     interaction = { ...defaults.interaction };
+  let theme: WaveformTheme | null = null;
+  let appearanceOverrides: Appearance = {};
   let data = options.data
     ? validateWaveform(options.data)
     : (options.player?.getSnapshot().data ?? null);
@@ -137,7 +129,7 @@ export function mountWaveform(
     top: "0",
     bottom: "0",
     width: "2px",
-    background: "var(--ravl-progress-color, #285d50)",
+    background: "var(--ravl-cursor-color, var(--ravl-progress-color, #285d50))",
     pointerEvents: "none",
   });
   surface.append(cursor);
@@ -205,6 +197,13 @@ export function mountWaveform(
           : 1;
       data.channels.forEach((channel, channelIndex) => {
         const center = height * (channelIndex + 0.5);
+        const line = appearance.style === "line";
+        if (line) {
+          ctx.beginPath();
+          ctx.strokeStyle = ctx.fillStyle;
+          ctx.lineWidth = appearance.lineWidth;
+          ctx.lineCap = "round";
+        } else if (appearance.barRadius > 0) ctx.beginPath();
         // Draw only the viewport. Aggregate all buckets covered by a pixel/bar.
         for (let x = 0; x < width; x += step) {
           const start = Math.floor(
@@ -226,19 +225,23 @@ export function mountWaveform(
             lo = Math.min(lo, channel.min[j]);
             hi = Math.max(hi, channel.max[j]);
           }
-          const top = center - hi * height * 0.45 * scale;
-          const bottom = center - lo * height * 0.45 * scale;
-          ctx.fillRect(
-            x,
-            top,
-            appearance.style === "bars" ? appearance.barWidth : 1,
-            Math.max(1, bottom - top),
-          );
+          const top = center - hi * height * appearance.amplitude / 2 * scale;
+          const bottom = center - lo * height * appearance.amplitude / 2 * scale;
+          const barHeight = Math.max(1, bottom - top);
+          if (line) {
+            ctx.moveTo(x + 0.5, top);
+            ctx.lineTo(x + 0.5, top + barHeight);
+          } else if (appearance.barRadius > 0) {
+            ctx.roundRect(x, top, appearance.barWidth, barHeight, Math.min(appearance.barRadius, appearance.barWidth / 2, barHeight / 2));
+          } else ctx.fillRect(x, top, appearance.barWidth, barHeight);
         }
+        if (line) ctx.stroke();
+        else if (appearance.barRadius > 0) ctx.fill();
       });
     } else {
       ctx.globalAlpha = 0.35;
-      ctx.fillRect(0, appearance.height / 2, width, 1);
+      const thickness = appearance.style === "line" ? appearance.lineWidth : 1;
+      ctx.fillRect(0, (appearance.height - thickness) / 2, width, thickness);
       ctx.globalAlpha = 1;
     }
     playedCtx.drawImage(wave, 0, 0);
@@ -472,12 +475,19 @@ export function mountWaveform(
     },
     update(patch) {
       if (disposed) throw failure("DISPOSED", "view", "View has been disposed");
-      const a = merge(appearance, patch.appearance, defaults.appearance);
+      const nextTheme = "theme" in patch ? patch.theme == null ? null : parseTheme(patch.theme) : theme;
+      const overrides = { ...appearanceOverrides };
+      if (patch.appearance !== undefined) {
+        validateAppearance(patch.appearance);
+        for (const key of Object.keys(patch.appearance) as Array<keyof Appearance>) {
+          if (patch.appearance[key] === undefined) delete overrides[key];
+          else Object.assign(overrides, { [key]: patch.appearance[key] });
+        }
+      }
+      const a = { ...defaults.appearance, ...nextTheme?.appearance, ...overrides };
       const v = merge(viewport, patch.viewport, defaults.viewport);
       const i = merge(interaction, patch.interaction, defaults.interaction);
-      finite(a.height, "Height", 24, 2000);
-      finite(a.barWidth, "Bar width", 0.5, 100);
-      finite(a.barGap, "Bar gap", 0, 100);
+      validateAppearance(a);
       if (v.zoom !== "fit") finite(v.zoom, "Zoom", 0.01, 10000);
       if (
         !["line", "bars"].includes(a.style) ||
@@ -505,6 +515,15 @@ export function mountWaveform(
       if (annotationOptions.annotations) for (const name of ["aria-valuemin", "aria-valuemax", "aria-valuenow", "aria-valuetext", "aria-orientation", "aria-disabled"]) root.removeAttribute(name);
       else if (player) { root.setAttribute("aria-valuemin", "0"); root.setAttribute("aria-orientation", "horizontal"); }
       appearance = a;
+      appearanceOverrides = overrides;
+      if ("theme" in patch) for (const [key, token] of Object.entries(colorTokens)) {
+        const color = nextTheme?.colors?.[key as keyof typeof colorTokens];
+        if (color !== undefined) root.style.setProperty(token, color);
+        else if (theme?.colors?.[key as keyof typeof colorTokens] !== undefined) root.style.removeProperty(token);
+      }
+      theme = nextTheme;
+      root.style.setProperty("--ravl-border-radius", `${appearance.borderRadius}px`);
+      cursor.style.width = `${appearance.cursorWidth}px`;
       viewport = v;
       interaction = i;
       if (patch.data) data = patch.data;

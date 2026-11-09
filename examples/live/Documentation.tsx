@@ -19,6 +19,11 @@ const appearance: Row[] = [
   ['height', 'number · 160', 'Waveform height in CSS pixels, from 24 to 2000.'],
   ['barWidth', 'number · 2', 'Bar width in CSS pixels, from 0.5 to 100.'],
   ['barGap', 'number · 1', 'Space between bars in CSS pixels, from 0 to 100.'],
+  ['lineWidth', 'number · 1', 'Envelope stroke thickness in CSS pixels, from 0.5 to 20.'],
+  ['barRadius', 'number · 0', 'Bar corner radius, 0–100px; clamped to fit each bar.'],
+  ['amplitude', 'number · 0.9', 'Fraction of each channel height used for amplitudes of ±1, from 0.1 to 1.'],
+  ['cursorWidth', 'number · 2', 'Playhead width in CSS pixels, 0–20. Zero hides it.'],
+  ['borderRadius', 'number · 8', 'Surface corner radius in CSS pixels, 0–100; uses ravl/styles.css.'],
   ['normalize', 'boolean · false', 'Scale waveform amplitudes to fill the available height.'],
 ]
 const viewport: Row[] = [
@@ -106,6 +111,7 @@ const offTime = player.subscribeTime(() => {
       <p><code>mountWaveform(container, options)</code> mounts a light-DOM canvas waveform. Supply exactly one of <code>player</code> or <code>data</code>. The data-only path renders without audio playback.</p>
       <Reference rows={[
         ['player', 'Player', 'Borrow a player; mutually exclusive with data.'], ['data', 'WaveformData', 'Render static/precomputed data; mutually exclusive with player.'],
+        ['theme', 'WaveformTheme | null', 'Versioned JSON visual configuration; explicit appearance fields override its drawing settings.'],
         ['appearance', 'Appearance', 'Drawing settings listed below.'], ['viewport', 'Viewport', 'Zoom and follow settings.'], ['interaction', 'Interaction', 'Seeking and selection settings.'],
         ['label', "string · 'Audio waveform'", 'Accessible name for the waveform.'], ['onDraw', '() => void', 'Called after drawing; useful for measurement.'], ...annotationOptions,
       ]} />
@@ -113,7 +119,7 @@ const offTime = player.subscribeTime(() => {
       <Section title="Viewport"><Reference rows={viewport} /></Section>
       <Section title="Interaction"><Reference rows={interaction} /><p>Double-click or double-tap starts playback on the waveform background. Annotation controls retain their editing gestures.</p></Section>
       <Section title="Returned WaveformView"><Reference rows={[
-        ['update(options)', 'void', 'Patch appearance, viewport, interaction, label, onDraw, data, or annotation options. Nested drawing/viewport/interaction settings merge with existing values.'],
+        ['update(options)', 'void', 'Replace theme or patch appearance, viewport, interaction, label, onDraw, data, or annotation options. Nested drawing/viewport/interaction settings merge with existing values.'],
         ['refreshTheme()', 'void', 'Re-read computed canvas colors after a CSS theme change.'],
         ['getViewport()', 'ViewportSnapshot', 'Cached source, duration, visible start/end, CSS width, pixelsPerSecond, and disposed flag.'], ['subscribeViewport(callback)', 'unsubscribe function', 'Observe changed viewport snapshots. Initial geometry is published after the first draw.'], ['scrollTo(seconds)', 'void', 'Pan to a nonnegative start time; clamps at the end without seeking audio.'],
         ['getSelection()', '{ start, end } | null', 'Read the selected time range in seconds.'], ['clearSelection()', 'void', 'Clear the current time selection.'], ['createRegionFromSelection(id, label?)', 'void', 'Commit the current time selection as a region. Requires an annotation store.'], ['dispose()', 'void', 'Remove the view and listeners while leaving its borrowed player alive.'],
@@ -125,6 +131,7 @@ const offTime = player.subscribeTime(() => {
         ['source', 'Source | null', 'Create an owned player and load this source. Mutually exclusive with player. Null clears the source.'],
         ['player', 'Player', 'Borrow an existing player instead of supplying source. You own its lifecycle.'],
         ['ref', 'Ref<Player | null>', 'Access the player after commit; null before mount and after cleanup.'],
+        ['theme', 'WaveformTheme | null', 'Same JSON theme as the DOM renderer; remove to clear it.'],
         ['appearance / viewport / interaction', 'Appearance / Viewport / Interaction', 'Same options and defaults as the DOM renderer.'],
         ['themeVersion', 'string | number', 'Change to refresh computed canvas colors without replacing the player.'], ['onView', '(WaveformView | null) => void', 'Attach optional visual modules in an effect; null signals teardown.'], ['snapAnnotation', 'AnnotationSnapper', 'Memoize a createSnapper function for magnetic pointer edits.'], ['onPlayer', '(Player | null) => void', 'Observe attachment and cleanup of the active player.'], ['onError', '(RavlError) => void', 'Receive source, waveform, playback, and annotation errors. Cancellation is filtered.'], ['onDraw', '() => void', 'Called after each draw.'],
         ['annotations', 'AnnotationDocument', 'Controlled document. Requires annotationsRevision and onAnnotationsCommit.'], ['annotationsRevision', 'number', 'Controlled revision; advance when accepting an edit or supplying an external update.'],
@@ -180,8 +187,23 @@ try {
 }`} /></Section>
     </>
     case 'styling': return <>
+      <Section title="JSON themes"><p>Use <code>waveformThemes.sage</code>, <code>studio</code>, <code>neon</code>, or <code>paper</code> from <code>ravl/themes</code>. Themes include appearance geometry and colors. Both APIs accept a <code>theme</code>; changes redraw automatically without reloading audio.</p><CodeBlock label="JavaScript / React" code={`import { parseTheme, waveformThemes } from 'ravl/themes'
+
+view.update({ theme: waveformThemes.neon })
+// React: <Waveform source={source} theme={waveformThemes.neon} />
+
+// One application-owned JSON file:
+const response = await fetch('/waveform-theme.json')
+if (!response.ok) throw new Error('Unable to load theme')
+view.update({ theme: parseTheme(await response.json()) })`} /><CodeBlock label="waveform-theme.json" code={`{
+  "version": 1,
+  "name": "Custom",
+  "appearance": { "style": "bars", "height": 180, "barWidth": 4, "barGap": 2, "barRadius": 2, "amplitude": 0.8, "cursorWidth": 1, "borderRadius": 12 },
+  "colors": { "wave": "#52657b", "progress": "#74c7ec", "background": "#111923", "cursor": "#f5c97b", "focus": "#f5c97b" }
+}`} /><p>Explicit appearance fields override theme values. Vanilla <code>undefined</code> clears an override; React removes it when the prop field is omitted. Set <code>theme: null</code> to clear the theme. Switching replaces all preset values. The playground supports live geometry controls, JSON editing and export. Import <code>ravl/themes.json</code> for the raw preset catalog. Unknown fields and invalid numeric values are rejected.</p></Section>
       <p>Waveforms use ordinary DOM and CSS. Import <code>ravl/styles.css</code> for the default theme, or style the exposed classes yourself. Set variables on the waveform or a parent container.</p>
       <Reference rows={[
+        ['--ravl-cursor-color', 'progress color', 'Independent playhead color.'], ['--ravl-background', '#f3f6f2', 'Waveform surface background.'], ['--ravl-border-radius', '8px', 'Surface corner radius, populated by appearance or theme.'],
         ['--ravl-wave-color', '#9aafa7', 'Unplayed waveform color.'], ['--ravl-progress-color', '#285d50', 'Played waveform and playhead color.'], ['--ravl-focus-color', '#bd722e', 'Keyboard focus and selected annotation outline.'], ['--ravl-region-color', '#a67ce333', 'Region fill.'], ['--ravl-marker-color', '#b65d29', 'Marker color.'], ['--ravl-handle-color', '#8055ba / #8055ba88', 'Region border / resize handle fill.'], ['--ravl-selection-color', '#538ce644', 'Time selection overlay.'], ['--ravl-label-color', '#493165', 'Default region/marker label color.'], ['--ravl-annotation-list-height', '12rem', 'Maximum height of the scrollable annotation list.'],
       ]} />
       <Section title="Theme changes"><CodeBlock label="CSS" code={`.podcast-wave {

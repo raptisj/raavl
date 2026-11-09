@@ -119,7 +119,8 @@ viewport and device pixel ratio, capped at 3, rather than recording length.
 
 | Configuration | Options and defaults |
 | --- | --- |
-| `appearance` | `style: 'line'` (or `'bars'`), `height: 160`, `barWidth: 2`, `barGap: 1`, `normalize: false` |
+| `theme` | Versioned JSON theme or null; presets `sage`, `studio`, `neon`, `paper` from `ravl/themes` |
+| `appearance` | `style: 'line'` (or `'bars'`), `height: 160`, `lineWidth: 1`, `barWidth: 2`, `barGap: 1`, `barRadius: 0`, `amplitude: 0.9`, `cursorWidth: 2`, `borderRadius: 8`, `normalize: false` |
 | `viewport` | `zoom: 'fit'` (or pixels per second), `follow: 'visible'` (or `'off'`, `'center'`) |
 | `interaction` | `seek: 'click'` (or `'off'`), `drag: 'none'` (or `'seek'`, `'select'`) |
 | Other view options | Accessible `label`, `onDraw`, annotation options and callbacks |
@@ -237,7 +238,7 @@ entry points do not import React.
 - `onPlayer` and the forwarded ref expose the player. `onView` exposes the
   committed view for accessories. Callbacks receive null during cleanup.
 - Visual prop changes preserve player identity and playback. Removing a visual
-  prop restores its default. Change `themeVersion` after external theme updates.
+  prop restores its theme value or default. Change `themeVersion` after external CSS theme updates.
 - Inline URL descriptors with unchanged fields do not reload audio. Keep large
   peak buffers, File/Blob objects, and request options stable; update source
   `revision` when asset data changes.
@@ -276,7 +277,15 @@ surface, wave/progress canvases, cursor, annotations, region body/handles/labels
 markers, selection, annotation list/pagination/status, timeline, and minimap.
 Selected annotations expose `data-selected="true"`.
 
+`parseTheme` validates an imported object or JSON string. Presets are authored in
+one JSON catalog, also exported as `ravl/themes.json`. View `theme` updates and
+React theme props replace preset values and redraw without reloading audio;
+explicit appearance fields override theme fields. Themes cover drawing geometry,
+surface background/corners, playhead and annotation color tokens. See the
+[theme guide](docs/THEMES.md) for loading, ranges and override semantics.
+
 CSS tokens include `--ravl-wave-color`, `--ravl-progress-color`,
+`--ravl-cursor-color`, `--ravl-background`, `--ravl-border-radius`,
 `--ravl-focus-color`, `--ravl-region-color`, `--ravl-handle-color`,
 `--ravl-marker-color`, `--ravl-selection-color`, `--ravl-label-color`,
 `--ravl-annotation-list-height`, `--ravl-timeline-color`, and
@@ -365,6 +374,7 @@ Current limits:
 | React ownership and hooks | `src/react/index.tsx` |
 | Optional modules | `src/timeline/`, `src/minimap/`, `src/history/`, `src/snapping/` |
 | Styling | `src/styles.css` |
+| Theme format and JSON presets | `src/themes/`, [Theme guide](docs/THEMES.md) |
 | Public package exports | `package.json`, `src/index.ts`, `src/core/index.ts` |
 | Examples and browser documentation | `examples/live/`, `examples/README.md` |
 | Detailed annotation contract | [Annotation guide](docs/ANNOTATIONS.md) |
@@ -374,7 +384,7 @@ Current limits:
 
 Public entry points are `ravl`, `ravl/core`, `ravl/dom`, `ravl/react`,
 `ravl/regions`, `ravl/timeline`, `ravl/minimap`, `ravl/history`, `ravl/snapping`,
-and `ravl/styles.css`. Build the checkout before consuming it as a local package.
+`ravl/themes`, `ravl/themes.json`, and `ravl/styles.css`. Build the checkout before consuming it as a local package.
 Use Node.js 22.12+ or a newer supported LTS for development.
 
 For changes, verify the affected implementation and exported types before

@@ -6,6 +6,7 @@ import { createPlayer } from '../src/player'
 import { mountWaveform } from '../src/dom'
 import type { Player, Source } from '../src/core/types'
 import { mockMedia } from './media'
+import { parseTheme, waveformThemes } from '../src/themes'
 
 let host: HTMLDivElement, root: Root | undefined, mock: ReturnType<typeof mockMedia>
 let frames: Map<number, FrameRequestCallback>, next: number
@@ -17,11 +18,85 @@ beforeEach(() => {
   vi.stubGlobal('requestAnimationFrame', (fn: FrameRequestCallback) => { const id = next++; frames.set(id, fn); return id })
   vi.stubGlobal('cancelAnimationFrame', (id: number) => frames.delete(id))
   vi.stubGlobal('ResizeObserver', class { observe() {} disconnect() {} })
-  vi.spyOn(HTMLCanvasElement.prototype, 'getContext').mockReturnValue({ setTransform() {}, fillRect() {}, drawImage() {} } as unknown as CanvasRenderingContext2D)
+  vi.spyOn(HTMLCanvasElement.prototype, 'getContext').mockReturnValue({ setTransform() {}, fillRect() {}, drawImage() {}, beginPath() {}, moveTo() {}, lineTo() {}, stroke() {}, roundRect() {}, fill() {} } as unknown as CanvasRenderingContext2D)
 })
 afterEach(async () => { if (root) await act(async () => root!.unmount()); root = undefined; host.remove(); vi.unstubAllGlobals() })
 const source: Source = { kind: 'url', id: 'demo', url: '/demo.wav', waveform: { kind: 'none' } }
 function flushFrame() { const callbacks = [...frames.values()]; frames.clear(); callbacks.forEach(fn => fn(0)) }
+
+it('switches themes without retaining old fields and resolves explicit overrides over theme defaults', () => {
+  const data = { version: 1 as const, sourceId: 'theme', duration: 10, channels: [{ min: [-.5], max: [.5] }] }
+  const view = mountWaveform(host, { data, theme: waveformThemes.neon, appearance: { height: 240 } })
+  flushFrame()
+  const element = host.querySelector<HTMLElement>('.ravl-waveform')!
+  const cursor = host.querySelector<HTMLElement>('.ravl-cursor')!
+  expect(element.style.height).toBe('240px')
+  expect(element.style.getPropertyValue('--ravl-background')).toBe('#191225')
+  expect(cursor.style.width).toBe('3px')
+  view.update({ theme: parseTheme({ version: 1, name: 'Minimal', appearance: { cursorWidth: 0 } }) })
+  flushFrame()
+  expect(element.style.height).toBe('240px')
+  expect(element.style.getPropertyValue('--ravl-background')).toBe('')
+  expect(element.style.getPropertyValue('--ravl-border-radius')).toBe('8px')
+  expect(cursor.style.width).toBe('0px')
+  view.update({ theme: waveformThemes.paper, appearance: { height: undefined } })
+  flushFrame()
+  expect(element.style.height).toBe('120px')
+  expect(() => view.update({ theme: waveformThemes.studio, appearance: { barGap: -1 } })).toThrow()
+  expect(element.style.getPropertyValue('--ravl-background')).toBe('#faf6ec')
+  view.update({ theme: null })
+  flushFrame()
+  expect(element.style.height).toBe('160px')
+  expect(element.style.getPropertyValue('--ravl-progress-color')).toBe('')
+  view.dispose()
+})
+
+it('draws line thickness, rounded bars and amplitude from theme configuration', () => {
+  const drawing = { setTransform: vi.fn(), fillRect: vi.fn(), beginPath: vi.fn(), moveTo: vi.fn(), lineTo: vi.fn(), stroke: vi.fn(), roundRect: vi.fn(), fill: vi.fn(), lineWidth: 0, fillStyle: '' }
+  vi.mocked(HTMLCanvasElement.prototype.getContext).mockReturnValueOnce(drawing as unknown as CanvasRenderingContext2D)
+  const data = { version: 1 as const, sourceId: 'theme', duration: 10, channels: [{ min: [-.5], max: [.5] }] }
+  const view = mountWaveform(host, { data, theme: waveformThemes.paper, appearance: { height: 100, amplitude: 1 } })
+  flushFrame()
+  expect(drawing.lineWidth).toBe(2.5)
+  expect(drawing.moveTo).toHaveBeenCalledWith(.5, 25)
+  expect(drawing.lineTo).toHaveBeenCalledWith(.5, 75)
+  expect(drawing.stroke).toHaveBeenCalledOnce()
+  view.update({ theme: waveformThemes.neon, appearance: { barWidth: 6 } })
+  flushFrame()
+  expect(drawing.roundRect).toHaveBeenCalledWith(0, 25, 6, 50, 3)
+  expect(drawing.fill).toHaveBeenCalledOnce()
+  view.update({ appearance: { amplitude: .5, barRadius: 0 } })
+  flushFrame()
+  expect(drawing.fillRect).toHaveBeenCalledWith(0, 37.5, 6, 25)
+  view.dispose()
+})
+
+it('applies and removes React themes and drawing overrides without reloading or replacing the view', async () => {
+  const player = createPlayer(), loaded = player.setSource(source)
+  mock.ready(player.getMediaElement()!); await loaded
+  await player.play(); player.seek(3)
+  const element = player.getMediaElement(), loads = mock.load.mock.calls.length
+  root = createRoot(host)
+  await act(async () => { root!.render(<StrictMode><Waveform player={player} theme={waveformThemes.neon} appearance={{ height: 250 }} /></StrictMode>) })
+  flushFrame()
+  const waveform = host.querySelector<HTMLElement>('.ravl-waveform')!
+  expect(waveform.style.height).toBe('250px')
+  await act(async () => { root!.render(<StrictMode><Waveform player={player} theme={waveformThemes.paper} /></StrictMode>) })
+  flushFrame()
+  expect(host.querySelector('.ravl-waveform')).toBe(waveform)
+  expect(waveform.style.height).toBe('120px')
+  expect(host.querySelector<HTMLElement>('.ravl-cursor')!.style.width).toBe('1px')
+  await act(async () => { root!.render(<StrictMode><Waveform player={player} /></StrictMode>) })
+  flushFrame()
+  expect(waveform.style.height).toBe('160px')
+  expect(waveform.style.getPropertyValue('--ravl-background')).toBe('')
+  expect(player.getMediaElement()).toBe(element)
+  expect(player.getCurrentTime()).toBe(3)
+  expect(player.getSnapshot().playback).toBe('playing')
+  expect(mock.load.mock.calls.length).toBe(loads)
+  await act(async () => root!.unmount()); root = undefined
+  player.dispose()
+})
 
 it('keeps media identity, time, and playback through React appearance updates and inline source objects', async () => {
   let player: Player | null = null

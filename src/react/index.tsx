@@ -20,6 +20,7 @@ import {
   type Interaction,
   type Viewport,
   type WaveformView,
+  type WaveformTheme,
 } from "../dom";
 import type { Player, PlayerSnapshot, RavlError, Source } from "../core/types";
 
@@ -62,6 +63,7 @@ type CommonProps = Omit<
   HTMLAttributes<HTMLDivElement>,
   "onError" | "children"
 > & {
+  theme?: WaveformTheme | null;
   appearance?: Appearance;
   viewport?: Viewport;
   interaction?: Interaction;
@@ -94,6 +96,7 @@ export const Waveform = forwardRef<Player | null, WaveformProps>(
       source,
       player: borrowed,
       appearance,
+      theme,
       viewport,
       interaction,
       themeVersion,
@@ -206,12 +209,18 @@ export const Waveform = forwardRef<Player | null, WaveformProps>(
     }, [player, borrowed, descriptor, report]);
     useEffect(() => {
       view.current?.update({
+        theme,
         appearance: {
           style: appearance?.style,
           height: appearance?.height,
           barWidth: appearance?.barWidth,
           barGap: appearance?.barGap,
           normalize: appearance?.normalize,
+          lineWidth: appearance?.lineWidth,
+          barRadius: appearance?.barRadius,
+          amplitude: appearance?.amplitude,
+          cursorWidth: appearance?.cursorWidth,
+          borderRadius: appearance?.borderRadius,
         },
         viewport: { zoom: viewport?.zoom, follow: viewport?.follow },
         interaction: { seek: interaction?.seek, drag: interaction?.drag },
@@ -219,11 +228,17 @@ export const Waveform = forwardRef<Player | null, WaveformProps>(
       });
     }, [
       player,
+      theme,
       appearance?.style,
       appearance?.height,
       appearance?.barWidth,
       appearance?.barGap,
       appearance?.normalize,
+      appearance?.lineWidth,
+      appearance?.barRadius,
+      appearance?.amplitude,
+      appearance?.cursorWidth,
+      appearance?.borderRadius,
       viewport?.zoom,
       viewport?.follow,
       interaction?.seek,

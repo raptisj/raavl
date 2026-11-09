@@ -56,6 +56,11 @@
       "import": "./dist/library/react.js"
     },
     "./styles.css": "./src/styles.css",
+    "./themes": {
+      "types": "./dist/types/themes/index.d.ts",
+      "import": "./dist/library/themes.js"
+    },
+    "./themes.json": "./src/themes/presets.json",
     "./regions": {
       "types": "./dist/types/regions/index.d.ts",
       "import": "./dist/library/regions.js"
@@ -81,6 +86,7 @@
     "dist/library",
     "dist/types",
     "src/styles.css",
+    "src/themes/presets.json",
     "README.md"
   ]
 }

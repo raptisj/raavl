@@ -19,13 +19,13 @@ export function exampleCode(scene: CodeScene, mode: CodeMode): string {
       : source;
   const document = `{ version: 1, sourceId: 'demo-a',\n  regions: [{ id: 'intro', start: 0.5, end: 2.5, label: 'Introduction' }],\n  markers: [{ id: 'cue', time: 8, label: 'Cue' }] }`;
   if (mode === 'vanilla') return `import { createPlayer, mountWaveform${annotations ? ', createAnnotations, stringifyAnnotations' : ''} } from 'ravl'
-import 'ravl/styles.css'
+${scene === 'styling' ? "import { waveformThemes, parseTheme } from 'ravl/themes'\n" : ''}import 'ravl/styles.css'
 
 // HTML: <div id="waveform"></div><button id="play">Play</button>${scene === 'file' ? '\n// <input id="file" type="file" accept="audio/*" />' : ''}${scene === 'external' ? '\n// <audio id="audio" src="/demo-a.wav" controls></audio>' : ''}${scene === 'dual' ? '\n// <div id="second-waveform"></div><button id="second-play">Play B</button>' : ''}
 ${setup}${scene === 'external' ? "const media = document.querySelector('#audio')\n" : ''}${annotations ? `const annotations = createAnnotations({ document: ${document} })\n` : ''}const player = createPlayer()
 const view = mountWaveform(document.querySelector('#waveform'), {
   player,
-  appearance: ${appearance},
+  ${scene === 'styling' ? 'theme: waveformThemes.neon' : `appearance: ${appearance}`},
   interaction: { drag: '${annotations ? 'select' : 'seek'}' },${annotations ? "\n  annotations,\n  annotationRules: { snap: 0.25, minLength: 0.1 }," : ''}
 })
 ${scene === 'file' ? `document.querySelector('#file').onchange = event => {
@@ -40,9 +40,12 @@ await second.setSource({ kind: 'url', id: 'demo-b', url: '/demo-b.wav' }).catch(
 document.querySelector('#second-play').onclick = () => second.play().catch(console.error)
 ` : ''}${scene === 'styling' ? `
 // Update in response to your controls; playback continues.
-view.update({ appearance: { style: 'line', height: 200 }, viewport: { zoom: 100, follow: 'center' } })
-document.querySelector('#waveform').style.setProperty('--ravl-progress-color', '#277e67')
-view.refreshTheme()
+view.update({ theme: waveformThemes.paper, appearance: { lineWidth: 3 } })
+
+// Or load one JSON file with { version: 1, name, appearance, colors }:
+// const response = await fetch('/waveform-theme.json')
+// if (!response.ok) throw new Error('Unable to load theme')
+// view.update({ theme: parseTheme(await response.json()) })
 ` : ''}${annotations ? `
 const stopSaving = annotations.onCommit(value => {
   localStorage.setItem('ravl-annotations', stringifyAnnotations(value))
@@ -55,9 +58,9 @@ const stopSaving = annotations.onCommit(value => {
 
   return `import { ${scene === 'file' || scene === 'external' ? 'useState, ' : ''}useRef } from 'react'
 import { Waveform } from 'ravl/react'
-${annotations ? "import { stringifyAnnotations } from 'ravl'\n" : ''}import 'ravl/styles.css'
+${scene === 'styling' ? "import { waveformThemes, parseTheme } from 'ravl/themes'\n" : ''}${annotations ? "import { stringifyAnnotations } from 'ravl'\n" : ''}import 'ravl/styles.css'
 
-${setup}${scene !== 'file' && scene !== 'external' ? `const source = ${descriptor}\n` : ''}${annotations ? `const initialAnnotations = ${document}\n` : ''}
+${setup}${scene !== 'file' && scene !== 'external' ? `const source = ${descriptor}\n` : ''}${annotations ? `const initialAnnotations = ${document}\n` : ''}${scene === 'styling' ? '\n// For a custom JSON file, pass theme={parseTheme(importedJsonConfig)}.\n' : ''}
 export default function AudioExample() {
   const player = useRef(null)${scene === 'dual' ? '\n  const second = useRef(null)' : ''}${scene === 'file' ? '\n  const [source, setSource] = useState(null)' : ''}${scene === 'external' ? `
   const [media, setMedia] = useState(null)
@@ -69,11 +72,9 @@ ${scene === 'file' ? `    <input type="file" accept="audio/*" aria-label="Choose
     }} />\n` : ''}${scene === 'external' ? '    <audio ref={setMedia} src="/demo-a.wav" controls />\n' : ''}    <Waveform
       ref={player}
       source={source}
-      appearance={${appearance}}
+      ${scene === 'styling' ? 'theme={waveformThemes.neon}' : `appearance={${appearance}}`}
       interaction={{ drag: '${annotations ? 'select' : 'seek'}' }}${scene === 'styling' ? `
-      viewport={{ zoom: 100, follow: 'center' }}
-      style={{ '--ravl-progress-color': '#277e67' }}
-      themeVersion="#277e67"` : ''}${annotations ? `
+      viewport={{ zoom: 100, follow: 'center' }}` : ''}${annotations ? `
       defaultAnnotations={initialAnnotations}
       annotationRules={{ snap: 0.25, minLength: 0.1 }}
       onAnnotationsCommit={value => {
