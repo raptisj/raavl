@@ -16,6 +16,7 @@ import { createPlayer } from "../player";
 import {
   mountWaveform,
   type Appearance,
+  type AnnotationSnapper,
   type Interaction,
   type Viewport,
   type WaveformView,
@@ -67,6 +68,8 @@ type CommonProps = Omit<
   themeVersion?: string | number;
   onError?: (error: RavlError) => void;
   onPlayer?: (player: Player | null) => void;
+  onView?: (view: WaveformView | null) => void;
+  snapAnnotation?: AnnotationSnapper;
   onDraw?: () => void;
   annotations?: AnnotationDocument;
   annotationsRevision?: number;
@@ -96,6 +99,7 @@ export const Waveform = forwardRef<Player | null, WaveformProps>(
       themeVersion,
       onError,
       onPlayer,
+      onView, snapAnnotation,
       onDraw,
       annotations, annotationsRevision, defaultAnnotations, annotationStore,
       annotationRules, onAnnotationsCommit, onSelectionChange, onAnnotationSelect,
@@ -109,9 +113,9 @@ export const Waveform = forwardRef<Player | null, WaveformProps>(
     const container = useRef<HTMLDivElement>(null);
     const view = useRef<WaveformView | null>(null);
     const [owned, setOwned] = useState<Player | null>(null);
-    const callbacks = useRef({ onError, onPlayer, onDraw, onAnnotationsCommit, onSelectionChange, onAnnotationSelect });
+    const callbacks = useRef({ onError, onPlayer, onView, onDraw, onAnnotationsCommit, onSelectionChange, onAnnotationSelect });
     useEffect(() => {
-      callbacks.current = { onError, onPlayer, onDraw, onAnnotationsCommit, onSelectionChange, onAnnotationSelect };
+      callbacks.current = { onError, onPlayer, onView, onDraw, onAnnotationsCommit, onSelectionChange, onAnnotationSelect };
     });
     const seen = useRef(new WeakSet<Error>());
     const report = useCallback((error: RavlError) => {
@@ -157,6 +161,7 @@ export const Waveform = forwardRef<Player | null, WaveformProps>(
         onDraw: () => callbacks.current.onDraw?.(),
       });
       view.current = mounted;
+      callbacks.current.onView?.(mounted);
       callbacks.current.onPlayer?.(player);
       const off = player.subscribe(() => {
         const state = player.getSnapshot();
@@ -165,6 +170,7 @@ export const Waveform = forwardRef<Player | null, WaveformProps>(
       });
       return () => {
         off();
+        callbacks.current.onView?.(null);
         mounted.dispose();
         if (view.current === mounted) view.current = null;
         callbacks.current.onPlayer?.(null);
@@ -229,12 +235,13 @@ export const Waveform = forwardRef<Player | null, WaveformProps>(
       view.current.update({
         annotations: annotations ? { value: annotations, revision: annotationsRevision!, onCommit: (document, change) => callbacks.current.onAnnotationsCommit?.(document, change) } : annotationStore ?? localAnnotations,
         annotationRules,
+        snapAnnotation,
         renderRegionLabel: labelRenderer,
         onSelectionChange: selection => callbacks.current.onSelectionChange?.(selection),
         onAnnotationSelect: id => callbacks.current.onAnnotationSelect?.(id),
         onAnnotationError: report,
       });
-    }, [player, annotations, annotationsRevision, annotationStore, localAnnotations, annotationRules?.minLength, annotationRules?.maxLength, annotationRules?.snap, labelRenderer, report]);
+    }, [player, annotations, annotationsRevision, annotationStore, localAnnotations, annotationRules?.minLength, annotationRules?.maxLength, annotationRules?.snap, snapAnnotation, labelRenderer, report]);
     useEffect(() => {
       view.current?.refreshTheme();
     }, [player, themeVersion]);

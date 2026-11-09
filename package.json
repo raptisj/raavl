@@ -59,6 +59,22 @@
     "./regions": {
       "types": "./dist/types/regions/index.d.ts",
       "import": "./dist/library/regions.js"
+    },
+    "./timeline": {
+      "types": "./dist/types/timeline/index.d.ts",
+      "import": "./dist/library/timeline.js"
+    },
+    "./minimap": {
+      "types": "./dist/types/minimap/index.d.ts",
+      "import": "./dist/library/minimap.js"
+    },
+    "./history": {
+      "types": "./dist/types/history/index.d.ts",
+      "import": "./dist/library/history.js"
+    },
+    "./snapping": {
+      "types": "./dist/types/snapping/index.d.ts",
+      "import": "./dist/library/snapping.js"
     }
   },
   "files": [

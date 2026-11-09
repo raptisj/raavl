@@ -1,6 +1,6 @@
 import { mountAnnotations, type AnnotationViewOptions } from "./annotations";
 import type { Selection } from "../regions";
-export type { AnnotationViewOptions, LabelSlot } from "./annotations";
+export type { AnnotationViewOptions, AnnotationSnapper, LabelSlot } from "./annotations";
 import { failure, finite, validateWaveform } from "../core/data";
 import type { Player, WaveformData } from "../core/types";
 
@@ -27,7 +27,11 @@ export type ViewUpdate = Pick<
   ViewOptions,
   "appearance" | "viewport" | "interaction" | "label" | "onDraw"
 > & AnnotationViewOptions & { data?: WaveformData };
+export type ViewportSnapshot = Readonly<{ sourceId: string | null; duration: number; start: number; end: number; width: number; pixelsPerSecond: number; disposed: boolean }>;
 export type WaveformView = {
+  getViewport(): ViewportSnapshot;
+  subscribeViewport(callback: () => void): () => void;
+  scrollTo(seconds: number): void;
   update(options: ViewUpdate): void;
   refreshTheme(): void;
   getSelection(): Selection;
@@ -88,6 +92,19 @@ export function mountWaveform(
   let dirty = true;
   let annotationOptions: AnnotationViewOptions = {};
   const player = options.player;
+  let viewportState: ViewportSnapshot = Object.freeze({ sourceId: null, duration: 0, start: 0, end: 0, width: 0, pixelsPerSecond: 0, disposed: false });
+  const viewportListeners = new Set<() => void>();
+  const publishViewport = () => {
+    const currentDuration = player?.getSnapshot().duration || data?.duration || 0;
+    const currentWidth = Math.max(1, root.clientWidth);
+    const contentWidth = viewport.zoom === "fit" ? currentWidth : Math.max(currentWidth, currentDuration * viewport.zoom);
+    const pps = currentDuration ? contentWidth / currentDuration : 0;
+    const start = pps ? Math.min(Math.max(0, currentDuration - currentWidth / pps), root.scrollLeft / pps) : 0;
+    const next = { sourceId: player?.getSnapshot().sourceId ?? data?.sourceId ?? null, duration: currentDuration, start, end: pps ? Math.min(currentDuration, start + currentWidth / pps) : 0, width: currentWidth, pixelsPerSecond: pps, disposed };
+    if (Object.keys(next).every(key => Object.is(next[key as keyof typeof next], viewportState[key as keyof ViewportSnapshot]))) return;
+    viewportState = Object.freeze(next);
+    viewportListeners.forEach(fn => fn());
+  };
   const root = document.createElement("div");
   root.className = "ravl-waveform";
   root.dataset.ravlView = "";
@@ -241,6 +258,7 @@ export function mountWaveform(
       );
     }
     annotationLayer.sync();
+    publishViewport();
     onDraw?.();
   }
   function tick() {
@@ -438,6 +456,20 @@ export function mountWaveform(
   });
   const unsubscribeTime = player?.subscribeTime(request);
   const view: WaveformView = {
+    getViewport: () => viewportState,
+    subscribeViewport(callback) {
+      if (disposed) throw failure("DISPOSED", "view", "View has been disposed");
+      viewportListeners.add(callback);
+      return () => { viewportListeners.delete(callback); };
+    },
+    scrollTo(seconds) {
+      if (disposed) throw failure("DISPOSED", "view", "View has been disposed");
+      finite(seconds, "Viewport start");
+      publishViewport();
+      const span = viewportState.end - viewportState.start;
+      root.scrollLeft = Math.min(seconds, Math.max(0, viewportState.duration - span)) * viewportState.pixelsPerSecond;
+      publishViewport(); invalidate();
+    },
     update(patch) {
       if (disposed) throw failure("DISPOSED", "view", "View has been disposed");
       const a = merge(appearance, patch.appearance, defaults.appearance);
@@ -464,7 +496,7 @@ export function mountWaveform(
         validateWaveform(patch.data);
       }
       const nextAnnotations = { ...annotationOptions };
-      for (const key of ["annotations", "annotationRules", "renderRegionLabel", "onSelectionChange", "onAnnotationSelect", "onAnnotationError"] as const) {
+      for (const key of ["annotations", "annotationRules", "snapAnnotation", "renderRegionLabel", "onSelectionChange", "onAnnotationSelect", "onAnnotationError"] as const) {
         if (key in patch) Object.assign(nextAnnotations, { [key]: patch[key] });
       }
       annotationLayer.update(nextAnnotations);
@@ -488,6 +520,8 @@ export function mountWaveform(
     dispose() {
       if (disposed) return;
       disposed = true;
+      publishViewport();
+      viewportListeners.clear();
       cancelAnimationFrame(frame);
       observer.disconnect();
       annotationLayer.dispose();

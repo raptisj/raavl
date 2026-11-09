@@ -332,3 +332,57 @@ it('keeps touch annotation gestures separate and supports double-tap playback in
   expect(test.player.getSnapshot().playback).toBe('playing')
   test.cleanup()
 })
+
+import { mountTimeline } from '../src/timeline'
+import { mountMinimap } from '../src/minimap'
+import { createSnapper } from '../src/snapping'
+it('synchronizes optional timeline/minimap with zoom, keyboard navigation and disposal', async () => {
+  const player = createPlayer(); const loaded = player.setSource(source)
+  mock.ready(player.getMediaElement()!, 100); await loaded
+  const main = document.createElement('div'), ruler = document.createElement('div'), overview = document.createElement('div')
+  host.append(main, ruler, overview)
+  const view = mountWaveform(main, { player, viewport: { zoom: 100, follow: 'off' } }); flushFrame()
+  const timeline = mountTimeline(ruler, { view }), minimap = mountMinimap(overview, { view, player })
+  flushFrame()
+  expect(view.getViewport()).toMatchObject({ start: 0, end: 10, duration: 100 })
+  expect(ruler.querySelectorAll('.ravl-timeline-tick').length).toBeLessThan(16)
+  const changed = vi.fn(), off = view.subscribeViewport(changed)
+  const slider = overview.querySelector<HTMLElement>('.ravl-minimap-control')!
+  slider.dispatchEvent(new KeyboardEvent('keydown', { key: 'End', bubbles: true })); flushFrame()
+  expect(view.getViewport()).toMatchObject({ start: 90, end: 100 })
+  expect(player.getCurrentTime()).toBe(0)
+  expect(slider.getAttribute('aria-valuenow')).toBe('90')
+  expect(ruler.querySelector('[data-time="90"]')).not.toBeNull()
+  expect(changed).toHaveBeenCalled()
+  view.update({ viewport: { zoom: 'fit' } }); flushFrame()
+  expect(view.getViewport()).toMatchObject({ start: 0, end: 100 })
+  view.dispose()
+  expect(slider.getAttribute('aria-disabled')).toBe('true')
+  expect(() => view.scrollTo(1)).toThrow()
+  off(); minimap.dispose(); minimap.dispose(); timeline.dispose(); player.dispose()
+  expect(overview.childElementCount).toBe(0); expect(ruler.childElementCount).toBe(0); expect(frames.size).toBe(0)
+})
+it('exposes React view lifetimes without replacing the view on appearance changes', async () => {
+  const views: Array<import('../src/dom').WaveformView | null> = []
+  const onView = (view: import('../src/dom').WaveformView | null) => views.push(view)
+  root = createRoot(host)
+  await act(async () => root!.render(<Waveform source={source} onView={onView} />))
+  const mounted = views.at(-1)!
+  await act(async () => root!.render(<Waveform source={source} onView={onView} appearance={{ height: 200 }} />))
+  expect(views.at(-1)).toBe(mounted)
+  await act(async () => root!.unmount()); root = undefined
+  expect(views.at(-1)).toBeNull(); expect(mounted.getViewport().disposed).toBe(true)
+})
+it('applies magnetic snapping to final pointer coordinates while excluding the moved annotation', () => {
+  const store = createAnnotations({ document: annotations })
+  const view = mountWaveform(host, { data: { version: 1, sourceId: 'demo', duration: 10, channels: [{ min: [-.5], max: [.5] }] }, annotations: store, snapAnnotation: createSnapper({ tolerancePixels: 10 }), viewport: { zoom: 100 } })
+  flushFrame()
+  const surface = host.querySelector<HTMLElement>('.ravl-waveform')!
+  surface.setPointerCapture = vi.fn(); surface.hasPointerCapture = () => false
+  const target = host.querySelector('.ravl-region-handle-end')!
+  const pointerEvent = (type: string, x: number) => { const event = new MouseEvent(type, { bubbles: true, clientX: x, button: 0 }); Object.defineProperty(event, 'pointerId', { value: 1 }); return event }
+  target.dispatchEvent(pointerEvent('pointerdown', 400))
+  surface.dispatchEvent(pointerEvent('pointermove', 695)); surface.dispatchEvent(pointerEvent('pointerup', 695))
+  expect(store.getSnapshot().document.regions[0].end).toBe(7)
+  view.dispose(); store.dispose()
+})

@@ -4,6 +4,7 @@ import {
   snapTime,
   validateRules,
   type AnnotationStore,
+  type AnnotationDocument,
   type ControlledAnnotations,
   type AnnotationRules,
   type Region,
@@ -13,7 +14,11 @@ import {
 import type { RavlError } from "../core/types";
 
 export type LabelSlot = HTMLElement | { element: HTMLElement; dispose(): void };
+export type AnnotationSnapper = (time: number, context: {
+  document: AnnotationDocument; excludeId?: string; duration: number; pixelsPerSecond: number;
+}) => number;
 export type AnnotationViewOptions = {
+  snapAnnotation?: AnnotationSnapper;
   annotations?: AnnotationStore | ControlledAnnotations | null;
   annotationRules?: AnnotationRules;
   renderRegionLabel?: (region: Region) => LabelSlot;
@@ -139,8 +144,14 @@ export function mountAnnotations(
           geometry().duration,
       ),
     );
-  const snap = (time: number) =>
-    Math.max(0, Math.min(geometry().duration, snapTime(time, rules.snap)));
+  const snap = (time: number) => {
+    let value = snapTime(time, rules.snap);
+    if (gesture && options.snapAnnotation && store) {
+      value = options.snapAnnotation(time, { document: store.getSnapshot().document, excludeId: gesture.id, duration: geometry().duration, pixelsPerSecond: geometry().width / geometry().duration });
+      if (!Number.isFinite(value)) value = time;
+    }
+    return Math.max(0, Math.min(geometry().duration, value));
+  };
   const select = (id: string | null) => {
     selected = id;
     for (const [key, node] of nodes)
@@ -422,7 +433,7 @@ export function mountAnnotations(
   const move = (event: PointerEvent) => {
     if (!gesture || event.pointerId !== gesture.pointer) return;
     const g = gesture,
-      now = snap(timeAt(event.clientX)),
+      now = timeAt(event.clientX),
       duration = geometry().duration;
     g.moved ||= Math.abs(event.clientX - g.startX) >= 3;
     if (!g.moved) return;

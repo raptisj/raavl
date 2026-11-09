@@ -20,3 +20,9 @@
 
 :where(.ravl-annotation-list ul) { max-height: var(--ravl-annotation-list-height, 12rem); overflow: auto; }
 :where(.ravl-annotation-pagination) { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+:where(.ravl-timeline) { color: var(--ravl-timeline-color, #53685d); font: 11px system-ui; }
+:where(.ravl-timeline-tick) { border-left: 1px solid currentColor; padding: 6px 0 0 4px; }
+:where(.ravl-minimap) { margin-block: 12px; }
+:where(.ravl-minimap-control) { cursor: grab; border-radius: 8px; }
+:where(.ravl-minimap-window) { background: var(--ravl-minimap-window-color, #538ce622); border: 2px solid var(--ravl-focus-color, #bd722e); box-sizing: border-box; }
+:where(.ravl-minimap-control:focus-visible) { outline: 3px solid var(--ravl-focus-color, #bd722e); outline-offset: 2px; }
