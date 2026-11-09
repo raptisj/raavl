@@ -3,9 +3,11 @@
 import { useState } from 'react';
 import { CopyButton } from './copy-button';
 import { HighlightedCode } from './highlighted-code';
+import { usePlaygroundMode } from './playground-mode';
 
 const code = {
-  JavaScript: `import { createPlayer, mountWaveform } from 'raavl';
+  playback: {
+    JavaScript: `import { createPlayer, mountWaveform } from 'raavl';
 import 'raavl/styles.css';
 
 const player = createPlayer();
@@ -19,7 +21,7 @@ await player.setSource({
 });
 // Bind your controls to player.play(), pause(), seek().
 // On teardown: view.dispose(); player.dispose();`,
-  React: `import { Waveform } from 'raavl/react';
+    React: `import { Waveform } from 'raavl/react';
 import 'raavl/styles.css';
 
 export function AudioWaveform() {
@@ -32,15 +34,99 @@ export function AudioWaveform() {
     aria-label="Audio waveform"
   />;
 }`,
+  },
+  regions: {
+    JavaScript: `import { createPlayer, mountWaveform, createAnnotations } from 'raavl';
+import 'raavl/styles.css';
+
+const player = createPlayer();
+const annotations = createAnnotations({
+  document: {
+    version: 1, sourceId: 'my-audio', markers: [],
+    regions: [{ id: 'intro', start: 2, end: 5, label: 'Introduction' }],
+  },
+  rules: { minLength: 0.1 },
+});
+const view = mountWaveform(container, {
+  player, annotations,
+  interaction: { drag: 'select' },
+  annotationRules: { minLength: 0.1 },
+});
+await player.setSource({
+  kind: 'url', id: 'my-audio', url: '/audio.mp3',
+});
+
+// Drag a region to move it; drag its edges to resize.
+// Connect your editing controls:
+// view.createRegionFromSelection(crypto.randomUUID(), 'New region');
+// annotations.updateRegion('intro', { label: 'Opening' });
+// void player.playRange(annotations.getSnapshot().document.regions[0]).catch(console.error);
+// annotations.remove('intro');
+
+// On teardown: view.dispose(); annotations.dispose(); player.dispose();`,
+    React: `import { useState } from 'react';
+import type { AnnotationDocument } from 'raavl';
+import { Waveform } from 'raavl/react';
+import 'raavl/styles.css';
+
+const initial: AnnotationDocument = {
+  version: 1, sourceId: 'my-audio', markers: [],
+  regions: [{ id: 'intro', start: 2, end: 5, label: 'Introduction' }],
 };
 
+export function AudioRegions() {
+  const [annotations, setAnnotations] = useState({ value: initial, revision: 0 });
+  return <Waveform
+    source={{ kind: 'url', id: 'my-audio', url: '/audio.mp3' }}
+    annotations={annotations.value}
+    annotationsRevision={annotations.revision}
+    onAnnotationsCommit={(value, change) => {
+      setAnnotations(current => change.baseRevision === current.revision
+        ? { value, revision: current.revision + 1 }
+        : current);
+    }}
+    interaction={{ drag: 'select' }}
+    annotationRules={{ minLength: 0.1 }}
+    onSelectionChange={range => console.log('Selection', range)}
+    onAnnotationSelect={id => console.log('Selected region', id)}
+    onError={console.error}
+    aria-label="Editable audio regions"
+  />;
+}`,
+  },
+};
+
+const frameworks = ['React', 'JavaScript'] as const;
+
 export function QuickExample() {
-  const [mode, setMode] = useState<keyof typeof code>('React');
-  return <div className="quick-example"><div className="example-toolbar"><div role="tablist" aria-label="Example framework" onKeyDown={event => {
-    if (!['ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(event.key)) return;
-    event.preventDefault();
-    const next = event.key === 'Home' ? 'React' : event.key === 'End' ? 'JavaScript' : mode === 'React' ? 'JavaScript' : 'React';
-    setMode(next);
-    document.getElementById(`tab-${next}`)?.focus();
-  }}>{(['React', 'JavaScript'] as const).map(value => <button key={value} id={`tab-${value}`} type="button" role="tab" tabIndex={mode === value ? 0 : -1} aria-selected={mode === value} aria-controls="quick-code" onClick={() => setMode(value)}>{value}</button>)}</div><CopyButton text={code[mode]} /></div><HighlightedCode code={code[mode]} language={mode === 'React' ? 'tsx' : 'js'} id="quick-code" role="tabpanel" aria-labelledby={`tab-${mode}`} tabIndex={0} /></div>;
+  const { mode } = usePlaygroundMode();
+  const [framework, setFramework] = useState<(typeof frameworks)[number]>('React');
+  const snippet = code[mode][framework];
+
+  return (
+    <div className="quick-example">
+      <div className="example-toolbar">
+        <div role="tablist" aria-label="Example framework" onKeyDown={event => {
+          if (!['ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(event.key)) return;
+          event.preventDefault();
+          const next = event.key === 'Home' ? 'React'
+            : event.key === 'End' ? 'JavaScript'
+            : framework === 'React' ? 'JavaScript' : 'React';
+          setFramework(next);
+          document.getElementById(`tab-${next}`)?.focus();
+        }}>
+          {frameworks.map(value => (
+            <button key={value} id={`tab-${value}`} type="button" role="tab"
+              tabIndex={framework === value ? 0 : -1} aria-selected={framework === value}
+              aria-controls="quick-code" onClick={() => setFramework(value)}>
+              {value}
+            </button>
+          ))}
+        </div>
+        <CopyButton text={snippet} />
+      </div>
+      <HighlightedCode code={snippet} language={framework === 'React' ? 'tsx' : 'js'}
+        id="quick-code" role="tabpanel" aria-labelledby={`tab-${framework}`} tabIndex={0} />
+    </div>
+  );
 }

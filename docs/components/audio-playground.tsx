@@ -21,6 +21,11 @@ import {
   type WaveformView,
 } from "raavl";
 import { usePageTheme } from "../../examples/live/usePageTheme";
+import {
+  playgroundModes as modes,
+  usePlaygroundMode,
+  type PlaygroundMode,
+} from "./playground-mode";
 
 const demoSounds = [
   {
@@ -43,8 +48,6 @@ const demoSource = (demo: DemoSound): Source => ({
   url: `/${demo.file}`,
 });
 const selectState = (state: PlayerSnapshot | null) => state;
-const modes = ["playback", "regions"] as const;
-type PlaygroundMode = (typeof modes)[number];
 type RegionState = { value: AnnotationDocument; revision: number };
 const timeLabel = (seconds: number) =>
   `${Math.floor(seconds / 60)}:${Math.floor(seconds % 60)
@@ -53,7 +56,7 @@ const timeLabel = (seconds: number) =>
 
 export function AudioPlayground() {
   const id = useId();
-  const [mode, setMode] = useState<PlaygroundMode>("playback");
+  const { mode, setMode } = usePlaygroundMode();
   const pageTheme = usePageTheme();
   const [themeId, setThemeId] = useState<"site" | keyof typeof waveformThemes>(
     "site",
@@ -189,9 +192,6 @@ export function AudioPlayground() {
   return (
     <>
       <div className="stage-header">
-        <h2 className="stage-caption" id="playground-title">
-          <span className="live-dot" aria-hidden="true" /> LIVE DEMO
-        </h2>
         <div
           className="playground-tabs"
           role="tablist"
