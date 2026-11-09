@@ -1,8 +1,8 @@
 # 🌊 raavl
 
-An ergonomic TypeScript audio waveform player and annotation toolkit for
-JavaScript and React, with reliable playback, customizable waveforms, and
-ordinary DOM styling.
+raavl is an ergonomic TypeScript audio waveform player and annotation toolkit
+for JavaScript and React, with reliable playback and customizable waveforms.
+The name is inspired by Maurice **Ravel**.
 
 ## Install
 
@@ -23,10 +23,6 @@ styles, or supply your own CSS tokens.
 - [Annotations](docs/content/docs/annotations.mdx)
 - [Skills for coding agents](docs/content/docs/skills.mdx)
 
-The site includes a live player and ten interactive examples, plus Markdown
-pages, `/llms.txt`, and `/llms-full.txt` for coding agents. The public domain is
-configured once in [`docs/lib/site-config.mjs`](docs/lib/site-config.mjs).
-
 ## Develop
 
 Use Node.js 24 LTS (or Node.js 22.22+) and run from the repository root:
@@ -36,15 +32,6 @@ npm ci
 npm --prefix docs ci
 npm run docs:dev
 ```
-
-Open the address printed by the development server. The Next.js/Fumadocs site
-in `docs/` serves the homepage, documentation, Skills page, and examples gallery.
-The gallery imports the library source directly. Run `npm run build` to build
-the library itself.
-
-Documentation is authored in `docs/content/docs/`; shared examples live in
-`examples/live/`. See [site development and testing](docs/README.md) and
-[hosting](docs/HOSTING.md) for contributor and deployment instructions.
 
 ## Checks
 
@@ -70,10 +57,3 @@ To check that generated skill files match their source without updating them:
 ```sh
 node docs/scripts/prepare-skills.mjs --check
 ```
-
-`docs/out/` contains the static site ready for hosting. The examples and landing
-player share the single set of original synthetic fixtures in `docs/public/`;
-regenerate them with `node scripts/generate-fixtures.mjs`.
-
-[PRODUCT.md](PRODUCT.md) is the internal feature inventory and contributor source
-map. Historical proposals in `docs/design/` may exceed the implemented API.
