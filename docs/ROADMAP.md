@@ -23,7 +23,7 @@ gesture commits, bounds policies, and source switching.
 
 Phase 3 results and verification: [checkpoint](PHASE-3.md).
 
-## Phase 4 — Robustness and scale (complete; awaiting review)
+## Phase 4 — Robustness and scale (complete)
 
 Benchmark long files and dense annotations; exercise interrupted loads,
 repeated mounting, external media, browser differences, and memory ownership.
@@ -33,12 +33,15 @@ Publish measured budgets and supported-browser results.
 Phase 4 results and verification: [checkpoint](PHASE-4.md). Chromium measured;
 other browser/device certification remains a documented release requirement.
 
-## Phase 5 — Optional modules
+## Phase 5 — Optional modules (complete; awaiting review)
 
 Add timeline, minimap, undo/redo, and advanced snapping as separately imported
 features. Evaluate recording and spectrograms separately. Multitrack mixing,
 destructive audio editing, and compatibility with WaveSurfer plugins are not
 initial deliverables.
+
+Phase 5 results: [checkpoint](PHASE-5.md); implemented APIs: [optional modules](OPTIONAL-MODULES.md).
+Recording and spectrograms were assessed separately and remain unimplemented.
 
 ## Checkpoint policy
 

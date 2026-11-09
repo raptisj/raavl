@@ -1,6 +1,6 @@
 # Interactive browser examples
 
-These examples run the actual Phase 4 library. They are no longer API sketches.
+These examples run the actual Phase 5 library. They are no longer API sketches.
 
 ```sh
 npm ci
@@ -27,6 +27,8 @@ Choose a scenario in the navigation and try its shared live preview. Below the
 preview, switch between Vanilla JS and React code and use Copy code to copy the
 selected snippet. Switching code preserves playback, selected files, and controls:
 
+- Optional modules: timeline, minimap pan, undo/redo and magnetic snapping.
+  Its code framework switch remounts the corresponding real vanilla/React view.
 - Scale lab: run repeatable redraw measurements on a synthetic two-hour stereo
   waveform with 10,000 editable regions; try zoom, pagination, and keyboard edits.
   This shared-engine benchmark uses the vanilla API.
@@ -70,3 +72,8 @@ keyboard resizing, browser persistence, and source-bound visibility.
 
 See [Phase 4 measurements](../docs/PHASE-4.md) for reproducible settings, memory
 accounting, verified browser coverage, and known dense-overview limits.
+
+Phase 5: open `#demos/modules/react` or `#demos/modules/vanilla`. Rename then
+undo/redo; resize a region near the 8s cue; use the minimap with pointer or
+keyboard; switch source to reset history. See [module API](../docs/OPTIONAL-MODULES.md)
+and [checkpoint](../docs/PHASE-5.md). The full composition is in `live/ModulesEditor.tsx`.

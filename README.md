@@ -3,9 +3,9 @@
 A TypeScript waveform player with ordinary DOM styling, a functional JavaScript
 API, and a React component backed by the same controller and Canvas renderer.
 
-**Phase 4 is implemented.** The examples use real components, playable audio,
+**Phase 5 is implemented.** The examples use real components, playable audio,
 and editable annotations. This is a local development package, not a published
-release. [Open the scale lab](http://127.0.0.1:4173/#scale/vanilla) or [the annotation editor](http://127.0.0.1:4173/#annotations/react).
+release. [Try the optional modules](http://127.0.0.1:4173/#demos/modules/react), [the scale lab](http://127.0.0.1:4173/#scale/vanilla) or [the annotation editor](http://127.0.0.1:4173/#annotations/react).
 
 ## Try the interactive examples
 
@@ -265,6 +265,32 @@ npm run check           # All of the above
 Build entry points: `ravl`, `ravl/core`, `ravl/dom`, `ravl/react`,
 `ravl/regions`, and `ravl/styles.css`. The package remains private while its API is being developed.
 
+## Optional modules
+
+Import these independently; they are not registered globally or loaded by the core:
+
+```ts
+import { mountTimeline } from 'ravl/timeline'
+import { mountMinimap } from 'ravl/minimap'
+import { createSnapper } from 'ravl/snapping'
+import { createHistory, recordHistory, undoHistory, redoHistory } from 'ravl/history'
+
+const timeline = mountTimeline(timelineHost, { view })
+const minimap = mountMinimap(minimapHost, { view, player })
+view.update({ snapAnnotation: createSnapper({ grid: 0.1 }) })
+// Dispose accessories before view/player teardown.
+```
+
+Views expose `getViewport()`, `subscribeViewport()`, and `scrollTo(seconds)`.
+React's `onView` provides the committed view for accessory effects. History is
+immutable and framework-independent: record accepted documents, then render/apply
+`undoHistory(history).present`. Controlled React updates require a new revision.
+
+See the [complete module API and ownership rules](docs/OPTIONAL-MODULES.md),
+[interactive editor](http://127.0.0.1:4173/#demos/modules/react), and
+[recording/spectrogram assessment](docs/PHASE-5.md). Recording and spectrograms
+remain proposals, not shipped modules.
+
 ## Current limits and next phases
 
 - HTML media playback only; no sample-accurate range scheduling or Web Audio
@@ -280,11 +306,12 @@ Build entry points: `ravl`, `ravl/core`, `ravl/dom`, `ravl/react`,
   decoder pools, and multi-resolution caches are future work.
 - Annotation overlays are culled to the visible time range; the list is paginated.
   Fit-width views still mount all visible regions. Label collision avoidance and
-  drag edge auto-scroll are not implemented. Undo/redo and advanced snapping remain later modules.
+  drag edge auto-scroll are not implemented. Undo/redo and magnetic snapping are
+  available through optional imports.
 - Browser measurements cover Chromium 156 on macOS. Safari, Firefox, mobile and
   comprehensive screen-reader certification remain unverified. See the documented
   budgets, memory limits, and release checklist in the Phase 4 checkpoint.
 
-See [Phase 4 checkpoint](docs/PHASE-4.md), [Phase 3 checkpoint](docs/PHASE-3.md), [Phase 2 checkpoint](docs/PHASE-2.md), [roadmap](docs/ROADMAP.md), and the
+See [Phase 5 checkpoint](docs/PHASE-5.md), [Phase 4 checkpoint](docs/PHASE-4.md), [Phase 3 checkpoint](docs/PHASE-3.md), [Phase 2 checkpoint](docs/PHASE-2.md), [roadmap](docs/ROADMAP.md), and the
 [original API design](docs/design/api.md). Each phase ends for review before the
 next starts.

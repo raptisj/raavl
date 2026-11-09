@@ -1,6 +1,6 @@
 # Regions, markers, and selections
 
-Phase 3–4 implementation reference. The original design documents describe a
+Phase 3–5 implementation reference. The original design documents describe a
 broader roadmap; this guide describes the implemented API.
 
 ## Data and validation
@@ -194,11 +194,11 @@ Style ordinary DOM classes: `.ravl-region`, `.ravl-region-body`,
 
 ## Boundaries
 
-This phase does not add undo/redo, overlap policies, multitrack editing, automatic
+The annotation store does not add overlap policies, multitrack editing, automatic
 label collision avoidance, or edge auto-scroll during dragging. Phase 4 culls
 overlays to the visible time range and paginates the list in groups of 100.
 Focused and dragged overlays remain mounted. Custom label slots unmount offscreen;
 keep durable state outside those slots. Style `.ravl-annotation-pagination` and
 set `--ravl-annotation-list-height` to customize the list (default 12rem).
-See [scale measurements and browser limits](PHASE-4.md). Grid snapping is implemented; advanced
-snapping targets and optional modules remain later work.
+See [scale measurements and browser limits](PHASE-4.md). Undo/redo and magnetic
+snapping are available as [separately imported modules](OPTIONAL-MODULES.md).
