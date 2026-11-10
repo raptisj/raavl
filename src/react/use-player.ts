@@ -1,6 +1,8 @@
+"use client";
+
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { createPlayer } from "../player";
-import type { Player, RaavlError, Source } from "../core/types";
+import { createPlayer } from "../player.js";
+import type { Player, RaavlError, Source } from "../core/types.js";
 
 export type UsePlayerOptions = {
   onError?: (error: RaavlError) => void;

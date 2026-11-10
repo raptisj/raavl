@@ -12,7 +12,7 @@ The name is inspired by Maurice **Ravel**.
 npm install raavl
 ```
 
-Use the [quickstart](docs/content/docs/quickstart.mdx) to build your first player
+Use the [quickstart](https://raavl.dev/docs/quickstart) to build your first player
 with JavaScript or React. React and React DOM are optional peers for the
 `raavl/react` adapter. Import `raavl/styles.css` once for the default waveform
 styles, or supply your own CSS tokens.
@@ -66,7 +66,7 @@ function cleanup() {
 ```
 
 Replace `/audio.mp3` with an audio file served by your app. For a React example
-and more options, see the [full quickstart](docs/content/docs/quickstart.mdx).
+and more options, see the [full quickstart](https://raavl.dev/docs/quickstart).
 
 ## React player and components
 
@@ -89,7 +89,7 @@ export function EpisodePlayer() {
 
 For custom layouts, compose `PlayerRoot`, `Waveform`, `PlayPauseButton`,
 `TimeDisplay`, `SeekSlider`, `MuteButton`, `VolumeSlider`, and the other connected
-parts. See the [React API](docs/content/docs/react.mdx) for configuration, slots,
+parts. See the [React API](https://raavl.dev/docs/react) for configuration, slots,
 individual components, and headless hooks.
 
 ## Headless React
@@ -115,18 +115,47 @@ const playing = usePlayerState(
 
 The hook returns null until commit and manages source changes and disposal.
 Combine it with your own controls, or pass its player to `Waveform` for an
-optional visualization. See the [React API](docs/content/docs/react.mdx) for
+optional visualization. See the [React API](https://raavl.dev/docs/react) for
 imports, error handling, and complete examples.
 
 ## Documentation
 
-- [Introduction](docs/content/docs/index.mdx)
-- [Quickstart](docs/content/docs/quickstart.mdx)
-- [Styling and themes](docs/content/docs/styling.mdx)
-- [Annotations](docs/content/docs/annotations.mdx)
-- [Skills for coding agents](docs/content/docs/skills.mdx)
+- [Introduction](https://raavl.dev/docs)
+- [Quickstart](https://raavl.dev/docs/quickstart)
+- [Styling and themes](https://raavl.dev/docs/styling)
+- [Annotations](https://raavl.dev/docs/annotations)
+- [Skills for coding agents](https://raavl.dev/docs/skills)
+
+## Package entry points
+
+Install once; all entries share the same version.
+
+| Import | Purpose |
+| --- | --- |
+| `raavl` | Vanilla player, renderer, annotations, and common types |
+| `raavl/core` | Waveform data utilities and types |
+| `raavl/dom` | DOM waveform renderer |
+| `raavl/react` | Complete player, components, and hooks (React 18 or 19) |
+| `raavl/themes` | Theme presets, parsing, and types |
+| `raavl/themes.json` | Raw theme preset catalog |
+| `raavl/styles.css` | Optional default CSS |
+| `raavl/regions` | Annotation store and serialization |
+| `raavl/timeline`, `raavl/minimap` | Optional views |
+| `raavl/history`, `raavl/snapping` | Optional editing utilities |
+
+ESM only, with TypeScript declarations. Vanilla imports do not require React.
+Imports are SSR-safe; playback and rendering require browser media, Canvas,
+ResizeObserver, and Web Audio APIs. Cross-origin decoding requires CORS.
+For long recordings, supply precomputed peaks to avoid decoding the whole file
+in the browser. TypeScript consumers need DOM types; CSS imports require a
+bundler. Library output targets ES2022 and includes no browser polyfills.
 
 ## Develop
+
+Use a current Node.js 24 LTS.
+
+The site builds the library first. After editing library source or CSS while
+the site is running, run `npm run build` to refresh its output.
 
 ```sh
 npm ci
@@ -149,7 +178,7 @@ for library commands.
 | `npm run docs:build`                | Build the static site with Turbopack and verify the export          |
 | `npm run examples:build`            | Alias for `npm run docs:build`                                      |
 | `npm run check:docs`                | Run the site typecheck, skill tests, build, and export verification |
-| `npm run check`                     | Run the library typecheck, tests, and build                         |
+| `npm run check`                     | Run typecheck, tests, build, and packed-package checks                         |
 
 Stop the dev server before running production build checks. Skill downloads are
 prepared automatically before site development, typechecking, and building.
@@ -158,3 +187,17 @@ To check that generated skill files match their source without updating them:
 ```sh
 node docs/scripts/prepare-skills.mjs --check
 ```
+
+## Manual releases
+
+Run `npx playwright install chromium` once, then `npm run release:prepare` from
+a clean release commit. It validates a tarball and prints the manual publish
+command. Nothing publishes automatically. See [RELEASING.md](https://github.com/raptisj/raavl/blob/main/RELEASING.md)
+for versioning, first publication, prereleases, and recovery.
+
+`npm run check:browser` tests the packed package in Chromium. Both package
+checks write their tarball under `artifacts/`, which is ignored by Git.
+
+## License
+
+MIT.

@@ -1,3 +1,5 @@
+"use client";
+
 import {
   forwardRef,
   useEffect,
@@ -10,9 +12,9 @@ import {
   type HTMLAttributes,
   type ReactNode,
 } from "react";
-import type { Player, PlayerSnapshot, RaavlError } from "../core/types";
-import { usePlayerState, usePlayerTime } from "./hooks";
-import { usePlayerRoot } from "./player-root";
+import type { Player, PlayerSnapshot, RaavlError } from "../core/types.js";
+import { usePlayerState, usePlayerTime } from "./hooks.js";
+import { usePlayerRoot } from "./player-root.js";
 
 const classes = (base: string, extra?: string) =>
   extra ? `${base} ${extra}` : base;

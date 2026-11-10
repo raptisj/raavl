@@ -177,3 +177,12 @@ That project uses a Bun workspace and Cloudflare Workers Static Assets, with a
 GitHub Actions workflow for deployment. raavl retains npm and uses a standalone
 docs application; neither a workspace migration nor Cloudflare infrastructure
 is needed. Vercel can handle Git previews and production deployment directly.
+
+## Library builds
+
+Install root dependencies with `npm ci` and site dependencies with
+`npm --prefix docs ci`. Site development, typechecking, and production builds
+automatically build the library first. Examples use public `raavl` imports
+and the site resolves them to `dist`, preserving the published React client
+boundaries. After changing library source or CSS during `docs:dev`, run
+`npm run build` again to refresh the library output.

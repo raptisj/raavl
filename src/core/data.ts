@@ -1,4 +1,4 @@
-import type { ErrorCode, RaavlError, WaveformData } from "./types";
+import type { ErrorCode, RaavlError, WaveformData } from "./types.js";
 
 export function failure(
   code: ErrorCode,

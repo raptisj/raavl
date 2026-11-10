@@ -1,5 +1,5 @@
-import { failure } from "../core/data";
-import presets from "./presets.json";
+import { failure } from "../core/data.js";
+import presets from "./presets.json" with { type: "json" };
 
 export type Appearance = {
   style?: "line" | "bars";

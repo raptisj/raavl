@@ -1,6 +1,6 @@
-import { failure } from "../core/data";
-import { mountWaveform, type WaveformView } from "../dom";
-import type { Player, WaveformData } from "../core/types";
+import { failure } from "../core/data.js";
+import { mountWaveform, type WaveformView } from "../dom/index.js";
+import type { Player, WaveformData } from "../core/types.js";
 export type MinimapOptions = {
   view: WaveformView;
   height?: number;

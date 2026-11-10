@@ -1,5 +1,5 @@
-import { failure, finite } from "../core/data";
-import type { WaveformView } from "../dom";
+import { failure, finite } from "../core/data.js";
+import type { WaveformView } from "../dom/index.js";
 export type TimelineOptions = {
   view: WaveformView;
   minSpacing?: number;

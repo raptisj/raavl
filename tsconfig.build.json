@@ -1,8 +1,25 @@
 {
   "extends": "./tsconfig.json",
   "compilerOptions": {
-    "noEmit": false, "declaration": true, "emitDeclarationOnly": true,
-    "outDir": "dist/types", "rootDir": "src", "types": ["react"]
+    "noEmit": false,
+    "declaration": true,
+    "sourceMap": true,
+    "emitDeclarationOnly": false,
+    "module": "NodeNext",
+    "moduleResolution": "NodeNext",
+    "allowImportingTsExtensions": false,
+    "outDir": "dist",
+    "rootDir": "src",
+    "types": [
+      "react"
+    ],
+    "inlineSources": true,
+    "noEmitOnError": true
   },
-  "include": ["src"]
+  "include": [
+    "src"
+  ],
+  "exclude": [
+    "src/styles.d.css.ts"
+  ]
 }

@@ -1,4 +1,4 @@
-import { parseTheme, type Source } from '../../src'
+import { parseTheme, type Source } from 'raavl'
 
 export const soundcloudSource: Source = {
   kind: 'url', id: 'bach-classical', url: '/bach_classical.mp3',

@@ -1,5 +1,5 @@
 import { useEffect, useRef } from 'react'
-import { createPlayer, mountWaveform, type Player, type Source, type WaveformView, type Appearance, type Viewport, type RaavlError, type WaveformTheme } from '../../src'
+import { createPlayer, mountWaveform, type Player, type Source, type WaveformView, type Appearance, type Viewport, type RaavlError, type WaveformTheme } from 'raavl'
 import { usePageTheme } from './usePageTheme'
 
 // The demo shell uses React; this view exercises only the vanilla library API.

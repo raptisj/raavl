@@ -11,17 +11,21 @@ gallery as one deployment.
 | Root Directory | `docs` |
 | Framework Preset | Next.js |
 | Node.js Version | 24.x LTS (or 22.x at least 22.22) |
-| Install Command | `npm ci` |
+| Install Command | `npm --prefix .. ci && npm ci` |
 | Build Command | `npm run build` |
-| Output Directory | `out` |
+| Output Directory | Framework default (Override off) |
 | Environment variables | None required |
 
-`docs/vercel.json` records the framework, install, build, and output settings.
-Set Root Directory and Node.js Version in the Vercel dashboard.
+`docs/vercel.json` records the framework, install, and build settings.
+Set Root Directory and Node.js Version in the Vercel dashboard. Leave the
+Output Directory override off so the Next.js integration can read build
+manifests from `.next` and publish the static export from `out`. If an existing
+project has an Output Directory override of `out`, turn it off before redeploying.
 
 In the **Root Directory** settings, enable **Include source files outside of the
-Root Directory in the Build Step**. The landing-page player imports the real
-library from `../src`, the stylesheet imports `../src/styles.css`, and the
+Root Directory in the Build Step**. The install step installs root build tools as well as site dependencies.
+Each site command builds the library into `../dist`; the player and stylesheet
+consume that output through the documented public entry points. The
 gallery imports the shared components from `../examples/live`. The build also
 publishes the integration skill from `../skills/raavl-integrate`. These are
 build-time inputs. Vercel only serves the generated `docs/out` site; this
@@ -29,8 +33,8 @@ setting does not make the repository or its source directories browsable.
 
 Keep the complete repository connected for builds. Copying only the `docs/`
 folder to a different repository also requires moving the shared example
-components and replacing source aliases with a published/built raavl package.
-The site builds against repository source rather than downloading the library from npm.
+components and replacing local build aliases with an installed raavl package.
+The site builds the current checkout rather than downloading the library from npm.
 
 ## What becomes public
 

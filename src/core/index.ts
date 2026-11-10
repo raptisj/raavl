@@ -1,2 +1,2 @@
-export type * from "./types";
-export { validateWaveform, createPeaks } from "./data";
+export type * from "./types.js";
+export { validateWaveform, createPeaks } from "./data.js";

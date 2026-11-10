@@ -1,6 +1,8 @@
+"use client";
+
 import { useMemo, useSyncExternalStore } from "react";
-import type { Player, PlayerSnapshot } from "../core/types";
-import type { AnnotationStore } from "../regions";
+import type { Player, PlayerSnapshot } from "../core/types.js";
+import type { AnnotationStore } from "../regions/index.js";
 
 const noopSubscribe = () => () => {};
 export function usePlayerState<T>(

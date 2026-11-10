@@ -14,8 +14,8 @@ import {
   type ControlledAnnotations,
   type Region,
   type Selection,
-} from "../../src";
-import { Waveform, usePlayerState, usePlayerTime } from "../../src/react";
+} from "raavl";
+import { Waveform, usePlayerState, usePlayerTime } from "raavl/react";
 import { usePageTheme } from './usePageTheme';
 
 const initial: AnnotationDocument = {

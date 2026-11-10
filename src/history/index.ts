@@ -1,5 +1,5 @@
-import { failure } from "../core/data";
-import { validateAnnotations, type AnnotationDocument } from "../regions";
+import { failure } from "../core/data.js";
+import { validateAnnotations, type AnnotationDocument } from "../regions/index.js";
 
 /** Immutable history. Record accepted documents, not controlled edit proposals. */
 export type AnnotationHistory = Readonly<{

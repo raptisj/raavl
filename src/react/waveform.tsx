@@ -1,3 +1,5 @@
+"use client";
+
 import {
   forwardRef,
   useEffect,
@@ -17,8 +19,8 @@ import {
   type CommitHandler,
   type Region,
   type Selection,
-} from "../regions";
-import { useErrorReporter, usePlayer } from "./use-player";
+} from "../regions/index.js";
+import { useErrorReporter, usePlayer } from "./use-player.js";
 import {
   mountWaveform,
   type Appearance,
@@ -27,11 +29,11 @@ import {
   type Viewport,
   type WaveformView,
   type WaveformTheme,
-} from "../dom";
-import type { Player, RaavlError, Source } from "../core/types";
+} from "../dom/index.js";
+import type { Player, RaavlError, Source } from "../core/types.js";
 
 import { useContext } from "react";
-import { PlayerContext } from "./player-root";
+import { PlayerContext } from "./player-root.js";
 
 type CommonProps = Omit<
   HTMLAttributes<HTMLDivElement>,

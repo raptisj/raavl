@@ -1,4 +1,4 @@
-import { failure } from "../core/data";
+import { failure } from "../core/data.js";
 import {
   createAnnotations,
   snapTime,
@@ -10,8 +10,8 @@ import {
   type Region,
   type Marker,
   type Selection,
-} from "../regions";
-import type { RaavlError } from "../core/types";
+} from "../regions/index.js";
+import type { RaavlError } from "../core/types.js";
 
 export type LabelSlot = HTMLElement | { element: HTMLElement; dispose(): void };
 export type AnnotationSnapper = (

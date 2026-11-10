@@ -1,7 +1,9 @@
+"use client";
+
 import { forwardRef, type HTMLAttributes, type ReactNode } from "react";
-import type { Appearance, WaveformTheme } from "../dom";
-import { PlayerRoot, type PlayerRootProps } from "./player-root";
-import { Waveform, type WaveformProps } from "./waveform";
+import type { Appearance, WaveformTheme } from "../dom/index.js";
+import { PlayerRoot, type PlayerRootProps } from "./player-root.js";
+import { Waveform, type WaveformProps } from "./waveform.js";
 import {
   PlayPauseButton,
   SeekSlider,
@@ -19,7 +21,7 @@ import {
   type PlaybackRateSelectProps,
   type LoopButtonProps,
   type PlayerStatusProps,
-} from "./controls";
+} from "./controls.js";
 
 type PartOption<Props> = boolean | Props;
 export type AudioPlayerControls = {

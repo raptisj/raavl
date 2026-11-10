@@ -1,4 +1,4 @@
-import { failure } from "../core/data";
+import { failure } from "../core/data.js";
 
 export type JsonValue =
   | null

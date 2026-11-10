@@ -3,14 +3,16 @@
   "version": "0.0.0",
   "private": true,
   "type": "module",
-  "engines": { "node": ">=22.22.0" },
+  "engines": {
+    "node": ">=22.22.0"
+  },
   "scripts": {
-    "predev": "node scripts/prepare-skills.mjs",
+    "predev": "npm --prefix .. run build && node scripts/prepare-skills.mjs",
     "dev": "next dev --hostname 127.0.0.1 --port 3000",
-    "prebuild": "node scripts/prepare-skills.mjs",
+    "prebuild": "npm --prefix .. run build && node scripts/prepare-skills.mjs",
     "build": "next build",
     "postbuild": "node scripts/verify-export.mjs",
-    "pretypecheck": "node scripts/prepare-skills.mjs",
+    "pretypecheck": "npm --prefix .. run build && node scripts/prepare-skills.mjs",
     "typecheck": "next typegen && tsc --noEmit",
     "test:skills": "node --test scripts/skills.test.mjs",
     "postinstall": "fumadocs-mdx && node scripts/prepare-skills.mjs"

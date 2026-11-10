@@ -1,7 +1,6 @@
 {
   "name": "raavl",
-  "private": true,
-  "version": "0.0.0",
+  "version": "0.1.0",
   "type": "module",
   "engines": {
     "node": ">=22"
@@ -15,20 +14,29 @@
     "docs:workflows": "node scripts/write-workflows.mjs",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
-    "build": "vite build --config vite.library.config.ts && tsc -p tsconfig.build.json",
-    "check": "npm run typecheck && npm test && npm run build",
-    "check:docs": "npm run docs:typecheck && npm --prefix docs run test:skills && npm run docs:build"
+    "build": "node scripts/build.mjs",
+    "check": "npm run typecheck && npm test && npm run build && npm run check:package",
+    "check:docs": "npm run docs:typecheck && npm --prefix docs run test:skills && npm run docs:build",
+    "check:package": "node scripts/check-package.mjs",
+    "check:browser": "node scripts/check-package.mjs --browser",
+    "release:prepare": "node scripts/prepare-release.mjs",
+    "prepack": "npm run build",
+    "prepublishOnly": "node scripts/assert-tarball-publish.mjs",
+    "check:release": "npm run typecheck && npm test && npm run build && npm run check:browser"
   },
   "devDependencies": {
+    "@arethetypeswrong/cli": "^0.18.5",
+    "@playwright/test": "^1.65.0",
     "@types/node": "^26.6.6",
     "@types/react": "^19.3.0",
     "@types/react-dom": "^19.3.0",
     "jsdom": "^31.0.0",
+    "publint": "^0.3.25",
+    "react": "^19.3.1",
+    "react-dom": "^19.3.1",
     "typescript": "^7.0.2",
     "vite": "^8.3.6",
-    "vitest": "^5.1.0",
-    "react": "^19.3.1",
-    "react-dom": "^19.3.1"
+    "vitest": "^5.1.0"
   },
   "peerDependencies": {
     "react": "^18.0.0 || ^19.0.0",
@@ -44,53 +52,83 @@
   },
   "exports": {
     ".": {
-      "types": "./dist/types/index.d.ts",
-      "import": "./dist/library/index.js"
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
     },
     "./core": {
-      "types": "./dist/types/core/index.d.ts",
-      "import": "./dist/library/core.js"
+      "types": "./dist/core/index.d.ts",
+      "import": "./dist/core/index.js"
     },
     "./dom": {
-      "types": "./dist/types/dom/index.d.ts",
-      "import": "./dist/library/dom.js"
+      "types": "./dist/dom/index.d.ts",
+      "import": "./dist/dom/index.js"
     },
     "./react": {
-      "types": "./dist/types/react/index.d.ts",
-      "import": "./dist/library/react.js"
+      "types": "./dist/react/index.d.ts",
+      "import": "./dist/react/index.js"
     },
-    "./styles.css": "./src/styles.css",
+    "./styles.css": {
+      "types": "./dist/styles.d.css.ts",
+      "default": "./dist/styles.css"
+    },
     "./themes": {
-      "types": "./dist/types/themes/index.d.ts",
-      "import": "./dist/library/themes.js"
+      "types": "./dist/themes/index.d.ts",
+      "import": "./dist/themes/index.js"
     },
-    "./themes.json": "./src/themes/presets.json",
+    "./themes.json": "./dist/themes/presets.json",
     "./regions": {
-      "types": "./dist/types/regions/index.d.ts",
-      "import": "./dist/library/regions.js"
+      "types": "./dist/regions/index.d.ts",
+      "import": "./dist/regions/index.js"
     },
     "./timeline": {
-      "types": "./dist/types/timeline/index.d.ts",
-      "import": "./dist/library/timeline.js"
+      "types": "./dist/timeline/index.d.ts",
+      "import": "./dist/timeline/index.js"
     },
     "./minimap": {
-      "types": "./dist/types/minimap/index.d.ts",
-      "import": "./dist/library/minimap.js"
+      "types": "./dist/minimap/index.d.ts",
+      "import": "./dist/minimap/index.js"
     },
     "./history": {
-      "types": "./dist/types/history/index.d.ts",
-      "import": "./dist/library/history.js"
+      "types": "./dist/history/index.d.ts",
+      "import": "./dist/history/index.js"
     },
     "./snapping": {
-      "types": "./dist/types/snapping/index.d.ts",
-      "import": "./dist/library/snapping.js"
-    }
+      "types": "./dist/snapping/index.d.ts",
+      "import": "./dist/snapping/index.js"
+    },
+    "./package.json": "./package.json"
   },
   "files": [
-    "dist/library",
-    "dist/types",
-    "src/styles.css",
-    "src/themes/presets.json",
-    "README.md"
-  ]
+    "dist",
+    "README.md",
+    "LICENSE",
+    "CHANGELOG.md"
+  ],
+  "description": "TypeScript audio waveform player and annotation toolkit for JavaScript and React.",
+  "license": "MIT",
+  "author": "John Raptis",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/raptisj/raavl.git"
+  },
+  "homepage": "https://raavl.dev",
+  "bugs": {
+    "url": "https://github.com/raptisj/raavl/issues"
+  },
+  "keywords": [
+    "audio",
+    "waveform",
+    "player",
+    "annotations",
+    "react",
+    "typescript"
+  ],
+  "types": "./dist/index.d.ts",
+  "sideEffects": [
+    "**/*.css"
+  ],
+  "publishConfig": {
+    "access": "public",
+    "registry": "https://registry.npmjs.org/"
+  }
 }

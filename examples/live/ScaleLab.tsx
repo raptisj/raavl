@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
-import { mountWaveform, type WaveformView, type WaveformData } from '../../src'
-import { createAnnotations, type AnnotationStore } from '../../src/regions'
+import { mountWaveform, type WaveformView, type WaveformData } from 'raavl'
+import { createAnnotations, type AnnotationStore } from 'raavl/regions'
 import { usePageTheme } from './usePageTheme'
 
 // A deterministic long-duration fixture, not a downloaded or decoded audio file.

@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
-import { createPlayer, mountWaveform, type Player, type RaavlError } from '../../src'
-import { Waveform, usePlayerState, usePlayerTime } from '../../src/react'
+import { createPlayer, mountWaveform, type Player, type RaavlError } from 'raavl'
+import { Waveform, usePlayerState, usePlayerTime } from 'raavl/react'
 import type { Mode } from './routes'
 import { soundcloudSource, soundcloudStyles, soundcloudTheme, soundcloudTime } from './soundcloud'
 

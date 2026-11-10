@@ -1,12 +1,12 @@
-export { createPlayer } from "./player";
-export { mountWaveform } from "./dom";
-export { parseTheme, waveformThemes } from "./themes";
+export { createPlayer } from "./player.js";
+export { mountWaveform } from "./dom/index.js";
+export { parseTheme, waveformThemes } from "./themes/index.js";
 export type {
   WaveformTheme,
   WaveformGradient,
   WaveformPaint,
   WaveformColors,
-} from "./themes";
+} from "./themes/index.js";
 export type {
   Appearance,
   Viewport,
@@ -16,14 +16,14 @@ export type {
   WaveformView,
   ViewportSnapshot,
   AnnotationSnapper,
-} from "./dom";
-export { validateWaveform, createPeaks } from "./core/data";
-export type * from "./core/types";
+} from "./dom/index.js";
+export { validateWaveform, createPeaks } from "./core/data.js";
+export type * from "./core/types.js";
 
 export {
   createAnnotations,
   validateAnnotations,
   parseAnnotations,
   stringifyAnnotations,
-} from "./regions";
-export type * from "./regions";
+} from "./regions/index.js";
+export type * from "./regions/index.js";

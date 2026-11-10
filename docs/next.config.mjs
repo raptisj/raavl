@@ -9,7 +9,10 @@ export default withMDX({
   agentRules: false,
   images: { unoptimized: true },
   reactStrictMode: true,
-  // The live player imports the library source outside the docs application.
+  // The library build replaces dist between starts. Avoid persisting stale
+  // "module not found" entries for that generated tree across dev sessions.
+  experimental: { turbopackFileSystemCacheForDev: false },
+  // Shared examples and the built library live outside the docs application.
   turbopack: { root: repositoryRoot },
   outputFileTracingRoot: repositoryRoot,
 });

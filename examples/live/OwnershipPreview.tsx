@@ -1,8 +1,8 @@
 "use client";
 
 import { useId, useState } from "react";
-import type { Player, Source } from "../../src";
-import { Waveform, usePlayer, usePlayerState, usePlayerTime } from "../../src/react";
+import type { Player, Source } from "raavl";
+import { Waveform, usePlayer, usePlayerState, usePlayerTime } from "raavl/react";
 import { usePageTheme } from "./usePageTheme";
 
 const demoSource: Source = {

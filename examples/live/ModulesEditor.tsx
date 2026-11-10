@@ -1,10 +1,10 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { createPlayer, createAnnotations, mountWaveform, type Player, type WaveformView, type AnnotationStore, type AnnotationSnapper, type Selection } from '../../src'
-import { Waveform, useAnnotations, usePlayerState } from '../../src/react'
-import { mountTimeline } from '../../src/timeline'
-import { mountMinimap } from '../../src/minimap'
-import { createSnapper } from '../../src/snapping'
-import { createHistory, recordHistory, undoHistory, redoHistory } from '../../src/history'
+import { createPlayer, createAnnotations, mountWaveform, type Player, type WaveformView, type AnnotationStore, type AnnotationSnapper, type Selection } from 'raavl'
+import { Waveform, useAnnotations, usePlayerState } from 'raavl/react'
+import { mountTimeline } from 'raavl/timeline'
+import { mountMinimap } from 'raavl/minimap'
+import { createSnapper } from 'raavl/snapping'
+import { createHistory, recordHistory, undoHistory, redoHistory } from 'raavl/history'
 import { usePageTheme } from './usePageTheme'
 
 const initial = { version: 1 as const, sourceId: 'demo-a', regions: [{ id: 'intro', start: 1, end: 3, label: 'Opening' }, { id: 'phrase', start: 5, end: 7, label: 'Phrase' }], markers: [{ id: 'cue', time: 8, label: 'Snap target' }] }

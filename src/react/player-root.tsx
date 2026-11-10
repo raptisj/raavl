@@ -1,3 +1,5 @@
+"use client";
+
 import {
   createContext,
   useCallback,
@@ -8,12 +10,12 @@ import {
   useState,
   type ReactNode,
 } from "react";
-import type { Player, PlayerSnapshot, RaavlError } from "../core/types";
+import type { Player, PlayerSnapshot, RaavlError } from "../core/types.js";
 import {
   useErrorReporter,
   usePlayer,
   type UsePlayerOptions,
-} from "./use-player";
+} from "./use-player.js";
 
 type PlayerContextValue = {
   player: Player | null;

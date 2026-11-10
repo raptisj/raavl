@@ -1,11 +1,11 @@
-import { createPeaks, failure, finite, validateWaveform } from "./core/data";
+import { createPeaks, failure, finite, validateWaveform } from "./core/data.js";
 import type {
   Player,
   PlayerSnapshot,
   RaavlError,
   Source,
   WaveformData,
-} from "./core/types";
+} from "./core/types.js";
 
 const initial = (): PlayerSnapshot =>
   Object.freeze({

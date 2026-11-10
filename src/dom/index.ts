@@ -1,12 +1,12 @@
-import { mountAnnotations, type AnnotationViewOptions } from "./annotations";
-import type { Selection } from "../regions";
+import { mountAnnotations, type AnnotationViewOptions } from "./annotations.js";
+import type { Selection } from "../regions/index.js";
 export type {
   AnnotationViewOptions,
   AnnotationSnapper,
   LabelSlot,
-} from "./annotations";
-import { failure, finite, validateWaveform } from "../core/data";
-import type { Player, WaveformData } from "../core/types";
+} from "./annotations.js";
+import { failure, finite, validateWaveform } from "../core/data.js";
+import type { Player, WaveformData } from "../core/types.js";
 import {
   colorTokens,
   defaultAppearance,
@@ -15,8 +15,8 @@ import {
   type Appearance,
   type WaveformTheme,
   type WaveformPaint,
-} from "../themes";
-export type { Appearance, WaveformTheme } from "../themes";
+} from "../themes/index.js";
+export type { Appearance, WaveformTheme } from "../themes/index.js";
 
 export type Viewport = {
   zoom?: number | "fit";

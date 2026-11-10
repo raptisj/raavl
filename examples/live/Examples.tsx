@@ -8,10 +8,10 @@ import type {
   WaveformData,
   Appearance,
   WaveformTheme,
-} from "../../src";
-import { parseTheme, waveformThemes } from "../../src";
-import { defaultAppearance } from "../../src/themes";
-import { AudioPlayer, PlayerRoot, PlayPauseButton, TimeDisplay, VolumeSlider, PlaybackRateSelect, LoopButton, PlayerStatus } from "../../src/react";
+} from "raavl";
+import { parseTheme, waveformThemes } from "raavl";
+import { defaultAppearance } from "raavl/themes";
+import { AudioPlayer, PlayerRoot, PlayPauseButton, TimeDisplay, VolumeSlider, PlaybackRateSelect, LoopButton, PlayerStatus } from "raavl/react";
 import { ModulesEditor } from "./ModulesEditor";
 import { ScaleLab } from "./ScaleLab";
 import { AnnotationEditor } from "./AnnotationEditor";

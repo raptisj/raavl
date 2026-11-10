@@ -1,5 +1,5 @@
-import { failure } from '../core/data'
-import type { AnnotationSnapper } from '../dom/annotations'
+import { failure } from '../core/data.js'
+import type { AnnotationSnapper } from '../dom/annotations.js'
 export type SnapOptions = {
   tolerancePixels?: number
   grid?: number
