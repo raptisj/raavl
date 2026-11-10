@@ -13,14 +13,14 @@ gallery as one deployment.
 | Node.js Version | 24.x LTS (or 22.x at least 22.22) |
 | Install Command | `npm --prefix .. ci && npm ci` |
 | Build Command | `npm run build` |
-| Output Directory | Framework default (Override off) |
+| Output Directory | `.next` (configured in `vercel.json`) |
 | Environment variables | None required |
 
-`docs/vercel.json` records the framework, install, and build settings.
-Set Root Directory and Node.js Version in the Vercel dashboard. Leave the
-Output Directory override off so the Next.js integration can read build
-manifests from `.next` and publish the static export from `out`. If an existing
-project has an Output Directory override of `out`, turn it off before redeploying.
+`docs/vercel.json` records the framework, install, build, and output settings.
+Set Root Directory and Node.js Version in the Vercel dashboard. The explicit
+`.next` output directory overrides any saved dashboard value of `out`, so the
+Next.js integration can read build manifests from `.next` and publish the static
+export from `out`. Keep `output: 'export'` in `next.config.mjs`.
 
 In the **Root Directory** settings, enable **Include source files outside of the
 Root Directory in the Build Step**. The install step installs root build tools as well as site dependencies.
