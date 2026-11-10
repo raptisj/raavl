@@ -229,11 +229,17 @@ document, excluded ID, duration, and pixels per second.
 
 ## React integration
 
-`raavl/react` exports `Waveform`, `usePlayerState`, `usePlayerTime`, and
-`useAnnotations`, with React and React DOM as optional peers. Vanilla
+`raavl/react` exports `Waveform`, `usePlayer`, `usePlayerState`, `usePlayerTime`,
+and `useAnnotations`, with React and React DOM as optional peers. Vanilla
 entry points do not import React.
 
-- `<Waveform source={source} />` owns a controller created after mounting.
+- `usePlayer({ source, onError? })` owns a controller created after commit,
+  returns null until then, and manages source replacement, cancellation, and
+  disposal. Omit the source for imperative loading or set it to null to clear.
+  `usePlayer({ player, onError? })` borrows an existing controller without loading
+  or disposing it. Errors are observed without a view; cancellations are filtered
+  and repeated delivery of the same error is deduplicated.
+- `<Waveform source={source} />` uses the same player lifecycle hook.
   `<Waveform player={player} />` borrows one; these props are mutually exclusive.
 - `onPlayer` and the forwarded ref expose the player. `onView` exposes the
   committed view for accessories. Callbacks receive null during cleanup.

@@ -1,6 +1,5 @@
 import {
   forwardRef,
-  useCallback,
   useEffect,
   useImperativeHandle,
   useMemo,
@@ -20,7 +19,7 @@ import {
   type Region,
   type Selection,
 } from "../regions";
-import { createPlayer } from "../player";
+import { useErrorReporter, usePlayer } from "./use-player";
 import {
   mountWaveform,
   type Appearance,
@@ -31,6 +30,9 @@ import {
   type WaveformTheme,
 } from "../dom";
 import type { Player, PlayerSnapshot, RaavlError, Source } from "../core/types";
+
+export { usePlayer } from "./use-player";
+export type { UsePlayerOptions } from "./use-player";
 
 const noopSubscribe = () => () => {};
 export function usePlayerState<T>(
@@ -143,9 +145,7 @@ export const Waveform = forwardRef<Player | null, WaveformProps>(
       );
     const container = useRef<HTMLDivElement>(null);
     const view = useRef<WaveformView | null>(null);
-    const [owned, setOwned] = useState<Player | null>(null);
     const callbacks = useRef({
-      onError,
       onPlayer,
       onView,
       onDraw,
@@ -155,7 +155,6 @@ export const Waveform = forwardRef<Player | null, WaveformProps>(
     });
     useEffect(() => {
       callbacks.current = {
-        onError,
         onPlayer,
         onView,
         onDraw,
@@ -164,12 +163,12 @@ export const Waveform = forwardRef<Player | null, WaveformProps>(
         onAnnotationSelect,
       };
     });
-    const seen = useRef(new WeakSet<Error>());
-    const report = useCallback((error: RaavlError) => {
-      if (error.code === "CANCELLED" || seen.current.has(error)) return;
-      seen.current.add(error);
-      callbacks.current.onError?.(error);
-    }, []);
+    const report = useErrorReporter(onError);
+    const player = usePlayer(
+      borrowed
+        ? { player: borrowed, onError: report }
+        : { source, onError: report },
+    );
     const [localAnnotations, setLocalAnnotations] =
       useState<AnnotationStore | null>(null);
     const initialAnnotations = useRef(defaultAnnotations);
@@ -212,15 +211,8 @@ export const Waveform = forwardRef<Player | null, WaveformProps>(
           : undefined,
       [customLabels],
     );
-    const player = borrowed ?? owned;
     // Like a DOM ref, this is null until the committed owned player exists.
     useImperativeHandle(ref, () => player!, [player]);
-    useEffect(() => {
-      if (borrowed) return;
-      const instance = createPlayer();
-      setOwned(instance);
-      return () => instance.dispose();
-    }, [borrowed]);
     useEffect(() => {
       if (
         !player ||
@@ -235,47 +227,14 @@ export const Waveform = forwardRef<Player | null, WaveformProps>(
       view.current = mounted;
       callbacks.current.onView?.(mounted);
       callbacks.current.onPlayer?.(player);
-      const off = player.subscribe(() => {
-        const state = player.getSnapshot();
-        if (state.error) report(state.error);
-        if (state.waveformError) report(state.waveformError);
-      });
       return () => {
-        off();
         callbacks.current.onView?.(null);
         mounted.dispose();
         if (view.current === mounted) view.current = null;
         callbacks.current.onPlayer?.(null);
       };
-    }, [player, report]);
+    }, [player]);
 
-    // Compare scalar descriptor fields and large immutable inputs by identity.
-    // An inline { kind: 'url', id, url } does not recreate the controller/load.
-    const descriptor = useMemo(
-      () => source,
-      [
-        source?.kind,
-        source?.id,
-        source?.revision,
-        source?.kind === "url" ? source.url : undefined,
-        source?.kind === "url" ? source.request : undefined,
-        source?.kind === "file" ? source.file : undefined,
-        source?.kind === "media" ? source.element : undefined,
-        source?.waveform?.kind,
-        source?.waveform?.kind === "peaks" ? source.waveform.data : undefined,
-      ],
-    );
-    useEffect(() => {
-      if (borrowed || !player || player.getSnapshot().source === "disposed")
-        return;
-      if (!descriptor) {
-        player.clearSource();
-        return;
-      }
-      const abort = new AbortController();
-      void player.setSource(descriptor, { signal: abort.signal }).catch(report);
-      return () => abort.abort();
-    }, [player, borrowed, descriptor, report]);
     useEffect(() => {
       view.current?.update({
         theme,

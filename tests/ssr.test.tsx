@@ -1,7 +1,7 @@
 // @vitest-environment node
 import { expect, it } from 'vitest'
 import { renderToString } from 'react-dom/server'
-import { Waveform } from '../src/react'
+import { Waveform, usePlayer, usePlayerState, usePlayerTime } from '../src/react'
 import { createPlayer } from '../src'
 import { Examples } from '../examples/live/Examples'
 import { scenes } from '../examples/live/routes'
@@ -27,4 +27,16 @@ it('renders the page-theme hook without accessing browser globals during SSR', (
   function ThemeProbe() { return <span>{usePageTheme()}</span> }
   expect(typeof document).toBe('undefined')
   expect(renderToString(<ThemeProbe />)).toBe('<span>light</span>')
+})
+
+it('renders headless player hooks without allocating browser resources', () => {
+  function HeadlessPlayer() {
+    const player = usePlayer({ source: { kind: 'url', id: 'a', url: '/a' } })
+    const ready = usePlayerState(player, state => state?.source === 'ready')
+    const time = usePlayerTime(player)
+    expect(player).toBeNull()
+    return <button disabled={!ready}>{time}</button>
+  }
+  expect(typeof document).toBe('undefined')
+  expect(renderToString(<HeadlessPlayer />)).toBe('<button disabled="">0</button>')
 })

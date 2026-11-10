@@ -5,13 +5,77 @@ description: The shared player and renderer, with React ownership and subscripti
 
 Import from `raavl/react`. React and React DOM are optional peer dependencies; vanilla imports do not include them. Imports and SSR rendering are safe without browser globals. Resources are allocated after mount.
 
+## Headless player
+
+`usePlayer(options?)` returns a `Player | null` without rendering a waveform or
+requiring the stylesheet. It creates an owned player after commit and manages
+source changes, cancellation, error reporting, and cleanup. Combine it with the
+state/time hooks and your own controls:
+
+```tsx
+'use client';
+
+import { useState } from 'react';
+import { usePlayer, usePlayerState, usePlayerTime } from 'raavl/react';
+
+export function HeadlessPlayer() {
+  const [error, setError] = useState('');
+  const player = usePlayer({
+    source: {
+      kind: 'url', id: 'episode-1', url: '/episode.mp3',
+      waveform: { kind: 'none' },
+    },
+    onError: error => setError(error.message),
+  });
+  const ready = usePlayerState(player, state => state?.source === 'ready');
+  const playing = usePlayerState(player, state => state?.playback === 'playing');
+  const seconds = usePlayerTime(player);
+
+  return (
+    <div>
+      <button disabled={!ready} onClick={() => {
+        if (!player || !ready) return;
+        if (playing) player.pause();
+        else void player.play().catch(() => {}); // onError observes playback failures.
+      }}>
+        {playing ? 'Pause' : 'Play'}
+      </button>
+      <output aria-label="Playback time">{seconds.toFixed(1)} s</output>
+      {error && <p role="alert">{error}</p>}
+    </div>
+  );
+}
+```
+
+Use `waveform: { kind: 'none' }` when no waveform data is needed; omitting it
+keeps the usual decode behavior. Playback still requires browser media APIs.
+Imports and server rendering are safe, but playback is not a server-side API.
+For larger UIs, keep `usePlayerTime` in the small component that displays time.
+
+| Options | Ownership and behavior |
+| --- | --- |
+| `usePlayer({ source, onError? })` | Owns the player; source changes load through the same controller. Setting or changing the source to `null` clears it. |
+| `usePlayer()` | Owns an initially idle player; load imperatively with `player.setSource(source)` and handle its promise. |
+| `usePlayer({ player, onError? })` | Returns an existing player; observes errors without loading, clearing, or disposing it. |
+
+An owned player is null before commit and during SSR. Do not dispose it yourself:
+its lifetime belongs to the component calling the hook. A borrowed player remains
+application-owned. The `source` and `player` options are mutually exclusive.
+`onError` observes source, waveform, and playback errors, filters cancellations,
+and reports the same error object once. Callback changes do not reload audio.
+Handle promises from imperative commands even when using `onError`; it does not
+consume the promises returned to your code.
+
+The hook and `<Waveform>` share the same player lifecycle. Pass the hook's player
+to `<Waveform player={player} />` once non-null to add an optional visualization.
+
 ## Waveform
 
 Choose an owned source or a borrowed player:
 
 ```tsx
 <Waveform source={{ kind: 'url', id: 'episode', url: '/episode.mp3' }} />
-// Or, using a player you create and dispose:
+// Or, borrowing a player owned by usePlayer or your application:
 <Waveform player={player} />
 ```
 
@@ -26,11 +90,11 @@ custom controls**.
 
 | Question | `source={source}` | `player={player}` |
 | --- | --- | --- |
-| Who creates the player? | `Waveform`, after mount | Your component or application |
-| Who loads or changes the audio? | `Waveform`, when `source` changes | Your code, with `player.setSource(source)` |
+| Who creates the player? | `Waveform`, after mount | `usePlayer` in a parent, or your application |
+| Who loads or changes the audio? | `Waveform`, when `source` changes | The owning hook's `source`, or your code with `player.setSource(source)` |
 | How do controls access it? | Capture it with `onPlayer={setPlayer}` | Use the player you already created |
 | What happens when the waveform unmounts? | Its view and player are disposed; playback stops | Its view is disposed; the player can keep playing |
-| Who disposes the player? | `Waveform` | Your code, when the owning component or application is done |
+| Who disposes the player? | `Waveform` | The owning hook on unmount, or your application |
 
 The examples below use the same controls so you can see that ownership, rather
 than the buttons, is what changes. Replace `/episode.mp3` with an audio asset
@@ -142,38 +206,18 @@ panel. The parent editor owns playback; the panel borrows it.
 ```tsx
 'use client';
 
-import { useEffect, useState } from 'react';
-import { createPlayer, type Player } from 'raavl';
-import { Waveform, usePlayerState } from 'raavl/react';
+import { useState } from 'react';
+import { Waveform, usePlayer } from 'raavl/react';
 import { PlaybackControls } from './PlaybackControls';
 
 export function AudioEditor() {
-  const [player, setPlayer] = useState<Player | null>(null);
   const [showWaveform, setShowWaveform] = useState(true);
   const [error, setError] = useState('');
-  const playerError = usePlayerState(
-    player,
-    state => state?.error?.message ?? state?.waveformError?.message ?? '',
-  );
-
-  useEffect(() => {
-    // This editor owns the player, even when its waveform panel is hidden.
-    const instance = createPlayer();
-    const abort = new AbortController();
-    setPlayer(instance);
-
-    void instance.setSource(
-      { kind: 'url', id: 'episode-1', url: '/episode.mp3' },
-      { signal: abort.signal },
-    ).catch(error => {
-      if (!abort.signal.aborted) setError(error.message);
-    });
-
-    return () => {
-      abort.abort();
-      instance.dispose();
-    };
-  }, []);
+  // The hook owns playback, even when the waveform panel is hidden.
+  const player = usePlayer({
+    source: { kind: 'url', id: 'episode-1', url: '/episode.mp3' },
+    onError: error => setError(error.message),
+  });
 
   return (
     <section>
@@ -196,7 +240,7 @@ export function AudioEditor() {
           aria-label="Episode editor waveform"
         />
       )}
-      {(error || playerError) && <p role="alert">{error || playerError}</p>}
+      {error && <p role="alert">{error}</p>}
     </section>
   );
 }
@@ -204,14 +248,14 @@ export function AudioEditor() {
 
 Try pressing Play, then Hide waveform: the audio and toolbar clock continue.
 Show waveform reconnects a new view to the same player at its current playback
-position. Removing `AudioEditor` runs the effect cleanup, cancels any pending
-source load, and disposes the player. The error subscription lives in the editor
-so player errors remain visible even while the waveform panel is hidden.
+position. Removing `AudioEditor` unmounts the owning hook, cancels any pending
+source load, and disposes the player. Error observation stays in the hook, so
+player errors remain visible even while the waveform panel is hidden.
 
-Create the player inside the effect so setup and cleanup remain paired,
-including React Strict Mode's development setup/cleanup cycle. To select a
-different recording, call `player.setSource(nextSource)` from the owner and
-handle its promise. Do not also pass `source` to the borrowed `Waveform`.
+To select a different recording, update the hook's `source`. Its controller stays
+the same, and unchanged inline descriptors do not reload audio. Do not also pass
+`source` to the borrowed `Waveform`. If creating a player manually instead, create
+and dispose it inside an effect so setup and cleanup remain paired in Strict Mode.
 Multiple waveforms can borrow this same player, but they share one audio source,
 playback position, and transport; use separate players for independent audio.
 For playback across routes, put the owner above the route content so it stays
@@ -254,4 +298,4 @@ const time = usePlayerTime(player);
 
 An inline URL descriptor with unchanged fields does not reload audio. Keep large peak buffers, Files, and request objects stable; update `revision` when asset data changes. Do not mutate supplied peaks.
 
-An owned `Waveform` disposes its view and player on unmount. A borrowed player/store remains yours. Keep `onView` stable and use an effect to mount and dispose [optional modules](/docs/modules).
+An owned `usePlayer` disposes its player on unmount. An owned `Waveform` disposes its view and player. A borrowed player/store remains with its owner. Keep `onView` stable and use an effect to mount and dispose [optional modules](/docs/modules).

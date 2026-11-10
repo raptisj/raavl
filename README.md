@@ -65,6 +65,27 @@ Replace `/audio.mp3` with an audio file served by your app. For a React example
 and more options, see the [full quickstart](docs/content/docs/quickstart.mdx).
 
 
+## Headless React
+
+Inside a React component, use `usePlayer` to own playback without a waveform:
+
+```tsx
+import { usePlayer, usePlayerState } from 'raavl/react';
+
+const player = usePlayer({
+  source: {
+    kind: 'url', id: 'episode', url: '/episode.mp3',
+    waveform: { kind: 'none' },
+  },
+});
+const playing = usePlayerState(player, state => state?.playback === 'playing');
+```
+
+The hook returns null until commit and manages source changes and disposal.
+Combine it with your own controls, or pass its player to `Waveform` for an
+optional visualization. See the [React API](docs/content/docs/react.mdx) for
+imports, error handling, and complete examples.
+
 ## Documentation
 
 - [Introduction](docs/content/docs/index.mdx)
