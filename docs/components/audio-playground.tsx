@@ -94,13 +94,13 @@ export function AudioPlayground() {
                   id: "region-1",
                   start: sourceDuration * 0.12,
                   end: sourceDuration * 0.3,
-                  label: "Region 1",
+                  label: "Opening phrase",
                 },
                 {
                   id: "region-2",
                   start: sourceDuration * 0.53,
                   end: sourceDuration * 0.72,
-                  label: "Region 2",
+                  label: "Main theme",
                 },
               ]
             : [],

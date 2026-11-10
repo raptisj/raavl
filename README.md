@@ -4,6 +4,8 @@ raavl is an ergonomic TypeScript audio waveform player and annotation toolkit
 for JavaScript and React, with reliable playback and customizable waveforms.
 The name is inspired by Maurice **Ravel**.
 
+[![Node.js](https://img.shields.io/badge/node-%3E%3D22.22.0-brightgreen.svg)](https://nodejs.org/)
+
 ## Install
 
 ```sh
@@ -25,32 +27,34 @@ In an app with ESM and CSS imports, add a waveform container and a play button:
 ```
 
 ```js
-import { createPlayer, mountWaveform } from 'raavl';
-import 'raavl/styles.css';
+import { createPlayer, mountWaveform } from "raavl";
+import "raavl/styles.css";
 
 const player = createPlayer();
-const view = mountWaveform(document.querySelector('#waveform'), {
+const view = mountWaveform(document.querySelector("#waveform"), {
   player,
-  interaction: { drag: 'seek' },
+  interaction: { drag: "seek" },
 });
-const button = document.querySelector('#play');
+const button = document.querySelector("#play");
 
 const unsubscribe = player.subscribe(() => {
   const state = player.getSnapshot();
-  button.disabled = state.source !== 'ready';
-  button.textContent = state.playback === 'playing' ? 'Pause' : 'Play';
+  button.disabled = state.source !== "ready";
+  button.textContent = state.playback === "playing" ? "Pause" : "Play";
 });
 
 button.onclick = () => {
-  if (player.getSnapshot().playback === 'playing') player.pause();
+  if (player.getSnapshot().playback === "playing") player.pause();
   else void player.play().catch(console.error);
 };
 
-void player.setSource({
-  kind: 'url',
-  id: 'my-audio',
-  url: '/audio.mp3',
-}).catch(console.error);
+void player
+  .setSource({
+    kind: "url",
+    id: "my-audio",
+    url: "/audio.mp3",
+  })
+  .catch(console.error);
 
 // Call when removing this player from your app.
 function cleanup() {
@@ -63,7 +67,6 @@ function cleanup() {
 
 Replace `/audio.mp3` with an audio file served by your app. For a React example
 and more options, see the [full quickstart](docs/content/docs/quickstart.mdx).
-
 
 ## React player and components
 
@@ -94,15 +97,20 @@ individual components, and headless hooks.
 Inside a React component, use `usePlayer` to own playback without a waveform:
 
 ```tsx
-import { usePlayer, usePlayerState } from 'raavl/react';
+import { usePlayer, usePlayerState } from "raavl/react";
 
 const player = usePlayer({
   source: {
-    kind: 'url', id: 'episode', url: '/episode.mp3',
-    waveform: { kind: 'none' },
+    kind: "url",
+    id: "episode",
+    url: "/episode.mp3",
+    waveform: { kind: "none" },
   },
 });
-const playing = usePlayerState(player, state => state?.playback === 'playing');
+const playing = usePlayerState(
+  player,
+  (state) => state?.playback === "playing",
+);
 ```
 
 The hook returns null until commit and manages source changes and disposal.
@@ -119,8 +127,6 @@ imports, error handling, and complete examples.
 - [Skills for coding agents](docs/content/docs/skills.mdx)
 
 ## Develop
-
-[![Node.js](https://img.shields.io/badge/node-%3E%3D22.22.0-brightgreen.svg)](https://nodejs.org/)
 
 ```sh
 npm ci
