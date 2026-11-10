@@ -13,7 +13,7 @@
     "docs:typecheck": "npm --prefix docs run typecheck",
     "docs:workflows": "node scripts/write-workflows.mjs",
     "typecheck": "tsc --noEmit",
-    "test": "vitest run",
+    "test": "vitest run && npm run test:release",
     "build": "node scripts/build.mjs",
     "check": "npm run typecheck && npm test && npm run build && npm run check:package",
     "check:docs": "npm run docs:typecheck && npm --prefix docs run test:skills && npm run docs:build",
@@ -22,7 +22,9 @@
     "release:prepare": "node scripts/prepare-release.mjs",
     "prepack": "npm run build",
     "prepublishOnly": "node scripts/assert-tarball-publish.mjs",
-    "check:release": "npm run typecheck && npm test && npm run build && npm run check:browser"
+    "check:release": "npm run typecheck && npm test && npm run build && npm run check:browser",
+    "release:verify": "node scripts/verify-release.mjs",
+    "test:release": "node --test tests/release-verification.test.mjs"
   },
   "devDependencies": {
     "@arethetypeswrong/cli": "^0.18.5",

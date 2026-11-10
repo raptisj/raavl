@@ -65,10 +65,55 @@ and builds first, but only `release:prepare` produces a release receipt after
 all checks pass. Treat the tarball and receipt as a pair; rerunning package
 checks invalidates the previous receipt.
 
-Verify the published version, then tag the **commit recorded in release.json**:
+## Verify publication
+
+After npm confirms publication, run:
 
 ```sh
-npm view raavl@0.1.0 version dist.integrity --registry=https://registry.npmjs.org/
+npm run release:verify
+```
+
+This reads `artifacts/release.json` and verifies the exact recorded release:
+
+1. Query public npm anonymously for the version and its `latest` or `next` tag.
+2. Download the tarball directly, bypassing your existing npm cache.
+3. Match both npm's integrity metadata and the downloaded SHA-512 checksum to
+   the validated release receipt.
+4. Install the downloaded tarball in a temporary consumer with a fresh npm cache.
+   Reuse the package metadata, vanilla imports without React, React SSR,
+   NodeNext/bundler TypeScript, CSS, JSON, and production Vite checks.
+
+Registry propagation, temporary server errors, and network failures are retried
+up to 12 times, with 5 seconds between attempts and a 10-second timeout per
+request. Integrity mismatches and access errors fail immediately. A successful
+run prints `Verified published raavl@X.Y.Z from public npm` and exits zero;
+failures exit nonzero with the reason.
+
+Verification does not publish, change distribution tags, rebuild, repack, or
+invalidate your release receipt. It cleans up its temporary download, cache,
+and consumer. Keep the original receipt after publication; do not regenerate it
+just to verify an already published version. You can specify a saved receipt:
+
+```sh
+npm run release:verify -- /path/to/release.json
+```
+
+The verifier uses the receipt's version, not whichever version `latest` happens
+to select. It requires the recorded tag to point to that version, so run it
+before moving that tag to a later release. It needs the repository's development
+dependencies (`npm ci`), but does not need npm login or a local `dist` directory.
+Chromium playback is checked before publication by `release:prepare`; the
+post-publication check builds the consumer app without launching a browser.
+
+If verification fails, inspect the error and retry verification when appropriate.
+Do not automatically publish again: the version may already exist. A different
+published tarball needs investigation and a new version rather than overwriting.
+
+## Tag and create a GitHub release
+
+After verification succeeds, tag the **commit recorded in release.json**:
+
+```sh
 git tag -a v0.1.0 SOURCE_COMMIT -m "Release v0.1.0"
 git push origin v0.1.0
 ```

@@ -179,6 +179,7 @@ for library commands.
 | `npm run examples:build`            | Alias for `npm run docs:build`                                      |
 | `npm run check:docs`                | Run the site typecheck, skill tests, build, and export verification |
 | `npm run check`                     | Run typecheck, tests, build, and packed-package checks                         |
+| `npm run test:release`              | Test release verification offline with simulated registry responses |
 
 Stop the dev server before running production build checks. Skill downloads are
 prepared automatically before site development, typechecking, and building.
@@ -194,6 +195,11 @@ Run `npx playwright install chromium` once, then `npm run release:prepare` from
 a clean release commit. It validates a tarball and prints the manual publish
 command. Nothing publishes automatically. See [RELEASING.md](https://github.com/raptisj/raavl/blob/main/RELEASING.md)
 for versioning, first publication, prereleases, and recovery.
+
+After publishing, run `npm run release:verify`. It downloads the exact published
+version, checks its distribution tag and checksum against the release receipt,
+and runs isolated consumer checks with a fresh cache. It never publishes or
+modifies npm. Complete the Git tag and GitHub release after verification passes.
 
 `npm run check:browser` tests the packed package in Chromium. Both package
 checks write their tarball under `artifacts/`, which is ignored by Git.

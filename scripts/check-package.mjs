@@ -6,22 +6,30 @@ import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
 const root = fileURLToPath(new URL("../", import.meta.url));
-const pkg = JSON.parse(readFileSync(join(root, "package.json"), "utf8"));
+const packageName = JSON.parse(readFileSync(join(root, "package.json"), "utf8")).name;
 const browser = process.argv.includes("--browser");
 const artifacts = join(root, "artifacts");
 const run = (command, args, cwd = root, options = {}) => execFileSync(command, args, { cwd, stdio: "inherit", ...options });
 const node = (file, args = [], cwd = root, options = {}) => run(process.execPath, [file, ...args], cwd, options);
-assert(existsSync(join(root, "dist/index.js")), "Run npm run build before checking the package.");
-mkdirSync(artifacts, { recursive: true });
-// A new pack invalidates any previous release receipt, even at the same version.
-rmSync(join(artifacts, "release.json"), { force: true });
-const [pack] = JSON.parse(execFileSync("npm", ["pack", "--ignore-scripts", "--json", "--pack-destination", artifacts], { cwd: root, encoding: "utf8" }));
-const tarball = join(artifacts, pack.filename);
-for (const { path } of pack.files) {
-  assert.match(path, /^(dist\/|package\.json$|README\.md$|LICENSE$|CHANGELOG\.md$)/, `Unexpected published file: ${path}`);
-}
-for (const file of ["LICENSE", "README.md", "CHANGELOG.md", "dist/styles.css", "dist/styles.d.css.ts", "dist/themes/presets.json"]) {
-  assert(pack.files.some(({ path }) => path === file), `Missing published file: ${file}`);
+const supplied = process.argv.indexOf("--tarball");
+let tarball;
+if (supplied !== -1) {
+  assert(process.argv[supplied + 1], "--tarball requires a file path.");
+  tarball = resolve(process.argv[supplied + 1]);
+  assert(existsSync(tarball), `Tarball not found: ${tarball}`);
+} else {
+  assert(existsSync(join(root, "dist/index.js")), "Run npm run build before checking the package.");
+  mkdirSync(artifacts, { recursive: true });
+  // Only making a new local pack invalidates the previous release receipt.
+  rmSync(join(artifacts, "release.json"), { force: true });
+  const [pack] = JSON.parse(execFileSync("npm", ["pack", "--ignore-scripts", "--json", "--pack-destination", artifacts], { cwd: root, encoding: "utf8" }));
+  tarball = join(artifacts, pack.filename);
+  for (const { path } of pack.files) {
+    assert.match(path, /^(dist\/|package\.json$|README\.md$|LICENSE$|CHANGELOG\.md$)/, `Unexpected published file: ${path}`);
+  }
+  for (const file of ["LICENSE", "README.md", "CHANGELOG.md", "dist/styles.css", "dist/styles.d.css.ts", "dist/themes/presets.json"]) {
+    assert(pack.files.some(({ path }) => path === file), `Missing published file: ${file}`);
+  }
 }
 node(join(root, "node_modules/.bin/publint"), [tarball, "--strict"]);
 node(join(root, "node_modules/.bin/attw"), ["--profile", "esm-only", "--format", "table-flipped", "--no-color", tarball]);
@@ -31,6 +39,8 @@ const fixture = mkdtempSync(join(tmpdir(), "raavl-consumer-"));
 try {
   writeFileSync(join(fixture, "package.json"), JSON.stringify({ private: true, type: "module" }));
   run("npm", ["install", tarball, "--ignore-scripts", "--no-audit", "--no-fund", "--package-lock=false"], fixture);
+  const pkg = JSON.parse(readFileSync(join(fixture, "node_modules", packageName, "package.json"), "utf8"));
+  assert.equal(pkg.name, packageName, "Installed the wrong package.");
   assert(!existsSync(join(fixture, "node_modules/react")), "Vanilla installation unexpectedly installed React");
   const entries = Object.keys(pkg.exports).filter((entry) => entry !== "./react" && !entry.endsWith(".css") && !entry.endsWith(".json"));
   writeFileSync(join(fixture, "vanilla.mjs"), `
@@ -119,7 +129,7 @@ try {
   const css = readdirSync(join(fixture, "dist/assets")).filter((file) => file.endsWith(".css")).map((file) => join(fixture, "dist/assets", file));
   assert(css.some((path) => path && readFileSync(path, "utf8").includes(".raavl-waveform")), "Production build dropped the stylesheet");
   if (browser) node(join(root, "node_modules/.bin/playwright"), ["test", "--config", "tests/package/playwright.config.mjs"], root, { env });
-  console.log(`Validated ${pack.filename}${browser ? " including Chromium playback" : ""}.`);
+  console.log(`Validated ${pkg.name}@${pkg.version}${browser ? " including Chromium playback" : ""}.`);
 } finally {
   rmSync(fixture, { recursive: true, force: true });
 }
