@@ -25,7 +25,7 @@ styles, or supply your own CSS tokens.
 
 ## Develop
 
-Use Node.js 24 LTS (or Node.js 22.22+) and run from the repository root:
+[![Node.js](https://img.shields.io/badge/node-%3E%3D22.22.0-brightgreen.svg)](https://nodejs.org/)
 
 ```sh
 npm ci
