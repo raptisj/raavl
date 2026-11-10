@@ -5,7 +5,7 @@ description: An audio waveform player that fits the way you build.
 
 raavl is a TypeScript audio waveform player and annotation toolkit for vanilla JavaScript and React. It separates the playback controller, Canvas waveform, and annotation data so you can compose your own experience.
 
-Your app owns the surrounding UI. Use ordinary buttons, your own styles, and the controls your users need. There is no Shadow DOM.
+Choose a complete React `AudioPlayer`, compose connected controls inside `PlayerRoot`, or build your own UI with headless hooks and the JavaScript controller. There is no Shadow DOM.
 
 ## Start here
 
@@ -35,4 +35,4 @@ Recording and spectrograms are not implemented. Playback uses the browser's medi
 1. A **player** owns or borrows the audio element, loads sources, and exposes state and commands.
 2. A **view** borrows that player and draws its waveform. Multiple views can share a player.
 3. **Annotations** hold source-bound regions and markers, separately from the audio.
-4. Your **application** supplies controls, persistence, and styling.
+4. React **controls** share a root controller; `AudioPlayer` assembles the default layout. Your application can replace the UI and owns persistence.

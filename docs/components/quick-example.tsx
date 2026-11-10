@@ -1,9 +1,9 @@
-'use client';
+"use client";
 
-import { useState } from 'react';
-import { CopyButton } from './copy-button';
-import { HighlightedCode } from './highlighted-code';
-import { usePlaygroundMode } from './playground-mode';
+import { useState } from "react";
+import { CopyButton } from "./copy-button";
+import { HighlightedCode } from "./highlighted-code";
+import { usePlaygroundMode } from "./playground-mode";
 
 const code = {
   playback: {
@@ -21,17 +21,15 @@ await player.setSource({
 });
 // Bind your controls to player.play(), pause(), seek().
 // On teardown: view.dispose(); player.dispose();`,
-    React: `import { Waveform } from 'raavl/react';
+    React: `import { AudioPlayer } from 'raavl/react';
 import 'raavl/styles.css';
 
-export function AudioWaveform() {
-  return <Waveform
-    source={{
-      kind: 'url', id: 'my-audio', url: '/audio.mp3',
-    }}
-    interaction={{ drag: 'seek' }}
-    onError={console.error}
-    aria-label="Audio waveform"
+export function AudioPlayback() {
+  return <AudioPlayer
+    source={{ kind: 'url', id: 'my-audio', url: '/audio.mp3' }}
+    waveform={{ interaction: { drag: 'seek' } }}
+    controls={{ playbackRate: true, loop: true }}
+    aria-label="Audio player"
   />;
 }`,
   },
@@ -96,37 +94,61 @@ export function AudioRegions() {
   },
 };
 
-const frameworks = ['React', 'JavaScript'] as const;
+const frameworks = ["React", "JavaScript"] as const;
 
 export function QuickExample() {
   const { mode } = usePlaygroundMode();
-  const [framework, setFramework] = useState<(typeof frameworks)[number]>('React');
+  const [framework, setFramework] =
+    useState<(typeof frameworks)[number]>("React");
   const snippet = code[mode][framework];
 
   return (
     <div className="quick-example">
       <div className="example-toolbar">
-        <div role="tablist" aria-label="Example framework" onKeyDown={event => {
-          if (!['ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(event.key)) return;
-          event.preventDefault();
-          const next = event.key === 'Home' ? 'React'
-            : event.key === 'End' ? 'JavaScript'
-            : framework === 'React' ? 'JavaScript' : 'React';
-          setFramework(next);
-          document.getElementById(`tab-${next}`)?.focus();
-        }}>
-          {frameworks.map(value => (
-            <button key={value} id={`tab-${value}`} type="button" role="tab"
-              tabIndex={framework === value ? 0 : -1} aria-selected={framework === value}
-              aria-controls="quick-code" onClick={() => setFramework(value)}>
+        <div
+          role="tablist"
+          aria-label="Example framework"
+          onKeyDown={(event) => {
+            if (!["ArrowLeft", "ArrowRight", "Home", "End"].includes(event.key))
+              return;
+            event.preventDefault();
+            const next =
+              event.key === "Home"
+                ? "React"
+                : event.key === "End"
+                  ? "JavaScript"
+                  : framework === "React"
+                    ? "JavaScript"
+                    : "React";
+            setFramework(next);
+            document.getElementById(`tab-${next}`)?.focus();
+          }}
+        >
+          {frameworks.map((value) => (
+            <button
+              key={value}
+              id={`tab-${value}`}
+              type="button"
+              role="tab"
+              tabIndex={framework === value ? 0 : -1}
+              aria-selected={framework === value}
+              aria-controls="quick-code"
+              onClick={() => setFramework(value)}
+            >
               {value}
             </button>
           ))}
         </div>
         <CopyButton text={snippet} />
       </div>
-      <HighlightedCode code={snippet} language={framework === 'React' ? 'tsx' : 'js'}
-        id="quick-code" role="tabpanel" aria-labelledby={`tab-${framework}`} tabIndex={0} />
+      <HighlightedCode
+        code={snippet}
+        language={framework === "React" ? "tsx" : "js"}
+        id="quick-code"
+        role="tabpanel"
+        aria-labelledby={`tab-${framework}`}
+        tabIndex={0}
+      />
     </div>
   );
 }

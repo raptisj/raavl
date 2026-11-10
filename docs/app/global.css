@@ -990,3 +990,27 @@ body {
     transition: none !important;
   }
 }
+
+
+/* Interactive ownership examples in the React reference. */
+.ownership-preview { display: grid; gap: 16px; color: var(--color-fd-foreground); }
+.ownership-preview p { margin: 0; }
+.ownership-audio { color: var(--color-fd-muted-foreground); font-size: .75rem; }
+.ownership-hint { color: var(--color-fd-muted-foreground); font-size: .875rem; }
+.ownership-card { display: grid; gap: 16px; min-width: 0; }
+.ownership-title { font-weight: 600; }
+.ownership-controls { display: flex; align-items: center; flex-wrap: wrap; gap: 12px; }
+.ownership-controls output { font-size: .875rem; font-variant-numeric: tabular-nums; }
+.ownership-preview .raavl-button {
+  width: fit-content;
+  background: var(--color-fd-card);
+  border-color: var(--color-fd-border);
+  color: var(--color-fd-foreground);
+}
+.ownership-preview .raavl-waveform {
+  --raavl-background: var(--color-fd-secondary);
+  --raavl-wave-color: var(--color-fd-muted-foreground);
+  --raavl-progress-color: var(--color-fd-primary);
+  --raavl-focus-color: var(--color-fd-ring);
+}
+.ownership-placeholder { padding: 24px; border: 1px dashed var(--color-fd-border); border-radius: 8px; }

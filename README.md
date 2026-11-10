@@ -65,6 +65,30 @@ Replace `/audio.mp3` with an audio file served by your app. For a React example
 and more options, see the [full quickstart](docs/content/docs/quickstart.mdx).
 
 
+## React player and components
+
+Use the complete player with configurable controls:
+
+```tsx
+import { AudioPlayer } from "raavl/react";
+import "raavl/styles.css";
+
+export function EpisodePlayer() {
+  return (
+    <AudioPlayer
+      source={{ kind: "url", id: "episode", url: "/episode.mp3" }}
+      waveform={{ appearance: { style: "bars", height: 120 } }}
+      controls={{ playbackRate: true, loop: true }}
+    />
+  );
+}
+```
+
+For custom layouts, compose `PlayerRoot`, `Waveform`, `PlayPauseButton`,
+`TimeDisplay`, `SeekSlider`, `MuteButton`, `VolumeSlider`, and the other connected
+parts. See the [React API](docs/content/docs/react.mdx) for configuration, slots,
+individual components, and headless hooks.
+
 ## Headless React
 
 Inside a React component, use `usePlayer` to own playback without a waveform:

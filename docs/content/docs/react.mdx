@@ -5,6 +5,165 @@ description: The shared player and renderer, with React ownership and subscripti
 
 Import from `raavl/react`. React and React DOM are optional peer dependencies; vanilla imports do not include them. Imports and SSR rendering are safe without browser globals. Resources are allocated after mount.
 
+## Choose an integration
+
+| Integration                       | Use it for                                                        |
+| --------------------------------- | ----------------------------------------------------------------- |
+| `AudioPlayer`                     | A complete player with a default layout and configurable controls |
+| `PlayerRoot` and individual parts | Your own layout with connected controls                           |
+| `usePlayer` and state/time hooks  | Your own markup and behavior                                      |
+| `Waveform`                        | A standalone waveform, or the waveform part inside a root         |
+
+## Complete audio player
+
+Import the optional stylesheet once. `AudioPlayer` includes a waveform, seek
+slider, play/pause button, elapsed time and duration, mute, volume, and status
+feedback. Playback speed and looping are optional. No application state or
+control handlers are required:
+
+```tsx
+"use client";
+import { AudioPlayer } from "raavl/react";
+import "raavl/styles.css";
+
+export function EpisodePlayer() {
+  return (
+    <AudioPlayer
+      source={{ kind: "url", id: "episode", url: "/episode.mp3" }}
+      aria-label="Episode player"
+      waveform={{ appearance: { style: "bars", height: 120 } }}
+      controls={{
+        playPause: true,
+        time: { mode: "elapsed-duration" },
+        seek: false,
+        mute: true,
+        volume: true,
+        playbackRate: { options: [0.75, 1, 1.5, 2] },
+        loop: false,
+      }}
+    />
+  );
+}
+```
+
+`AudioPlayer` owns a player when given `source`, or borrows one when given
+`player`. These options are mutually exclusive. `onPlayer` exposes its controller
+and receives null during cleanup. `onError` observes failures; status feedback
+is built in even when you omit the callback. Its forwarded ref targets the
+outer div, and ordinary div attributes pass through.
+
+### Configuration
+
+| Prop                  | Default           | Behavior                                                                                      |
+| --------------------- | ----------------- | --------------------------------------------------------------------------------------------- |
+| `waveform`            | `true`            | `false` hides the view; an object accepts waveform props except ownership and error callbacks |
+| `controls`            | `true`            | `false` hides the transport; an object configures individual controls                         |
+| `status`              | `true`            | `false` hides feedback; an object accepts `PlayerStatus` props                                |
+| `appearance`, `theme` | Waveform defaults | Shortcuts for waveform appearance/theme; nested waveform options take precedence              |
+| `slots`               | Default parts     | Replace or wrap a documented part                                                             |
+
+The control keys are `playPause`, `seek`, `time`, `mute`, `volume`, `playbackRate`,
+and `loop`. Each accepts `true`, `false`, or an object of that component's props.
+Omitted keys retain their defaults; speed and loop default to hidden, and the
+other controls default to visible. Configuration changes preserve the controller,
+media, and playback. Hiding the waveform also preserves playback.
+
+`waveform={false}` hides visualization; set the source's
+`waveform: { kind: 'none' }` as well when waveform preparation is unnecessary.
+Owned roots retain volume, mute, speed, and loop preferences across source changes.
+Borrowed controllers keep application ownership and settings.
+
+### Replace a part
+
+Slots accept a React node, `null` to hide a part, or a function that receives the
+default part and returns a wrapper or replacement. Replacements render inside
+the player root and can use individual controls or `usePlayerContext()`.
+
+```tsx
+<AudioPlayer
+  source={source}
+  slots={{
+    playPause: (
+      <PlayPauseButton className="brand-button">
+        {(state) => (state.playing ? "Pause episode" : "Listen")}
+      </PlayPauseButton>
+    ),
+    time: (defaultPart) => <strong>{defaultPart}</strong>,
+  }}
+/>
+```
+
+Slot names are `waveform`, `controls`, `status`, and the seven control keys.
+A part explicitly disabled in configuration stays hidden even if it has a slot.
+Replacing `controls` replaces the complete transport subtree. For arbitrary
+ordering and layout, compose the individual parts instead.
+
+## Individual components
+
+`PlayerRoot` shares one controller without adding a DOM wrapper. It accepts the
+same source/borrowed-player options as `usePlayer`, plus `onPlayer` and children.
+Nested roots are independent. A `Waveform` with no explicit ownership props uses
+the nearest root, including while that root's controller is still null.
+An explicit waveform `source` or `player` takes precedence over context.
+
+```tsx
+"use client";
+import {
+  PlayerRoot,
+  Waveform,
+  PlayPauseButton,
+  TimeDisplay,
+  SeekSlider,
+  MuteButton,
+  VolumeSlider,
+  PlayerStatus,
+} from "raavl/react";
+import "raavl/styles.css";
+
+export function CustomPlayer() {
+  return (
+    <PlayerRoot source={{ kind: "url", id: "episode", url: "/episode.mp3" }}>
+      <Waveform appearance={{ style: "bars" }} />
+      <div className="my-toolbar">
+        <PlayPauseButton />
+        <TimeDisplay />
+        <MuteButton />
+        <VolumeSlider />
+      </div>
+      <SeekSlider />
+      <PlayerStatus />
+    </PlayerRoot>
+  );
+}
+```
+
+| Component            | Props and behavior                                                                                                                                                  |
+| -------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `PlayPauseButton`    | Plays/pauses; disabled before metadata and during a pending play. Buffering remains pausable. `children` may receive `{ playing, pending, buffering, disabled }`    |
+| `SeekSlider`         | Native range in seconds, `step` defaults to `0.1`; `formatTime` customizes accessible time text                                                                     |
+| `TimeDisplay`        | `mode`: `elapsed`, `duration`, `remaining`, or default `elapsed-duration`; optional `formatTime(seconds)` and children receiving `{ elapsed, duration, remaining }` |
+| `MuteButton`         | Independent mute toggle; children may receive `{ pressed, disabled }`                                                                                               |
+| `VolumeSlider`       | Native range from 0 to 1, `step` defaults to `0.01`; changing volume does not implicitly unmute                                                                     |
+| `PlaybackRateSelect` | `options` defaults to `[0.75, 1, 1.25, 1.5, 2]`; values must be between 0.25 and 4; the current speed is included even if absent from options                       |
+| `LoopButton`         | Toggles full-recording looping; children may receive `{ pressed, disabled }`                                                                                        |
+| `PlayerStatus`       | Displays loading/buffering/errors; waveform failures do not disable playback. Children may receive `{ source, playback, waveform, error, waveformError }`           |
+
+All parts require a root, forward their native element ref, and accept ordinary
+native attributes, classes, styles, and accessible labels. Internal range/value
+bounds are managed by the player. Consumer event handlers run first; calling
+`preventDefault()` in a click/change handler suppresses the built-in command.
+Commands catch failures and report them through the root. Cancellation is filtered
+and the same error object is reported once.
+
+Seeking updates continuously during dragging. Clock updates do not overwrite an
+active drag value; release, blur, or cancellation returns the slider to the clock.
+Changing sources cancels an active gesture. Time and seek parts subscribe to the
+clock independently; time updates do not rerender the whole player/root.
+
+`usePlayerContext()` returns the nearest root's `Player | null` for custom parts.
+Combine it with the existing state/time hooks. Creating a custom part does not
+transfer ownership of the controller.
+
 ## Headless player
 
 `usePlayer(options?)` returns a `Player | null` without rendering a waveform or
@@ -13,32 +172,40 @@ source changes, cancellation, error reporting, and cleanup. Combine it with the
 state/time hooks and your own controls:
 
 ```tsx
-'use client';
+"use client";
 
-import { useState } from 'react';
-import { usePlayer, usePlayerState, usePlayerTime } from 'raavl/react';
+import { useState } from "react";
+import { usePlayer, usePlayerState, usePlayerTime } from "raavl/react";
 
 export function HeadlessPlayer() {
-  const [error, setError] = useState('');
+  const [error, setError] = useState("");
   const player = usePlayer({
     source: {
-      kind: 'url', id: 'episode-1', url: '/episode.mp3',
-      waveform: { kind: 'none' },
+      kind: "url",
+      id: "episode-1",
+      url: "/episode.mp3",
+      waveform: { kind: "none" },
     },
-    onError: error => setError(error.message),
+    onError: (error) => setError(error.message),
   });
-  const ready = usePlayerState(player, state => state?.source === 'ready');
-  const playing = usePlayerState(player, state => state?.playback === 'playing');
+  const ready = usePlayerState(player, (state) => state?.source === "ready");
+  const playing = usePlayerState(
+    player,
+    (state) => state?.playback === "playing",
+  );
   const seconds = usePlayerTime(player);
 
   return (
     <div>
-      <button disabled={!ready} onClick={() => {
-        if (!player || !ready) return;
-        if (playing) player.pause();
-        else void player.play().catch(() => {}); // onError observes playback failures.
-      }}>
-        {playing ? 'Pause' : 'Play'}
+      <button
+        disabled={!ready}
+        onClick={() => {
+          if (!player || !ready) return;
+          if (playing) player.pause();
+          else void player.play().catch(() => {}); // onError observes playback failures.
+        }}
+      >
+        {playing ? "Pause" : "Play"}
       </button>
       <output aria-label="Playback time">{seconds.toFixed(1)} s</output>
       {error && <p role="alert">{error}</p>}
@@ -52,11 +219,11 @@ keeps the usual decode behavior. Playback still requires browser media APIs.
 Imports and server rendering are safe, but playback is not a server-side API.
 For larger UIs, keep `usePlayerTime` in the small component that displays time.
 
-| Options | Ownership and behavior |
-| --- | --- |
-| `usePlayer({ source, onError? })` | Owns the player; source changes load through the same controller. Setting or changing the source to `null` clears it. |
-| `usePlayer()` | Owns an initially idle player; load imperatively with `player.setSource(source)` and handle its promise. |
-| `usePlayer({ player, onError? })` | Returns an existing player; observes errors without loading, clearing, or disposing it. |
+| Options                           | Ownership and behavior                                                                                                  |
+| --------------------------------- | ----------------------------------------------------------------------------------------------------------------------- |
+| `usePlayer({ source, onError? })` | Owns the player; source changes load through the same controller. Setting or changing the source to `null` clears it.   |
+| `usePlayer()`                     | Owns an initially idle player; load imperatively with `player.setSource(source)` and handle its promise.                |
+| `usePlayer({ player, onError? })` | Returns an existing player (or null while waiting for one); observes errors without loading, clearing, or disposing it. |
 
 An owned player is null before commit and during SSR. Do not dispose it yourself:
 its lifetime belongs to the component calling the hook. A borrowed player remains
@@ -88,13 +255,13 @@ is the lifetime of the audio player behind it. Choose based on how long playback
 needs to live, rather than whether you need custom controls: **both forms support
 custom controls**.
 
-| Question | `source={source}` | `player={player}` |
-| --- | --- | --- |
-| Who creates the player? | `Waveform`, after mount | `usePlayer` in a parent, or your application |
-| Who loads or changes the audio? | `Waveform`, when `source` changes | The owning hook's `source`, or your code with `player.setSource(source)` |
-| How do controls access it? | Capture it with `onPlayer={setPlayer}` | Use the player you already created |
-| What happens when the waveform unmounts? | Its view and player are disposed; playback stops | Its view is disposed; the player can keep playing |
-| Who disposes the player? | `Waveform` | The owning hook on unmount, or your application |
+| Question                                 | `source={source}`                                | `player={player}`                                                        |
+| ---------------------------------------- | ------------------------------------------------ | ------------------------------------------------------------------------ |
+| Who creates the player?                  | `Waveform`, after mount                          | `usePlayer` in a parent, or your application                             |
+| Who loads or changes the audio?          | `Waveform`, when `source` changes                | The owning hook's `source`, or your code with `player.setSource(source)` |
+| How do controls access it?               | Capture it with `onPlayer={setPlayer}`           | Use the player you already created                                       |
+| What happens when the waveform unmounts? | Its view and player are disposed; playback stops | Its view is disposed; the player can keep playing                        |
+| Who disposes the player?                 | `Waveform`                                       | The owning hook on unmount, or your application                          |
 
 The examples below use the same controls so you can see that ownership, rather
 than the buttons, is what changes. Replace `/episode.mp3` with an audio asset
@@ -109,10 +276,10 @@ until source metadata is ready, and handle the `play()` promise because a
 browser can reject playback.
 
 ```tsx
-'use client';
+"use client";
 
-import type { Player } from 'raavl';
-import { usePlayerState, usePlayerTime } from 'raavl/react';
+import type { Player } from "raavl";
+import { usePlayerState, usePlayerTime } from "raavl/react";
 
 type Props = {
   player: Player | null;
@@ -125,8 +292,11 @@ function PlaybackTime({ player }: { player: Player | null }) {
 }
 
 export function PlaybackControls({ player, onError }: Props) {
-  const ready = usePlayerState(player, state => state?.source === 'ready');
-  const playing = usePlayerState(player, state => state?.playback === 'playing');
+  const ready = usePlayerState(player, (state) => state?.source === "ready");
+  const playing = usePlayerState(
+    player,
+    (state) => state?.playback === "playing",
+  );
 
   function togglePlayback() {
     if (!player || !ready) return;
@@ -137,7 +307,7 @@ export function PlaybackControls({ player, onError }: Props) {
   return (
     <div>
       <button disabled={!ready} onClick={togglePlayback}>
-        {playing ? 'Pause' : 'Play'}
+        {playing ? "Pause" : "Play"}
       </button>
       <PlaybackTime player={player} />
     </div>
@@ -154,38 +324,47 @@ Use this when the audio belongs to one visible component, such as an episode
 card, a voice message, or a sound preview. Removing the card should stop its
 audio and release its resources.
 
-```tsx
-'use client';
+<Tabs items={["Preview", "Code"]} label="Episode card">
+<Tab value="Preview" forceMount>
+<OwnershipPreview kind="source" />
+</Tab>
+<Tab value="Code" forceMount>
 
-import { useState } from 'react';
-import type { Player } from 'raavl';
-import { Waveform } from 'raavl/react';
-import { PlaybackControls } from './PlaybackControls';
+```tsx
+"use client";
+
+import { useState } from "react";
+import type { Player } from "raavl";
+import { Waveform } from "raavl/react";
+import { PlaybackControls } from "./PlaybackControls";
 
 export function EpisodeCard() {
   const [player, setPlayer] = useState<Player | null>(null);
-  const [error, setError] = useState('');
+  const [error, setError] = useState("");
 
   return (
     <article>
       <h2>Episode 1: Behind the recording</h2>
       <Waveform
-        source={{ kind: 'url', id: 'episode-1', url: '/episode.mp3' }}
+        source={{ kind: "url", id: "episode-1", url: "/episode.mp3" }}
         onPlayer={setPlayer}
-        onError={error => setError(error.message)}
-        appearance={{ style: 'bars', height: 120 }}
-        interaction={{ drag: 'seek' }}
+        onError={(error) => setError(error.message)}
+        appearance={{ style: "bars", height: 120 }}
+        interaction={{ drag: "seek" }}
         aria-label="Episode 1 waveform"
       />
       <PlaybackControls
         player={player}
-        onError={error => setError(error.message)}
+        onError={(error) => setError(error.message)}
       />
       {error && <p role="alert">{error}</p>}
     </article>
   );
 }
 ```
+
+</Tab>
+</Tabs>
 
 After mount, `Waveform` creates a player, loads the episode, and passes the
 player to `onPlayer`. `setPlayer` is a stable callback, so the controls can
@@ -203,20 +382,26 @@ Use this when the player needs to outlive a particular waveform view. In an
 editor, a persistent toolbar can keep playing while the user hides the waveform
 panel. The parent editor owns playback; the panel borrows it.
 
-```tsx
-'use client';
+<Tabs items={["Preview", "Code"]} label="Shared player">
+<Tab value="Preview" forceMount>
+<OwnershipPreview kind="player" />
+</Tab>
+<Tab value="Code" forceMount>
 
-import { useState } from 'react';
-import { Waveform, usePlayer } from 'raavl/react';
-import { PlaybackControls } from './PlaybackControls';
+```tsx
+"use client";
+
+import { useState } from "react";
+import { Waveform, usePlayer } from "raavl/react";
+import { PlaybackControls } from "./PlaybackControls";
 
 export function AudioEditor() {
   const [showWaveform, setShowWaveform] = useState(true);
-  const [error, setError] = useState('');
+  const [error, setError] = useState("");
   // The hook owns playback, even when the waveform panel is hidden.
   const player = usePlayer({
-    source: { kind: 'url', id: 'episode-1', url: '/episode.mp3' },
-    onError: error => setError(error.message),
+    source: { kind: "url", id: "episode-1", url: "/episode.mp3" },
+    onError: (error) => setError(error.message),
   });
 
   return (
@@ -224,19 +409,19 @@ export function AudioEditor() {
       <h2>Episode editor</h2>
       <PlaybackControls
         player={player}
-        onError={error => setError(error.message)}
+        onError={(error) => setError(error.message)}
       />
       <button
         aria-expanded={showWaveform}
-        onClick={() => setShowWaveform(visible => !visible)}
+        onClick={() => setShowWaveform((visible) => !visible)}
       >
-        {showWaveform ? 'Hide waveform' : 'Show waveform'}
+        {showWaveform ? "Hide waveform" : "Show waveform"}
       </button>
       {showWaveform && player && (
         <Waveform
           player={player}
-          appearance={{ style: 'bars', height: 180 }}
-          interaction={{ drag: 'seek' }}
+          appearance={{ style: "bars", height: 180 }}
+          interaction={{ drag: "seek" }}
           aria-label="Episode editor waveform"
         />
       )}
@@ -245,6 +430,9 @@ export function AudioEditor() {
   );
 }
 ```
+
+</Tab>
+</Tabs>
 
 Try pressing Play, then Hide waveform: the audio and toolbar clock continue.
 Show waveform reconnects a new view to the same player at its current playback
@@ -263,21 +451,21 @@ mounted during navigation.
 
 ### Waveform props
 
-| Prop | Purpose |
-| --- | --- |
-| `appearance`, `viewport`, `interaction`, `theme` | Same settings as the DOM renderer |
-| `onPlayer(playerOrNull)` | Observe controller attachment and cleanup; use a stable callback |
-| `onView(viewOrNull)` | Attach optional timeline/minimap modules to the committed view |
-| `ref` | Forwarded player reference, null before commit and after cleanup |
-| `onError(error)` | Source, waveform, playback, and annotation errors; cancellation filtered |
-| `onDraw()` | Observe a completed draw |
-| `themeVersion` | Change to refresh Canvas colors after external CSS changes |
-| `annotations`, `annotationsRevision`, `onAnnotationsCommit` | Controlled annotation document, revision, and proposal callback |
-| `defaultAnnotations` | Initial library-owned annotation document |
-| `annotationStore` | Borrow an existing store |
-| `annotationRules`, `snapAnnotation` | Constraints and pointer snapping |
-| `onSelectionChange`, `onAnnotationSelect` | Selection callbacks |
-| `renderRegionLabel(region)` | Render a ReactNode label |
+| Prop                                                        | Purpose                                                                  |
+| ----------------------------------------------------------- | ------------------------------------------------------------------------ |
+| `appearance`, `viewport`, `interaction`, `theme`            | Same settings as the DOM renderer                                        |
+| `onPlayer(playerOrNull)`                                    | Observe controller attachment and cleanup; use a stable callback         |
+| `onView(viewOrNull)`                                        | Attach optional timeline/minimap modules to the committed view           |
+| `ref`                                                       | Forwarded player reference, null before commit and after cleanup         |
+| `onError(error)`                                            | Source, waveform, playback, and annotation errors; cancellation filtered |
+| `onDraw()`                                                  | Observe a completed draw                                                 |
+| `themeVersion`                                              | Change to refresh Canvas colors after external CSS changes               |
+| `annotations`, `annotationsRevision`, `onAnnotationsCommit` | Controlled annotation document, revision, and proposal callback          |
+| `defaultAnnotations`                                        | Initial library-owned annotation document                                |
+| `annotationStore`                                           | Borrow an existing store                                                 |
+| `annotationRules`, `snapAnnotation`                         | Constraints and pointer snapping                                         |
+| `onSelectionChange`, `onAnnotationSelect`                   | Selection callbacks                                                      |
+| `renderRegionLabel(region)`                                 | Render a ReactNode label                                                 |
 
 Ordinary div attributes pass through, including `className`, `style`, and `aria-label`. `children` are not part of the component API. Choose only one annotation ownership mode. Controlled annotations require both a revision and commit callback.
 
@@ -285,8 +473,11 @@ Ordinary div attributes pass through, including `className`, `style`, and `aria-
 
 ```tsx
 const [player, setPlayer] = useState<Player | null>(null);
-const ready = usePlayerState(player, state => state?.source === 'ready');
-const playing = usePlayerState(player, state => state?.playback === 'playing');
+const ready = usePlayerState(player, (state) => state?.source === "ready");
+const playing = usePlayerState(
+  player,
+  (state) => state?.playback === "playing",
+);
 const time = usePlayerTime(player);
 ```
 

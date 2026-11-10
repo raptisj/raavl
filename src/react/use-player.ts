@@ -6,7 +6,7 @@ export type UsePlayerOptions = {
   onError?: (error: RaavlError) => void;
 } & (
   | { source?: Source | null; player?: never }
-  | { player: Player; source?: never }
+  | { player: Player | null; source?: never }
 );
 
 /** Share cancellation filtering and error deduplication with the waveform view. */
@@ -32,15 +32,19 @@ export function usePlayer({
   const [owned, setOwned] = useState<Player | null>(null);
   const report = useErrorReporter(onError);
   // Ownership changes must not expose an instance disposed by the previous effect.
-  const player =
-    borrowed ?? (owned?.getSnapshot().source !== "disposed" ? owned : null);
+  const borrowing = borrowed !== undefined;
+  const player = borrowing
+    ? borrowed
+    : owned?.getSnapshot().source !== "disposed"
+      ? owned
+      : null;
 
   useEffect(() => {
-    if (borrowed) return;
+    if (borrowing) return;
     const instance = createPlayer();
     setOwned(instance);
     return () => instance.dispose();
-  }, [borrowed]);
+  }, [borrowing]);
 
   useEffect(() => {
     if (!player || player.getSnapshot().source === "disposed") return;
@@ -71,7 +75,7 @@ export function usePlayer({
     ],
   );
   useEffect(() => {
-    if (borrowed || !player || player.getSnapshot().source === "disposed")
+    if (borrowing || !player || player.getSnapshot().source === "disposed")
       return;
     if (!descriptor) {
       player.clearSource();
@@ -84,7 +88,7 @@ export function usePlayer({
         if (!abort.signal.aborted) report(error);
       });
     return () => abort.abort();
-  }, [player, borrowed, descriptor, report]);
+  }, [player, borrowing, descriptor, report]);
 
   return player;
 }

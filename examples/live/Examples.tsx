@@ -3,7 +3,6 @@
 import { useEffect, useMemo, useState, type ComponentType } from "react";
 import type {
   Player,
-  PlayerSnapshot,
   RaavlError,
   Source,
   WaveformData,
@@ -12,7 +11,7 @@ import type {
 } from "../../src";
 import { parseTheme, waveformThemes } from "../../src";
 import { defaultAppearance } from "../../src/themes";
-import { Waveform, usePlayerState, usePlayerTime } from "../../src/react";
+import { AudioPlayer, PlayerRoot, PlayPauseButton, TimeDisplay, VolumeSlider, PlaybackRateSelect, LoopButton, PlayerStatus } from "../../src/react";
 import { ModulesEditor } from "./ModulesEditor";
 import { ScaleLab } from "./ScaleLab";
 import { AnnotationEditor } from "./AnnotationEditor";
@@ -34,141 +33,19 @@ import {
 
 const sourceA: Source = { kind: "url", id: "demo-a", url: "/demo-a.wav" };
 const sourceB: Source = { kind: "url", id: "demo-b", url: "/demo-b.wav" };
-const selectState = (state: PlayerSnapshot | null) => state;
-const timeLabel = (time: number) =>
-  `${Math.floor(time / 60)}:${(time % 60).toFixed(1).padStart(4, "0")}`;
-function Clock({
-  player,
-  duration,
-}: {
-  player: Player | null;
-  duration: number;
-}) {
-  const time = usePlayerTime(player);
-  return (
-    <span className="clock" aria-label="Playback time">
-      {timeLabel(time)} <span>/ {timeLabel(duration)}</span>
-    </span>
-  );
-}
-function Transport({
-  player,
-  report,
-}: {
-  player: Player | null;
-  report: (error: RaavlError) => void;
-}) {
-  const state = usePlayerState(player, selectState),
-    ready = state?.source === "ready";
-  const playing =
-    state?.playback === "playing" || state?.playback === "buffering";
-  const command = (fn: () => void) => {
-    try {
-      fn();
-    } catch (error) {
-      report(error as RaavlError);
-    }
-  };
-  return (
-    <>
-      <div className="transport">
-        <button
-          className="play primary"
-          disabled={!ready}
-          onClick={() => {
-            if (playing) command(() => player!.pause());
-            else void player!.play().catch(report);
-          }}
-        >
-          {playing ? "Pause" : "Play"}
-        </button>
-        <button
-          disabled={!ready}
-          onClick={() =>
-            command(() => {
-              player!.pause();
-              player!.seek(0);
-            })
-          }
-        >
-          Reset
-        </button>
-        <button
-          disabled={!ready}
-          onClick={() =>
-            command(() =>
-              player!.seek(Math.max(0, player!.getCurrentTime() - 2)),
-            )
-          }
-        >
-          −2s
-        </button>
-        <button
-          disabled={!ready}
-          onClick={() =>
-            command(() => player!.seek(player!.getCurrentTime() + 2))
-          }
-        >
-          +2s
-        </button>
-        <Clock player={player} duration={state?.duration ?? 0} />
-      </div>
-      <div className="audio-settings">
-        <label>
-          Volume{" "}
-          <input
-            aria-label="Volume"
-            type="range"
-            min="0"
-            max="1"
-            step="0.05"
-            value={state?.volume ?? 1}
-            disabled={!ready}
-            onChange={(e) =>
-              command(() => player!.setVolume(Number(e.target.value)))
-            }
-          />
-        </label>
-        <label>
-          Speed{" "}
-          <select
-            aria-label="Playback speed"
-            value={state?.playbackRate ?? 1}
-            disabled={!ready}
-            onChange={(e) =>
-              command(() => player!.setPlaybackRate(Number(e.target.value)))
-            }
-          >
-            {[0.5, 0.75, 1, 1.25, 1.5, 2].map((rate) => (
-              <option key={rate} value={rate}>
-                {rate}×
-              </option>
-            ))}
-          </select>
-        </label>
-        <label className="checkbox">
-          <input
-            type="checkbox"
-            checked={state?.loop ?? false}
-            disabled={!ready}
-            onChange={(e) => command(() => player!.setLoop(e.target.checked))}
-          />
-          Loop
-        </label>
-      </div>
-      <div className="status">
-        <span>
-          Audio <b>{state?.source ?? "idle"}</b>
-        </span>
-        <span>
-          Waveform <b>{state?.waveform ?? "idle"}</b>
-        </span>
-        <span>
-          Playback <b>{state?.playback ?? "paused"}</b>
-        </span>
-      </div>
-    </>
-  );
+function Transport({ player, report }: { player: Player | null; report: (error: RaavlError) => void }) {
+  return <PlayerRoot player={player} onError={report}>
+    <div className="transport">
+      <PlayPauseButton />
+      <TimeDisplay />
+    </div>
+    <div className="audio-settings">
+      <label>Volume <VolumeSlider /></label>
+      <label>Speed <PlaybackRateSelect /></label>
+      <LoopButton />
+    </div>
+    <PlayerStatus />
+  </PlayerRoot>;
 }
 function PlayerCard({
   source,
@@ -238,16 +115,14 @@ function PlayerCard({
           Waveform detached. Native audio remains yours.
         </div>
       ) : mode === "react" ? (
-        <Waveform
+        <AudioPlayer
           source={source}
-          appearance={appearance}
-          theme={activeTheme}
-          themeVersion={pageTheme}
-          viewport={viewport}
-          interaction={{ drag: "seek" }}
+          waveform={{ appearance, theme: activeTheme, themeVersion: pageTheme,
+            viewport, interaction: { drag: "seek" }, "aria-label": `${title} waveform` }}
+          controls={{ playbackRate: true, loop: true }}
           onPlayer={setPlayer}
           onError={setError}
-          aria-label={`${title} waveform`}
+          aria-label={title}
         />
       ) : (
         <VanillaWaveform
@@ -259,7 +134,7 @@ function PlayerCard({
           onError={setError}
         />
       )}
-      <Transport player={player} report={setError} />
+      {(mode === "vanilla" || detached) && <Transport player={player} report={setError} />}
       <details className="customize" open>
         <summary>Customize this waveform</summary>
         <div className="view-settings">
@@ -734,7 +609,10 @@ export function Examples({ Code = PlainCodeSnippet }: { Code?: ComponentType<Cod
                     : scene[0]
                 }
                 scene={scene[0]}
-                mode={scene[0] === "modules" || scene[0] === "soundcloud" ? route.mode : "vanilla"}
+                // Playback previews share AudioPlayer across code tabs so audio keeps playing.
+                mode={scene[0] === "modules" || scene[0] === "soundcloud"
+                  ? route.mode
+                  : scene[0] === "annotations" || scene[0] === "scale" ? "vanilla" : "react"}
               />
               <CodeExample
                 Code={Code}

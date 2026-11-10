@@ -100,3 +100,96 @@
 :where(.raavl-annotation-pagination[hidden]) {
   display: none;
 }
+
+:where(.raavl-player) {
+  --raavl-control-background: #fff;
+  --raavl-control-color: #203b30;
+  --raavl-control-border: #cbd8ce;
+  display: grid;
+  gap: 12px;
+  padding: 16px;
+  border: 1px solid var(--raavl-control-border);
+  border-radius: var(--raavl-border-radius, 12px);
+  background: var(--raavl-background, #f3f6f2);
+  color: var(--raavl-control-color);
+  font:
+    14px/1.5 system-ui,
+    sans-serif;
+}
+:where(.raavl-controls) {
+  display: grid;
+  gap: 10px;
+}
+:where(.raavl-toolbar) {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+:where(.raavl-button, .raavl-playback-rate) {
+  font: inherit;
+  color: inherit;
+  padding: 8px 12px;
+  border: 1px solid var(--raavl-control-border, #cbd8ce);
+  border-radius: 6px;
+  background: var(--raavl-control-background, #fff);
+}
+:where(.raavl-button) {
+  cursor: pointer;
+  min-height: 40px;
+}
+:where(
+  .raavl-button[aria-pressed="true"],
+  .raavl-play-pause[data-playing="true"]
+) {
+  border-color: var(--raavl-progress-color, #285d50);
+  background: var(--raavl-progress-color, #285d50);
+  color: var(--raavl-control-active-color, #fff);
+}
+:where(
+  .raavl-button:disabled,
+  .raavl-volume:disabled,
+  .raavl-seek:disabled,
+  .raavl-playback-rate:disabled
+) {
+  opacity: 0.5;
+  cursor: default;
+}
+:where(
+  .raavl-button:focus-visible,
+  .raavl-volume:focus-visible,
+  .raavl-seek:focus-visible,
+  .raavl-playback-rate:focus-visible
+) {
+  outline: 3px solid var(--raavl-focus-color, #bd722e);
+  outline-offset: 3px;
+}
+:where(.raavl-volume, .raavl-seek) {
+  accent-color: var(--raavl-progress-color, #285d50);
+  min-height: 32px;
+  margin: 0;
+  cursor: pointer;
+}
+:where(.raavl-volume) {
+  width: 96px;
+  max-width: 100%;
+}
+:where(.raavl-seek) {
+  display: block;
+  width: 100%;
+  min-width: 0;
+}
+:where(.raavl-time) {
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+:where(.raavl-status) {
+  font: inherit;
+  font-size: 0.875em;
+}
+:where(.raavl-status[role="alert"]) {
+  color: var(--raavl-error-color, #a32323);
+}
+:where(.raavl-status:empty) {
+  display: none;
+}

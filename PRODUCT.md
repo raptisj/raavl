@@ -3,7 +3,7 @@
 This document describes the features implemented in this repository. It is the
 starting point for agents planning changes, answering product questions, or
 building integrations. Update it whenever shipped behavior, public APIs, or
-product limits change. Last reviewed against the source: 2026-11-09.
+product limits change. Last reviewed against the source: 2026-11-10.
 
 ## Product and status
 
@@ -229,7 +229,32 @@ document, excluded ID, duration, and pixels per second.
 
 ## React integration
 
-`raavl/react` exports `Waveform`, `usePlayer`, `usePlayerState`, `usePlayerTime`,
+The React ownership examples in the reference have Preview/Code tabs, with bundled
+audio and interactive card removal / waveform hiding. Tabs keep the previews
+mounted so inspecting code preserves playback and example state.
+
+- `AudioPlayer` composes the public player parts into a default waveform,
+  seek slider, play/pause, time, mute, volume, and status UI. Optional speed and
+  loop controls are configured through `controls`; every part accepts false,
+  true, or native component props. `waveform={false}` and `controls={false}`
+  independently hide these sections without disposing playback. Named slots
+  replace/wrap parts; `status` controls feedback visibility and props.
+- `PlayerRoot` shares a `usePlayer` controller without adding a DOM wrapper.
+  `Waveform` with no explicit source/player uses its context, including the
+  initially null player. Explicit waveform ownership still takes precedence.
+- Public parts are `PlayPauseButton`, `SeekSlider`, `TimeDisplay`, `MuteButton`,
+  `VolumeSlider`, `PlaybackRateSelect`, `LoopButton`, and `PlayerStatus`.
+  They forward native refs/attributes, support accessible labels, and subscribe
+  narrowly. `usePlayerContext()` exposes the nearest controller for custom parts.
+- Complete/individual controls catch command failures through the root. Pending
+  play disables repeat starts; buffering remains pausable. Seek gestures retain
+  their preview through clock updates and cancel on source changes. Waveform
+  errors remain independent of audio readiness.
+- Owned roots preserve volume, mute, speed, and loop across source changes;
+  borrowed players retain application ownership. `AudioPlayer` forwards a div
+  ref and exposes the controller through `onPlayer`.
+
+The headless and waveform APIs remain available: `Waveform`, `usePlayer`, `usePlayerState`, `usePlayerTime`,
 and `useAnnotations`, with React and React DOM as optional peers. Vanilla
 entry points do not import React.
 

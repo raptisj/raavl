@@ -45,6 +45,15 @@ assert(search.type, 'Static search index is missing its database type');
 for (const file of ['demo-a.wav', 'demo-b.wav', 'demo-a.json', 'demo-b.json']) {
   await access(new URL(file, root));
 }
+const reactReference = await readFile(new URL('docs/react.html', root), 'utf8');
+for (const label of ['Episode card preview', 'Shared player preview']) {
+  assert(reactReference.includes(`aria-label="${label}"`), `Missing ownership preview: ${label}`);
+}
+for (const action of ['Remove episode card', 'Hide waveform']) {
+  assert(reactReference.includes(action), `Missing ownership action: ${action}`);
+}
+assert(reactReference.includes('role="tab"'), 'Ownership examples must provide preview/code tabs');
+
 const examples = await readFile(new URL('examples.html', root), 'utf8');
 const { scenes } = await import('../../examples/live/routes.ts');
 for (const [id, , title] of scenes) {

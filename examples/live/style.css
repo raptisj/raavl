@@ -628,3 +628,12 @@
     align-items: center;
   }
 }
+
+/* The generic gallery range width should not constrain the complete player. */
+.examples-app input.raavl-seek {
+  width: 100%;
+  max-width: none;
+}
+.examples-app input.raavl-volume {
+  width: 96px;
+}
