@@ -12,7 +12,7 @@ const PlaygroundModeContext = createContext<{
 
 export function PlaygroundModeProvider({ children }: { children: ReactNode }) {
   const [mode, setMode] = useState<PlaygroundMode>('playback');
-  return <PlaygroundModeContext value={{ mode, setMode }}>{children}</PlaygroundModeContext>;
+  return <PlaygroundModeContext.Provider value={{ mode, setMode }}>{children}</PlaygroundModeContext.Provider>;
 }
 
 export function usePlaygroundMode() {

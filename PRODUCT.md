@@ -230,7 +230,7 @@ document, excluded ID, duration, and pixels per second.
 ## React integration
 
 `raavl/react` exports `Waveform`, `usePlayerState`, `usePlayerTime`, and
-`useAnnotations`, with React 19 and React DOM 19 as optional peers. Vanilla
+`useAnnotations`, with React and React DOM as optional peers. Vanilla
 entry points do not import React.
 
 - `<Waveform source={source} />` owns a controller created after mounting.

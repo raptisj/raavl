@@ -34,10 +34,10 @@ unimplemented features.
 Inspect the consuming app's package manager, package boundaries, framework,
 React version, asset serving, existing player code, and design conventions.
 
-- For React 19 with React DOM 19, use `Waveform` and hooks from `raavl/react`.
+- For React with React DOM, use `Waveform` and hooks from `raavl/react`.
   In Next.js App Router, place the interactive integration in a client component.
-- For vanilla JavaScript, other frameworks, or an app retaining another React
-  version, use `createPlayer` and `mountWaveform` through browser lifecycle hooks.
+- For vanilla JavaScript or other frameworks, use `createPlayer` and
+  `mountWaveform` through browser lifecycle hooks.
   Preserve the app's framework version unless upgrading it is part of the task.
 - Reuse an application-owned media element when the app already owns playback.
   That source requires supplied peaks or `waveform: { kind: 'none' }`.

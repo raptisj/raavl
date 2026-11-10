@@ -11,9 +11,59 @@ npm install raavl
 ```
 
 Use the [quickstart](docs/content/docs/quickstart.mdx) to build your first player
-with JavaScript or React. React 19 and React DOM 19 are optional peers for the
+with JavaScript or React. React and React DOM are optional peers for the
 `raavl/react` adapter. Import `raavl/styles.css` once for the default waveform
 styles, or supply your own CSS tokens.
+
+## Quickstart
+
+In an app with ESM and CSS imports, add a waveform container and a play button:
+
+```html
+<div id="waveform"></div>
+<button id="play" disabled>Play</button>
+```
+
+```js
+import { createPlayer, mountWaveform } from 'raavl';
+import 'raavl/styles.css';
+
+const player = createPlayer();
+const view = mountWaveform(document.querySelector('#waveform'), {
+  player,
+  interaction: { drag: 'seek' },
+});
+const button = document.querySelector('#play');
+
+const unsubscribe = player.subscribe(() => {
+  const state = player.getSnapshot();
+  button.disabled = state.source !== 'ready';
+  button.textContent = state.playback === 'playing' ? 'Pause' : 'Play';
+});
+
+button.onclick = () => {
+  if (player.getSnapshot().playback === 'playing') player.pause();
+  else void player.play().catch(console.error);
+};
+
+void player.setSource({
+  kind: 'url',
+  id: 'my-audio',
+  url: '/audio.mp3',
+}).catch(console.error);
+
+// Call when removing this player from your app.
+function cleanup() {
+  button.onclick = null;
+  unsubscribe();
+  view.dispose();
+  player.dispose();
+}
+```
+
+Replace `/audio.mp3` with an audio file served by your app. For a React example
+and more options, see the [full quickstart](docs/content/docs/quickstart.mdx).
+
 
 ## Documentation
 
