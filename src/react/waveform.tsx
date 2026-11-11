@@ -53,7 +53,7 @@ type CommonProps = Omit<
   annotationsRevision?: number;
   defaultAnnotations?: AnnotationDocument;
   annotationStore?: AnnotationStore;
-  annotationEditor?: boolean;
+  annotationEditor?: boolean | "inline" | "modal";
   annotationRules?: AnnotationRules;
   onAnnotationsCommit?: CommitHandler;
   onSelectionChange?: (selection: Selection) => void;

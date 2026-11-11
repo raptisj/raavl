@@ -88,28 +88,20 @@
 .dark .reading-links > a:hover h3 { color: var(--color-fd-primary); }
 .dark .live-dot { background: var(--color-fd-primary); }
 .dark .playground-tabs { background: var(--color-fd-background); border-color: var(--color-fd-border); }
-.dark .playground-tabs [role="tab"],
-.dark .region-hint,
-.dark .region-name,
-.dark .playground-wave .raavl-annotation-list { color: var(--color-fd-muted-foreground); }
+.dark .playground-tabs [role="tab"] { color: var(--color-fd-muted-foreground); }
 .dark .playground-tabs [aria-selected="true"] { background: var(--color-fd-accent); color: var(--color-fd-primary); box-shadow: none; }
-.dark .region-actions > button { color: var(--color-fd-primary); border-color: var(--color-fd-border); }
-.dark .region-name input { color: var(--color-fd-foreground); background: var(--color-fd-secondary); border-color: var(--color-fd-border); }
-.dark .playground-wave .raavl-annotation-list button { border-color: var(--color-fd-border); }
+.dark .listening-card { --raavl-error-color: #ffb6a8; }
 .dark .hero .eyebrow > span { background: var(--color-fd-ring); }
 .dark .principles strong { color: var(--color-fd-foreground); }
 .dark .quick-example pre { color: var(--color-fd-secondary-foreground); }
 .dark .example-toolbar [role="tab"] { color: var(--color-fd-muted-foreground); }
 .dark .example-toolbar [aria-selected="true"] { background: var(--color-fd-accent); color: var(--color-fd-primary); }
 .dark .copy-button,
-.dark .speed-control select,
 .dark .theme-control select { background: var(--color-fd-secondary); color: var(--color-fd-foreground); border-color: var(--color-fd-border); }
 .dark .theme-control { color: var(--color-fd-muted-foreground); }
 .dark .button-primary,
-.dark .listen-play,
 .dark .prompt-footer .copy-button { background: var(--color-fd-primary); color: var(--color-fd-primary-foreground); border-color: var(--color-fd-primary); }
-.dark .button-primary:hover,
-.dark .listen-play:hover:not(:disabled) { background: #b8e1c1; }
+.dark .button-primary:hover { background: #b8e1c1; }
 .dark .volume-control input { accent-color: var(--color-fd-primary); }
 .dark .playground-error { color: #f1bf98; border-color: #77563c; }
 

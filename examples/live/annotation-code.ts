@@ -3,19 +3,20 @@ import type { CodeMode } from "./snippets";
 import { exampleThemeCss, stylesheetCode } from "./example-theme";
 
 export type AnnotationCodeOptions = {
-  zoom?: number | "fit";
+  zoom?: number | "fit" | "auto";
   snap?: number;
+  editorLayout?: "inline" | "modal";
 };
 
 export function annotationCode(mode: CodeMode, options: AnnotationCodeOptions = {}, dark = false) {
   const initial = JSON.stringify(annotationDocument, null, 2);
-  const viewport = JSON.stringify({ zoom: options.zoom ?? "fit" });
+  const viewport = JSON.stringify({ zoom: options.zoom ?? "auto" });
   const rules = JSON.stringify({ snap: options.snap ?? 0.1, minLength: 0.1 });
   const styles = stylesheetCode(annotationStyles + exampleThemeCss(dark));
   if (mode === "react") return `import { useEffect, useRef, useState } from 'react'
 import { createAnnotations } from 'raavl'
 import type { AnnotationDocument, AnnotationStore, Player, Source, WaveformView } from 'raavl'
-import { Waveform, useAnnotations, usePlayerState, usePlayerTime } from 'raavl/react'
+import { Waveform, PlayerRoot, ActionsToolbar, useAnnotations } from 'raavl/react'
 import 'raavl/styles.css'
 
 const initial: AnnotationDocument = ${initial}
@@ -29,12 +30,8 @@ export default function AnnotationApp() {
   const [error, setError] = useState('')
   const view = useRef<WaveformView | null>(null)
   const snapshot = useAnnotations(store)
-  const ready = usePlayerState(player, state => state?.source === 'ready')
-  const playing = usePlayerState(player, state => state?.playback === 'playing')
-  const time = usePlayerTime(player)
   const document = snapshot?.document
   const selected = document && [...document.regions, ...document.markers].find(item => item.id === selectedId)
-  const enabled = ready && document?.sourceId === source.id
   const report = (error: Error) => setError(error.message)
 
   useEffect(() => {
@@ -51,29 +48,20 @@ export default function AnnotationApp() {
       onView={instance => { view.current = instance }}
       appearance={{ style: 'bars', height: 200 }} viewport={${viewport}}
       interaction={{ drag: 'select' }} annotationRules={${rules}}
-      annotationStore={store ?? undefined} annotationEditor
+      annotationStore={store ?? undefined} annotationEditor=${options.editorLayout === "modal" ? '"modal"' : "{true}"}
       onAnnotationSelect={setSelectedId}
       renderRegionLabel={region => <strong>◆ {region.label || region.id}</strong>}
       aria-label="Editable recording" />
-    <div className="transport">
-      <button className="primary" disabled={!ready} onClick={() => {
-        if (!player) return
-        if (playing) player.pause()
-        else void player.play().catch(report)
-      }}>{playing ? 'Pause' : 'Play'}</button>
-      <button disabled={!enabled || !selected || !('start' in selected)} onClick={() => {
-        if (player && selected && 'start' in selected) void player.playRange(selected).catch(report)
-      }}>Play region</button>
-      <button disabled={!enabled || !selected || !('start' in selected)} onClick={() => {
-        if (player && selected && 'start' in selected) void player.playRange({ ...selected, loop: true }).catch(report)
-      }}>Loop region</button>
-      <span className="clock">{time.toFixed(2)}s</span>
-    </div>
+    <PlayerRoot player={player} onError={report}>
+      <ActionsToolbar range={selected && 'start' in selected ? selected : null}
+        sourceId={document?.sourceId ?? null}
+        onCreateRegion={time => view.current?.createRegionAtTime(time)} />
+    </PlayerRoot>
     {error && <p role="alert" className="error">{error}</p>}
   </div>
 }`;
 
-  return `import { createPlayer, createAnnotations, mountWaveform } from 'raavl'
+  return `import { createPlayer, createAnnotations, mountWaveform, mountActionsToolbar } from 'raavl'
 import 'raavl/styles.css'
 
 // HTML: <div id="annotations"></div>
@@ -86,12 +74,7 @@ host.className = 'example-app annotation-app'
 host.append(style)
 host.insertAdjacentHTML('beforeend', \`
   <div data-waveform></div>
-  <div class="transport">
-    <button data-play class="primary" disabled>Play</button>
-    <button data-play-region disabled>Play region</button>
-    <button data-loop-region disabled>Loop region</button>
-    <span class="clock">0.00s</span>
-  </div>
+  <div data-actions></div>
   <p role="alert" class="error"></p>
 \`)
 const find = selector => host.querySelector(selector)
@@ -103,18 +86,17 @@ const selected = () => {
   return [...regions, ...markers].find(item => item.id === selectedId)
 }
 function report(error) { find('.error').textContent = error.message }
+const toolbar = mountActionsToolbar(find('[data-actions]'), { player, onError: report,
+  onCreateRegion: time => view.createRegionAtTime(time) })
 function render() {
-  const state = player.getSnapshot()
   const item = selected()
-  const ready = state.source === 'ready'
-  const enabled = ready && state.sourceId === annotations.getSnapshot().document.sourceId
-  find('[data-play]').disabled = !ready
-  find('[data-play]').textContent = state.playback === 'playing' ? 'Pause' : 'Play'
-  find('[data-play-region]').disabled = find('[data-loop-region]').disabled = !enabled || !item || !('start' in item)
+  toolbar.update({ range: item && 'start' in item ? item : null,
+    sourceId: annotations.getSnapshot().document.sourceId })
+  const state = player.getSnapshot()
   if (state.error || state.waveformError) report(state.error ?? state.waveformError)
 }
 const view = mountWaveform(find('[data-waveform]'), {
-  player, annotations, annotationEditor: true,
+  player, annotations, annotationEditor: ${options.editorLayout === "modal" ? '"modal"' : "true"},
   appearance: { style: 'bars', height: 200 }, viewport: ${viewport},
   interaction: { drag: 'select' }, annotationRules: ${rules},
   renderRegionLabel(region) {
@@ -126,23 +108,14 @@ const view = mountWaveform(find('[data-waveform]'), {
   onAnnotationError: report,
   label: 'Editable recording',
 })
-find('[data-play]').onclick = () => {
-  if (player.getSnapshot().playback === 'playing') player.pause()
-  else player.play().catch(report)
-}
-find('[data-play-region]').onclick = () => player.playRange(selected()).catch(report)
-find('[data-loop-region]').onclick = () => player.playRange({ ...selected(), loop: true }).catch(report)
 const off = player.subscribe(render)
 const offAnnotations = annotations.subscribe(render)
-const offTime = player.subscribeTime(() => {
-  find('.clock').textContent = player.getCurrentTime().toFixed(2) + 's'
-})
 render()
 await player.setSource({ kind: 'url', id: 'demo-a', url: '/demo-a.wav' }).catch(report)
 
 // Call when removing the app.
 function dispose() {
-  offTime(); offAnnotations(); off()
+  toolbar.dispose(); offAnnotations(); off()
   view.dispose(); player.dispose(); annotations.dispose()
   host.replaceChildren()
 }`;

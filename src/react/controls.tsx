@@ -13,6 +13,7 @@ import {
   type ReactNode,
 } from "react";
 import type { Player, PlayerSnapshot, RaavlError } from "../core/types.js";
+import { playbackIcons } from "../dom/playback-icons.js";
 import { usePlayerState, usePlayerTime } from "./hooks.js";
 import { usePlayerRoot } from "./player-root.js";
 
@@ -52,12 +53,15 @@ export const PlayPauseButton = forwardRef<
     buffering: playback === "buffering",
     disabled: Boolean(disabled || !ready || playback === "starting"),
   };
+  const defaultClass = children == null
+    ? "raavl-button raavl-play-pause raavl-play-pause-icon-button"
+    : "raavl-button raavl-play-pause";
   return (
     <button
       {...props}
       ref={ref}
       type={type}
-      className={classes("raavl-button raavl-play-pause", className)}
+      className={classes(defaultClass, className)}
       disabled={state.disabled}
       aria-label={
         props["aria-label"] ?? (state.playing ? "Pause audio" : "Play audio")
@@ -73,8 +77,11 @@ export const PlayPauseButton = forwardRef<
     >
       {typeof children === "function"
         ? children(state)
-        : (children ??
-          (state.pending ? "Starting…" : state.playing ? "Pause" : "Play"))}
+        : (children ?? (
+          <svg className="raavl-play-pause-icon" viewBox="0 0 24 24" aria-hidden="true">
+            <path d={state.playing ? playbackIcons.pause : playbackIcons.play} />
+          </svg>
+        ))}
     </button>
   );
 });

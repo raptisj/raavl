@@ -421,53 +421,11 @@ body {
   color: #245e49;
   box-shadow: 0 1px 3px #234f4010;
 }
-.region-tools {
-  padding: 0 0 18px;
-}
 .region-hint {
   margin: 0 0 10px;
   font-size: 10px;
   line-height: 1.6;
-  color: #62786a;
-}
-.region-actions {
-  display: flex;
-  align-items: center;
-  flex-wrap: wrap;
-  gap: 8px;
-}
-.region-actions > button {
-  display: inline-flex;
-  align-items: center;
-  gap: 5px;
-  padding: 6px 9px;
-  border: 1px solid #d6dfd2;
-  border-radius: 5px;
-  font-size: 10px;
-  color: #245e49;
-  background: transparent;
-}
-.region-name {
-  display: flex;
-  align-items: center;
-  gap: 7px;
-  min-width: 0;
-  font-size: 10px;
-  color: #62786a;
-}
-.region-name input {
-  width: 120px;
-  min-width: 0;
-  padding: 5px 7px;
-  border: 1px solid #d6dfd2;
-  border-radius: 4px;
-  background: #f3f5ee;
-  color: #365b46;
-  font-size: 11px;
-}
-.playground-wave .raavl-annotation-list {
-  font-size: 10px;
-  color: #62786a;
+  color: var(--color-fd-muted-foreground);
 }
 .playground-wave .raavl-region-label {
   font-size: 10px;
@@ -479,6 +437,11 @@ body {
   border-radius: 50%;
 }
 .listening-card {
+  --raavl-background: var(--color-fd-card);
+  --raavl-control-background: var(--color-fd-secondary);
+  --raavl-control-border: var(--color-fd-border);
+  --raavl-control-hover-background: var(--color-fd-accent);
+  --raavl-timeline-color: var(--color-fd-muted-foreground);
   max-width: 756px;
   margin: 28px auto 22px;
   border: 1px solid #d5dfce;
@@ -571,10 +534,26 @@ body {
   color: #62786a;
 }
 .playback-controls {
+  --raavl-progress-color: var(--color-fd-primary);
+  --raavl-control-active-color: var(--color-fd-primary-foreground);
   display: flex;
   align-items: center;
   gap: 16px;
   padding: 22px 0;
+}
+.playground-timeline {
+  margin-top: 8px;
+}
+.region-transport {
+  flex-wrap: wrap;
+}
+.region-transport .raavl-actions-toolbar {
+  gap: 8px;
+  margin-top: 0;
+  font: 11px/1.5 var(--font-mono);
+}
+.region-transport .raavl-button:hover:not(:disabled, .raavl-play-pause-icon-button) {
+  background: var(--raavl-control-hover-background);
 }
 .landing button {
   cursor: pointer;
@@ -584,20 +563,6 @@ body {
 .landing input:disabled {
   cursor: default;
   opacity: 0.4;
-}
-.listen-play {
-  display: grid;
-  place-items: center;
-  width: 42px;
-  height: 42px;
-  flex-shrink: 0;
-  border-radius: 50%;
-  background: #245e49;
-  color: white;
-  border: 0;
-}
-.listen-play:hover:not(:disabled) {
-  background: #183d34;
 }
 .icon-button {
   display: grid;
@@ -616,13 +581,6 @@ body {
 .playback-time > span {
   color: #62786a;
 }
-.listening-settings {
-  display: flex;
-  align-items: center;
-  gap: 22px;
-  margin-left: auto;
-}
-.speed-control select,
 .theme-control select {
   font: 10px/1.5 var(--font-mono);
   color: #526c5c;
@@ -635,11 +593,11 @@ body {
   display: flex;
   align-items: center;
   gap: 8px;
+  margin-left: auto;
   color: #62786a;
 }
 .volume-control input {
-  width: 65px;
-  height: 3px;
+  width: 100px;
   accent-color: #49806b;
 }
 .recording-footer {
@@ -909,8 +867,20 @@ body {
   .landing-footer > div {
     gap: 16px;
   }
+}
+@media (max-width: 640px) {
+  .playback-controls {
+    flex-wrap: wrap;
+  }
+  .volume-control {
+    flex: 0 0 100%;
+    gap: 12px;
+    margin-left: 0;
+  }
   .volume-control input {
-    width: 50px;
+    flex: 1;
+    min-width: 0;
+    height: 32px;
   }
 }
 @media (max-width: 480px) {
@@ -937,20 +907,24 @@ body {
     font-size: 12px;
   }
   .playback-controls {
-    gap: 9px;
-    flex-wrap: wrap;
+    gap: 12px 9px;
+  }
+  .region-transport {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    align-items: start;
+  }
+  .region-transport .raavl-button:not(.raavl-play-pause-icon-button) {
+    padding-inline: 8px;
+  }
+  .region-transport .icon-button {
+    height: 42px;
+  }
+  .region-transport .volume-control {
+    grid-column: 1 / -1;
   }
   .playback-time {
     font-size: 10px;
-  }
-  .listening-settings {
-    gap: 8px;
-  }
-  .volume-control {
-    gap: 4px;
-  }
-  .volume-control input {
-    width: 38px;
   }
   .recording-footer {
     flex-wrap: wrap;

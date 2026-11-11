@@ -1,5 +1,5 @@
 import { mountAnnotations, type AnnotationViewOptions } from "./annotations.js";
-import type { Region, Selection } from "../regions/index.js";
+import type { Selection } from "../regions/index.js";
 export type {
   AnnotationViewOptions,
   AnnotationSnapper,
@@ -19,7 +19,8 @@ import {
 export type { Appearance, WaveformTheme } from "../themes/index.js";
 
 export type Viewport = {
-  zoom?: number | "fit";
+  /** Auto fits wide views and uses 100 px/s for annotation editors below 600px. */
+  zoom?: number | "fit" | "auto";
   follow?: "off" | "visible" | "center";
 };
 export type Interaction = {
@@ -56,13 +57,15 @@ export type WaveformView = {
   refreshTheme(): void;
   getSelection(): Selection;
   clearSelection(): void;
+  /** Open a draft selection at time; the editor confirms creation. */
+  createRegionAtTime(time: number): void;
   createRegionFromSelection(id: string, label?: string): void;
   dispose(): void;
 };
 
 const defaults = {
   appearance: defaultAppearance,
-  viewport: { zoom: "fit", follow: "visible" } as Required<Viewport>,
+  viewport: { zoom: "auto", follow: "visible" } as Required<Viewport>,
   interaction: { seek: "click", drag: "none" } as Required<Interaction>,
 };
 function merge<T extends object>(
@@ -138,15 +141,18 @@ export function mountWaveform(
     disposed: false,
   });
   const viewportListeners = new Set<() => void>();
+  function contentWidth(width: number, duration: number) {
+    const zoom = viewport.zoom === "auto"
+      ? annotationOptions.annotationEditor && width < 600 ? 100 : "fit"
+      : viewport.zoom;
+    return zoom === "fit" ? width : Math.max(width, duration * zoom);
+  }
   const publishViewport = () => {
     const currentDuration =
       player?.getSnapshot().duration || data?.duration || 0;
     const currentWidth = Math.max(1, root.clientWidth);
-    const contentWidth =
-      viewport.zoom === "fit"
-        ? currentWidth
-        : Math.max(currentWidth, currentDuration * viewport.zoom);
-    const pps = currentDuration ? contentWidth / currentDuration : 0;
+    const total = contentWidth(currentWidth, currentDuration);
+    const pps = currentDuration ? total / currentDuration : 0;
     const start = pps
       ? Math.min(
           Math.max(0, currentDuration - currentWidth / pps),
@@ -243,10 +249,7 @@ export function mountWaveform(
   function draw() {
     width = Math.max(1, root.clientWidth);
     duration = player?.getSnapshot().duration || data?.duration || 0;
-    totalWidth =
-      viewport.zoom === "fit"
-        ? width
-        : Math.max(width, duration * viewport.zoom);
+    totalWidth = contentWidth(width, duration);
     surface.style.width = `${totalWidth}px`;
     root.style.height = `${appearance.height}px`;
     const ratio = Math.min(devicePixelRatio || 1, 3);
@@ -450,7 +453,7 @@ export function mountWaveform(
   let lastTouchTime = -Infinity;
   let lastClickRegionId: string | undefined;
   let doubleClickBlocked = false;
-  const playRegion = (region: Region) => {
+  const playRegion = (region: NonNullable<Selection>) => {
     if (player?.getSnapshot().source !== "ready") return;
     void player
       .playRange({ start: region.start, end: region.end })
@@ -628,7 +631,7 @@ export function mountWaveform(
       splitChannels: appearance.splitChannels,
       selectMode: interaction.drag === "select",
     }),
-    player?.getCurrentTime,
+    player ? playRegion : undefined,
   );
   const observer = new ResizeObserver(invalidate);
   observer.observe(root);
@@ -700,7 +703,7 @@ export function mountWaveform(
       const v = merge(viewport, patch.viewport, defaults.viewport);
       const i = merge(interaction, patch.interaction, defaults.interaction);
       validateAppearance(a);
-      if (v.zoom !== "fit") finite(v.zoom, "Zoom", 0.01, 10000);
+      if (v.zoom !== "fit" && v.zoom !== "auto") finite(v.zoom, "Zoom", 0.01, 10000);
       if (
         !["line", "bars"].includes(a.style) ||
         !["off", "visible", "center"].includes(v.follow) ||
@@ -780,6 +783,7 @@ export function mountWaveform(
     getSelection: annotationLayer.getSelection,
     clearSelection: annotationLayer.clearSelection,
     createRegionFromSelection: annotationLayer.createRegionFromSelection,
+    createRegionAtTime: annotationLayer.createRegionAtTime,
     dispose() {
       if (disposed) return;
       disposed = true;
@@ -817,3 +821,5 @@ export function mountWaveform(
   }
   return view;
 }
+
+export { mountActionsToolbar, type ActionsToolbarOptions } from "./actions-toolbar.js";

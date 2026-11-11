@@ -1,6 +1,7 @@
 import { defaultPlaybackOptions, playbackStyles } from "./playback-example";
 import type { CodeMode, CodeScene, ExampleCodeOptions } from "./snippets";
 import { exampleThemeCss, stylesheetCode } from "./example-theme";
+import { playbackIcons } from "../../src/dom/playback-icons";
 
 export function playbackCode(
   scene: CodeScene,
@@ -130,7 +131,9 @@ function mountPlayer(label, options = waveform) {
     <div class="raavl-controls" role="group" aria-label="Playback controls">
       <input class="raavl-seek" type="range" min="0" max="1" step="0.1" value="0" aria-label="Seek audio" disabled>
       <div class="raavl-toolbar">
-        <button class="raavl-button raavl-play-pause" aria-label="Play audio" disabled>Play</button>
+        <button class="raavl-button raavl-play-pause raavl-play-pause-icon-button" aria-label="Play audio" disabled>
+          <svg class="raavl-play-pause-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="${playbackIcons.play}"></path></svg>
+        </button>
         <output class="raavl-time" aria-label="Playback time" aria-live="off">0:00 / 0:00</output>
         <button class="raavl-button raavl-mute" aria-label="Mute audio" disabled>Mute</button>
         <input class="raavl-volume" type="range" min="0" max="1" step="0.01" value="1" aria-label="Volume" disabled>
@@ -151,6 +154,7 @@ function mountPlayer(label, options = waveform) {
   })
   const seek = find('.raavl-seek')
   const play = find('.raavl-play-pause')
+  const playIcon = play.querySelector('path')
   const mute = find('.raavl-mute')
   const volume = find('.raavl-volume')
   const rate = find('.raavl-playback-rate')
@@ -175,7 +179,7 @@ function mountPlayer(label, options = waveform) {
     const pending = state.playback === 'starting'
     for (const control of [play, mute, volume, rate, loop]) control.disabled = !ready
     play.disabled ||= pending
-    play.textContent = pending ? 'Starting…' : playing ? 'Pause' : 'Play'
+    playIcon.setAttribute('d', playing ? '${playbackIcons.pause}' : '${playbackIcons.play}')
     play.setAttribute('aria-label', playing ? 'Pause audio' : 'Play audio')
     play.dataset.playing = String(playing)
     play.dataset.buffering = String(state.playback === 'buffering')

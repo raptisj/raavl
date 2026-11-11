@@ -168,16 +168,21 @@ const view = mountWaveform(container, {
 />
 ```
 
-Choose a badge below the waveform to replace the badge list with an inline editor.
+Click a region on the waveform or choose a badge below it to open the inline editor.
 Regions have label, start, and end fields. Markers have label and time fields.
+Label and time edits preview on the waveform as you type.
 Apply or press Enter in a field to save. Cancel or press Escape to discard the draft.
 Locked annotations can be relabeled. Unlock them to change their times or delete them.
 In controlled mode, apply and delete propose a change and the editor stays open
 until the new document is published or the draft is cancelled.
 
-The controls also create regions from the current drag selection and, when a
-player is attached, add markers at the playhead. They use the supplied store's
-validation and show validation errors inline. Style them with
+Drag out a temporary range to open the inline editor. Drag the range to move it
+or drag either edge to resize it. You can also type a start or end time or use
+Up and Down in either time field to adjust it by 0.1 seconds (1 second with
+Shift). With a player attached, use **Play region**
+to preview only that range. Use the checkmark to save it as a region, or use
+Cancel or Escape to clear it. The controls use the supplied store's validation
+and show validation errors inline. Style them with
 `.raavl-annotation-create`, `.raavl-annotation-editor`,
 and `.raavl-annotation-actions`.
 
@@ -191,8 +196,8 @@ and `.raavl-annotation-actions`.
   to end. Drag the region body to move it or a handle to resize it. Drag a
   marker to move it.
 - To add a marker at a single point, seek there and call
-  `store.addMarker({ id, time: player.getCurrentTime(), label })`. The examples
-  expose this as **Add marker at playhead**.
+  `store.addMarker({ id, time: player.getCurrentTime(), label })`. The modules
+  example exposes this as **Add marker at playhead**.
 - Arrow keys move the focused annotation or handle. The default keyboard step is
   0.1 seconds; Shift makes it 1 second. A configured snap interval replaces the
   base step, with Shift using ten intervals. Delete/Backspace removes an unlocked
@@ -212,6 +217,75 @@ It disables full-recording looping. Pause, explicit seek, source replacement,
 and disposal clear range scheduling. Browser timer throttling and media seeking
 can introduce gaps or overshoot, especially in background tabs. The promise
 resolves when playback starts, not when the range finishes.
+
+## Modal editor
+
+Keep `annotationEditor={true}` (or `"inline"`) for inline editing, or use
+`annotationEditor="modal"` to open creation and editing in a native modal dialog:
+
+```tsx
+<Waveform annotationEditor="modal" annotationStore={store} />
+// Complete player:
+<AudioPlayer waveform={{ annotationEditor: "modal", annotationStore: store }} />
+```
+
+Vanilla usage accepts the same option: `mountWaveform(container, { player,
+annotations: store, annotationEditor: "modal" })`. The example's **Editor layout**
+selector lets you try both modes.
+
+Selecting a badge opens its editor. Creating at the playhead or finishing a drag
+selection opens a draft; confirmation saves it and Cancel or Escape discards it.
+The modal keeps keyboard focus inside while open and returns focus when dismissed.
+
+## Responsive zoom
+
+Annotation editors default to `viewport.zoom: "auto"`: below 600px wide they use
+100 pixels per second and scroll horizontally, giving region labels and handles
+more room. Wider editors fit the recording. Set `zoom: "fit"` or a numeric pixels-per-second
+value to override this behavior. Ordinary waveforms continue to fit at every width.
+
+## Playback actions toolbar
+
+`ActionsToolbar` from `raavl/react` provides Play/Pause, Play region, Loop region,
+and the playback clock. Use it inside `PlayerRoot` alongside individual components:
+
+```tsx
+<PlayerRoot player={player} onError={report}>
+  <ActionsToolbar
+    range={selectedRegion ?? null}
+    sourceId={document.sourceId}
+    onCreateRegion={time => view.current?.createRegionAtTime(time)}
+  />
+</PlayerRoot>
+```
+
+Buttons default to `icons`; `text` and `icons-text` remain optional. Icon buttons retain accessible
+labels and tooltips. Pass the range's `sourceId` to disable region playback when
+another recording is loaded. Without a region, Play/Pause remains available.
+
+The create-region button uses `onCreateRegion(time)`. `view.createRegionAtTime(time)`
+opens the new-region editor with a one-second draft starting at that time. It respects
+configured length rules and clips the end to the recording duration. The annotation
+is only created when you confirm; cancelling discards the draft. Creation is
+disabled at the end of the recording or when the audio source does not match.
+
+The complete `AudioPlayer` includes this toolbar when `waveform.annotationEditor`
+is enabled, follows its selected region, and wires up creation automatically. Customize it with `actions={{ variant:
+'icons' }}`, replace it with `slots.actions`, or hide it with `actions={false}`.
+The annotation toolbar replaces the default transport; an explicit `controls`
+configuration can show additional controls alongside it.
+
+For vanilla JavaScript, import `mountActionsToolbar` from `raavl` or `raavl/dom`:
+
+```ts
+const toolbar = mountActionsToolbar(container, {
+  player, onError: report,
+  onCreateRegion: time => view.createRegionAtTime(time),
+})
+toolbar.update({ range: selectedRegion, sourceId: document.sourceId })
+// When removing the editor:
+toolbar.dispose()
+```
 
 ## Persistence and customization
 

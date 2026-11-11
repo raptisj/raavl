@@ -27,3 +27,5 @@ export {
   stringifyAnnotations,
 } from "./regions/index.js";
 export type * from "./regions/index.js";
+
+export { mountActionsToolbar, type ActionsToolbarOptions } from "./dom/actions-toolbar.js";

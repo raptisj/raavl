@@ -14,7 +14,7 @@ import {
   type ControlledAnnotations,
   type Region,
 } from "raavl";
-import { Waveform, usePlayerState, usePlayerTime } from "raavl/react";
+import { Waveform, PlayerRoot, ActionsToolbar } from "raavl/react";
 import { usePageTheme } from './usePageTheme';
 import { Preview } from "./Preview";
 import { DemoSettings } from "./DemoSettings";
@@ -32,9 +32,11 @@ const labelSlot = (region: Region) => {
 type CanvasProps = {
   source: Source;
   annotations: AnnotationStore | ControlledAnnotations | null;
-  zoom: number | "fit";
+  zoom: number | "fit" | "auto";
   snap: number;
+  editorLayout: "inline" | "modal";
   onPlayer: (player: Player | null) => void;
+  onView: (view: WaveformView | null) => void;
   onSelect: (id: string | null) => void;
   onError: (error: Error) => void;
 };
@@ -53,10 +55,12 @@ function VanillaEditor(props: CanvasProps) {
       interaction: { drag: "select" },
       appearance: { style: "bars", height: 200 },
     });
+    latest.current.onView(view.current);
     latest.current.onPlayer(instance);
     return () => {
       view.current?.dispose();
       view.current = null;
+      latest.current.onView(null);
       instance.dispose();
       latest.current.onPlayer(null);
       player.current = null;
@@ -75,7 +79,7 @@ function VanillaEditor(props: CanvasProps) {
   useEffect(() => {
     view.current?.update({
       annotations: props.annotations,
-      annotationEditor: true,
+      annotationEditor: props.editorLayout,
       annotationRules: { snap: props.snap, minLength: 0.1 },
       viewport: { zoom: props.zoom },
       renderRegionLabel: labelSlot,
@@ -86,13 +90,11 @@ function VanillaEditor(props: CanvasProps) {
     props.annotations,
     props.zoom,
     props.snap,
+    props.editorLayout,
     props.onSelect,
     props.onError,
   ]);
   return <div ref={container} />;
-}
-function Time({ player }: { player: Player | null }) {
-  return <span className="clock">{usePlayerTime(player).toFixed(2)}s</span>;
 }
 
 export function AnnotationEditor({ mode, onOptionsChange }: {
@@ -100,6 +102,8 @@ export function AnnotationEditor({ mode, onOptionsChange }: {
   onOptionsChange?: (options: ExampleCodeOptions) => void;
 }) {
   const pageTheme = usePageTheme();
+  const view = useRef<WaveformView | null>(null);
+  const onView = useCallback((instance: WaveformView | null) => { view.current = instance; }, []);
   const [document, setDocument] = useState<AnnotationDocument>(initial),
     [revision, setRevision] = useState(0);
   const [ownership, setOwnership] = useState<"controlled" | "store">(
@@ -113,15 +117,11 @@ export function AnnotationEditor({ mode, onOptionsChange }: {
     [notice, setNotice] = useState(""),
     [commits, setCommits] = useState(0);
   const [source, setSource] = useState(first),
-    [zoom, setZoom] = useState<number | "fit">("fit"),
+    [zoom, setZoom] = useState<number | "fit" | "auto">("auto"),
     [snap, setSnap] = useState(0.1);
-  useEffect(() => { onOptionsChange?.({ annotations: { zoom, snap } }); }, [zoom, snap, onOptionsChange]);
+  const [editorLayout, setEditorLayout] = useState<"inline" | "modal">("inline");
+  useEffect(() => { onOptionsChange?.({ annotations: { zoom, snap, editorLayout } }); }, [zoom, snap, editorLayout, onOptionsChange]);
   const [json, setJson] = useState(stringifyAnnotations(initial));
-  const status = usePlayerState(player, (snapshot) => snapshot?.source);
-  const playing = usePlayerState(
-    player,
-    (snapshot) => snapshot?.playback === "playing",
-  );
   const selected = [...document.regions, ...document.markers].find(
     (item) => item.id === selectedId,
   );
@@ -196,8 +196,6 @@ export function AnnotationEditor({ mode, onOptionsChange }: {
         temporary.dispose();
       }
     });
-  const matching = source.id === document.sourceId;
-  const enabled = status === "ready" && matching;
   const load = (text: string) =>
     edit((target) => target.replaceDocument(parseAnnotations(text, source.id)));
   const downloadable = () =>
@@ -230,6 +228,7 @@ export function AnnotationEditor({ mode, onOptionsChange }: {
               source={source}
               themeVersion={pageTheme}
               onPlayer={setPlayer}
+              onView={onView}
               onError={report}
               appearance={{ style: "bars", height: 200 }}
               viewport={{ zoom }}
@@ -242,7 +241,7 @@ export function AnnotationEditor({ mode, onOptionsChange }: {
                     onAnnotationsCommit: commit,
                   }
                 : { annotationStore: store ?? undefined })}
-              annotationEditor
+              annotationEditor={editorLayout}
               onAnnotationSelect={setSelectedId}
               renderRegionLabel={(region) => (
                 <strong>◆ {region.label || region.id}</strong>
@@ -255,42 +254,20 @@ export function AnnotationEditor({ mode, onOptionsChange }: {
               annotations={ownership === "controlled" ? controlled : store}
               zoom={zoom}
               snap={snap}
+              editorLayout={editorLayout}
               onPlayer={setPlayer}
+              onView={onView}
               onSelect={setSelectedId}
               onError={report}
             />
           )}
-          <div className="transport">
-            <button
-              className="primary"
-              disabled={status !== "ready"}
-              onClick={() => {
-                if (playing) player!.pause();
-                else void player!.play().catch(report);
-              }}
-            >
-              {playing ? "Pause" : "Play"}
-            </button>
-            <button
-              disabled={!enabled || !selected || !("start" in selected)}
-              onClick={() => {
-                if (selected && "start" in selected)
-                  void player!.playRange(selected).catch(report);
-              }}
-            >
-              Play region
-            </button>
-            <button
-              disabled={!enabled || !selected || !("start" in selected)}
-              onClick={() => {
-                if (selected && "start" in selected)
-                  void player!.playRange({ ...selected, loop: true }).catch(report);
-              }}
-            >
-              Loop region
-            </button>
-            <Time player={player} />
-          </div>
+          <PlayerRoot player={player} onError={report}>
+            <ActionsToolbar
+              range={selected && "start" in selected ? selected : null}
+              sourceId={document.sourceId}
+              onCreateRegion={time => view.current?.createRegionAtTime(time)}
+            />
+          </PlayerRoot>
           {error && <p role="alert" className="error">{error}</p>}
         </div>
       </Preview>
@@ -340,6 +317,13 @@ export function AnnotationEditor({ mode, onOptionsChange }: {
         </details>
         <div className="audio-settings editor-settings">
           <label>
+            Editor layout
+            <select value={editorLayout} onChange={event => setEditorLayout(event.target.value as "inline" | "modal")}>
+              <option value="inline">Inline</option>
+              <option value="modal">Modal</option>
+            </select>
+          </label>
+          <label>
             Ownership
             <select
               value={ownership}
@@ -369,12 +353,13 @@ export function AnnotationEditor({ mode, onOptionsChange }: {
               value={zoom}
               onChange={(event) =>
                 setZoom(
-                  event.target.value === "fit"
-                    ? "fit"
+                  (event.target.value === "fit" || event.target.value === "auto")
+                    ? event.target.value
                     : Number(event.target.value),
                 )
               }
             >
+              <option value="auto">Auto (mobile zoom)</option>
               <option value="fit">Fit</option>
               <option value="150">150 px/s</option>
               <option value="300">300 px/s</option>

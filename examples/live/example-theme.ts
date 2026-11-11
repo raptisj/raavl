@@ -17,7 +17,7 @@ export function examplePalette(dark: boolean) {
 export function exampleThemeCss(dark = false) {
   const p = examplePalette(dark);
   return `
-.example-app { background: ${p.background}; }
+.example-app { background: ${p.background}; --raavl-progress-color: ${p.primary}; --raavl-control-active-color: ${p.primaryText}; }
 .example-app, .example-app .annotation-app, .example-app .playback-app { color: ${p.text}; color-scheme: ${dark ? "dark" : "light"}; }
 .example-app, .example-app * { box-sizing: border-box; }
 .example-app .raavl-waveform {
@@ -28,16 +28,16 @@ export function exampleThemeCss(dark = false) {
   --raavl-selection-color: ${p.selection}; --raavl-label-color: ${p.label};
 }
 
-.example-app .raavl-player { --raavl-background: ${p.background}; --raavl-progress-color: ${p.primary}; --raavl-control-background: ${p.control}; --raavl-control-color: ${p.text}; --raavl-control-border: ${p.border}; --raavl-control-active-color: ${p.primaryText}; }
-.example-app button, .example-app select, .example-app input:not([type="range"]):not([type="file"]) { color: ${p.text}; background: ${p.control}; border-color: ${p.border}; }
-.example-app button:hover:not(:disabled) { background: ${p.hover}; }
+.example-app .raavl-player { --raavl-background: ${p.background}; --raavl-control-background: ${p.control}; --raavl-control-color: ${p.text}; --raavl-control-border: ${p.border}; }
+.example-app button:where(:not(.raavl-play-pause-icon-button)), .example-app select, .example-app input:not([type="range"]):not([type="file"]) { color: ${p.text}; background: ${p.control}; border-color: ${p.border}; }
+.example-app button:hover:not(:disabled, .raavl-play-pause-icon-button) { background: ${p.hover}; }
 .example-app button.primary { background: ${p.primary}; color: ${p.primaryText}; border-color: ${p.primary}; }
 .example-app button.primary:hover:not(:disabled) { background: ${p.primary}; }
-.example-app .raavl-play-pause[data-playing="true"], .example-app .raavl-button[aria-pressed="true"] { background: ${p.primary}; color: ${p.primaryText}; }
+.example-app .raavl-play-pause[data-playing="true"]:where(:not(.raavl-play-pause-icon-button)), .example-app .raavl-button[aria-pressed="true"] { background: ${p.primary}; color: ${p.primaryText}; }
 .example-app .raavl-timeline { --raavl-timeline-color: ${p.muted}; }
 .example-app .raavl-minimap-control { --raavl-focus-color: ${p.focus}; }
 .example-app .helper, .example-app label, .example-app .source-form p, .example-app .file-drop span { color: ${p.muted}; }
-.example-app .raavl-annotation-list { --raavl-control-border: ${p.border}; --raavl-control-background: ${p.control}; --raavl-error-color: ${dark ? "#ffb6a8" : "#a32323"}; }
+.example-app .raavl-annotation-list { --raavl-background: ${p.background}; --raavl-control-border: ${p.border}; --raavl-control-background: ${p.control}; --raavl-error-color: ${dark ? "#ffb6a8" : "#a32323"}; }
 .example-app .file-drop { border-color: ${p.border}; }
 .example-app .file-drop { background: ${p.control}; }
 .example-app :focus-visible { outline: 3px solid ${p.focus}; outline-offset: 3px; }

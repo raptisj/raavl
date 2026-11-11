@@ -1,6 +1,6 @@
 # 🌊 raavl
 
-raavl is an ergonomic TypeScript audio waveform player and annotation toolkit
+**Raavl** is an ergonomic TypeScript audio waveform player and annotation toolkit
 for JavaScript and React, with reliable playback and customizable waveforms.
 The name is inspired by Maurice **Ravel**.
 

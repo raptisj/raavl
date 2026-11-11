@@ -47,7 +47,7 @@ export function ScaleLab({ onOptionsChange }: { onOptionsChange?: (options: Exam
   }
   return <article className="player-card">
     <h3>Two-hour waveform · 10,000 editable regions</h3>
-    <p>This uses the actual vanilla rendering engine, shared by the React adapter. Synthetic supplied peaks use 11.52 MB; no two-hour audio is downloaded or decoded.</p>
+    <p className="helper">This uses the actual vanilla rendering engine, shared by the React adapter. Synthetic supplied peaks use 11.52 MB; no two-hour audio is downloaded or decoded.</p>
     <Preview><div ref={host} /></Preview>
     <DemoSettings summary="Benchmark">
       <div className="view-settings">

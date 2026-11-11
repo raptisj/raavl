@@ -119,12 +119,16 @@ it("creates one active controller for the complete player and waveform through S
   expect(create.mock.results[0].value.getSnapshot().source).toBe("disposed");
   expect(host.querySelectorAll(".raavl-waveform")).toHaveLength(1);
   expect(button("Play audio").disabled).toBe(true);
+  expect(button("Play audio").classList.contains("raavl-play-pause-icon-button")).toBe(true);
+  const playIcon = button("Play audio").querySelector("path")?.getAttribute("d");
+  expect(playIcon).toBeTruthy();
   expect(host.textContent).toContain("Loading audio");
   await ready(active);
   expect(button("Play audio").disabled).toBe(false);
   await act(async () => button("Play audio").click());
   expect(active.getSnapshot().playback).toBe("playing");
-  expect(button("Pause audio").textContent).toBe("Pause");
+  expect(button("Pause audio").querySelector("svg")?.getAttribute("aria-hidden")).toBe("true");
+  expect(button("Pause audio").querySelector("path")?.getAttribute("d")).not.toBe(playIcon);
   await act(async () => button("Pause audio").click());
   expect(active.getSnapshot().playback).toBe("paused");
   await act(async () => root!.unmount());
@@ -534,8 +538,9 @@ it.each(["react", "vanilla"])("shows the annotation app actions in Preview and t
     );
     expect(buttons).toEqual(expect.arrayContaining([
       "Play region", "Loop region", "Create region from selection",
-      "Add marker at playhead", "Apply edit", "Delete annotation", "Cancel edit",
+      "Apply edit", "Delete annotation", "Cancel edit",
     ]));
+    expect(buttons).not.toContain("Add marker at playhead");
     expect(code).toContain(mode === "react" ? "annotationEditor" : "annotationEditor: true");
     expect(code).not.toContain("Create region from selection");
     expect(settings.textContent).toContain("Simulate external edit");
@@ -543,4 +548,156 @@ it.each(["react", "vanilla"])("shows the annotation app actions in Preview and t
   } finally {
     window.history.replaceState({}, "", "/");
   }
+});
+
+it("connects the complete annotation player's actions to its selected region", async () => {
+  const active = await render({ waveform: {
+    annotationEditor: true,
+    defaultAnnotations: { version: 1, sourceId: source.id!, regions: [{ id: 'intro', start: 2, end: 5, label: 'Intro' }], markers: [] },
+  } });
+  expect(button('Play').disabled).toBe(true);
+  expect(button('Play region').disabled).toBe(true);
+  await ready(active);
+  expect(button('Play').disabled).toBe(false);
+  expect(button('Play').classList.contains('raavl-play-pause-icon-button')).toBe(true);
+  const badge = host.querySelector<HTMLButtonElement>('.raavl-annotation-list button[data-row-id="intro"]')!;
+  expect(badge).not.toBeNull();
+  await act(async () => badge.click());
+  expect(button('Play region').disabled).toBe(false);
+  const playRange = vi.spyOn(active, 'playRange');
+  await act(async () => button('Loop region').click());
+  expect(playRange).toHaveBeenCalledWith(expect.objectContaining({ start: 2, end: 5, loop: true }));
+  expect(button('Pause')).not.toBeNull();
+  await act(async () => button('Pause').click());
+  expect(active.getSnapshot().playback).toBe('paused');
+});
+
+it("updates toolbar variants and disables ranges belonging to other audio", async () => {
+  const active = await render({ waveform: false, actions: { range: { start: 1, end: 3 }, sourceId: source.id, variant: 'icons' } });
+  await ready(active);
+  expect(button('Play region').disabled).toBe(false);
+  expect(button('Play region').querySelector('span')!.hidden).toBe(true);
+  await render({ waveform: false, actions: { range: { start: 1, end: 3 }, sourceId: 'other', variant: 'text' } });
+  expect(button('Play region').disabled).toBe(true);
+  expect(button('Loop region').disabled).toBe(true);
+  expect(button('Play').disabled).toBe(false);
+  expect(button('Play').classList.contains('raavl-play-pause-icon-button')).toBe(false);
+  expect(button('Play').querySelector('svg')!.style.display).toBe('none');
+});
+
+it("reports standalone toolbar errors and removes its subscriptions on disposal", async () => {
+  const { mountActionsToolbar } = await import('../src/dom/actions-toolbar');
+  const active = await render({ waveform: false, controls: false });
+  await ready(active);
+  const error = new Error('Playback rejected');
+  vi.spyOn(active, 'play').mockRejectedValue(error);
+  const report = vi.fn();
+  const subscribe = vi.spyOn(active, 'subscribe');
+  const subscribeTime = vi.spyOn(active, 'subscribeTime');
+  const toolbar = mountActionsToolbar(host, { player: active, onError: report });
+  expect(subscribe).toHaveBeenCalledOnce();
+  expect(subscribeTime).toHaveBeenCalledOnce();
+  await act(async () => button('Play').click());
+  expect(report).toHaveBeenCalledWith(error);
+  toolbar.update({ player: null });
+  expect(button('Play').disabled).toBe(true);
+  toolbar.dispose();
+  expect(host.querySelector('.raavl-actions-toolbar')).toBeNull();
+});
+
+it("opens a region draft at the playhead and commits only on confirmation", async () => {
+  const commit = vi.fn();
+  const active = await render({ waveform: {
+    annotationEditor: true,
+    defaultAnnotations: { version: 1, sourceId: source.id!, regions: [], markers: [] },
+    onAnnotationsCommit: commit,
+  } });
+  expect(button('Create region at playhead').disabled).toBe(true);
+  await ready(active);
+  expect(button('Play').querySelector('span')!.hidden).toBe(true);
+  expect(button('Create region at playhead').querySelector('span')!.hidden).toBe(true);
+  await act(async () => active.seek(12));
+  await act(async () => button('Create region at playhead').click());
+  expect(commit).not.toHaveBeenCalled();
+  const creation = host.querySelector<HTMLElement>('.raavl-annotation-create')!;
+  expect(creation.hidden).toBe(false);
+  expect(creation.contains(document.activeElement)).toBe(true);
+  expect([...creation.querySelectorAll('input[type="number"]')].map(input => (input as HTMLInputElement).value)).toEqual(['12', '13']);
+  await act(async () => button('Cancel selection').click());
+  expect(commit).not.toHaveBeenCalled();
+  expect(creation.hidden).toBe(true);
+  await act(async () => button('Create region at playhead').click());
+  await act(async () => button('Create region from selection').click());
+  expect(commit.mock.calls[0][0].regions).toEqual([
+    expect.objectContaining({ id: 'region-1', start: 12, end: 13 }),
+  ]);
+  expect(creation.hidden).toBe(true);
+  await act(async () => active.seek(99.5));
+  await act(async () => button('Create region at playhead').click());
+  expect(commit).toHaveBeenCalledTimes(1);
+  await act(async () => button('Create region from selection').click());
+  expect(commit.mock.calls[1][0].regions).toHaveLength(2);
+  expect(commit.mock.calls[1][0].regions[1]).toEqual(
+    expect.objectContaining({ id: 'region-2', start: 99.5, end: 100 }),
+  );
+  await act(async () => active.seek(100));
+  expect(button('Create region at playhead').disabled).toBe(true);
+});
+
+it.each(['Close', 'Cancel', 'Escape'])("dismisses modal creation and editing with %s", async (action) => {
+  const commit = vi.fn();
+  const active = await render({ waveform: {
+    annotationEditor: 'modal',
+    defaultAnnotations: { version: 1, sourceId: source.id!, regions: [{ id: 'intro', start: 2, end: 5, label: 'Intro' }], markers: [] },
+    onAnnotationsCommit: commit,
+  } });
+  await ready(active);
+  await act(async () => {
+    for (const [id, draw] of [...frames]) {
+      frames.delete(id);
+      draw(0);
+    }
+  });
+  const dialog = host.querySelector<HTMLDialogElement>('dialog')!;
+  // jsdom has no native dialog methods; browser focus trapping is platform-owned.
+  dialog.showModal = vi.fn(() => { dialog.open = true; });
+  dialog.close = vi.fn(() => { dialog.open = false; });
+  const dismiss = async () => {
+    const form = dialog.querySelector('[role="group"]:not([hidden])')!;
+    const cancel = [...form.querySelectorAll('button')].find(button => button.textContent === 'Cancel')!;
+    const close = button('Close');
+    expect(close.querySelector('svg')).not.toBeNull();
+    expect(cancel).toBeDefined();
+    await act(async () => {
+      if (action === 'Escape') dialog.dispatchEvent(new Event('cancel', { cancelable: true }));
+      else (action === 'Close' ? close : cancel).click();
+    });
+  };
+  expect(dialog.open).toBe(false);
+  await act(async () => button('Create region at playhead').click());
+  expect(dialog.open).toBe(true);
+  expect(dialog.getAttribute('aria-label')).toBe('New region');
+  expect(dialog.contains(document.activeElement)).toBe(true);
+  const region = host.querySelector('.raavl-region[data-raavl-annotation="intro"]')!;
+  expect(region.closest('[inert]')).not.toBeNull();
+  expect(commit).not.toHaveBeenCalled();
+  await dismiss();
+  expect(dialog.open).toBe(false);
+  expect(region.closest('[inert]')).toBeNull();
+  expect(commit).not.toHaveBeenCalled();
+  await act(async () => button('Create region at playhead').click());
+  await act(async () => button('Create region from selection').click());
+  expect(commit).toHaveBeenCalledTimes(1);
+  expect(dialog.open).toBe(false);
+  const badge = host.querySelector<HTMLButtonElement>('button[data-row-id="intro"]')!;
+  await act(async () => { badge.focus(); badge.click(); });
+  expect(dialog.open).toBe(true);
+  expect(dialog.getAttribute('aria-label')).toBe('Edit Intro');
+  await act(async () => change(dialog.querySelector('.raavl-annotation-editor input')!, 'Draft'));
+  await dismiss();
+  expect(dialog.open).toBe(false);
+  expect(document.activeElement).toBe(badge);
+  expect(commit).toHaveBeenCalledTimes(1);
+  await act(async () => badge.click());
+  expect(dialog.querySelector<HTMLInputElement>('.raavl-annotation-editor input')!.value).toBe('Intro');
 });

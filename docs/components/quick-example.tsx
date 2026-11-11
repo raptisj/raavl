@@ -28,15 +28,16 @@ export function AudioPlayback() {
   return <AudioPlayer
     source={{ kind: 'url', id: 'my-audio', url: '/audio.mp3' }}
     waveform={{ interaction: { drag: 'seek' } }}
-    controls={{ playbackRate: true, loop: true }}
+    controls={{ loop: true }}
     aria-label="Audio player"
   />;
 }`,
   },
   regions: {
-    JavaScript: `import { createPlayer, mountWaveform, createAnnotations } from 'raavl';
+    JavaScript: `import { createPlayer, createAnnotations, mountWaveform, mountActionsToolbar } from 'raavl';
 import 'raavl/styles.css';
 
+// HTML: <div id="waveform"></div><div id="actions"></div>
 const player = createPlayer();
 const annotations = createAnnotations({
   document: {
@@ -45,26 +46,38 @@ const annotations = createAnnotations({
   },
   rules: { minLength: 0.1 },
 });
-const view = mountWaveform(container, {
+let selectedId = null;
+const actions = mountActionsToolbar(document.querySelector('#actions'), {
+  player,
+  sourceId: 'my-audio',
+  onCreateRegion: time => view.createRegionAtTime(time),
+  onError: console.error,
+});
+function syncActions() {
+  const { regions } = annotations.getSnapshot().document;
+  actions.update({ range: regions.find(region => region.id === selectedId) ?? null });
+}
+const view = mountWaveform(document.querySelector('#waveform'), {
   player, annotations,
+  annotationEditor: 'modal',
   interaction: { drag: 'select' },
   annotationRules: { minLength: 0.1 },
+  onAnnotationSelect(id) {
+    selectedId = id;
+    syncActions();
+  },
 });
+const unsubscribe = annotations.subscribe(syncActions);
 await player.setSource({
   kind: 'url', id: 'my-audio', url: '/audio.mp3',
 });
 
-// Drag a region to move it; drag its edges to resize.
-// Connect your editing controls:
-// view.createRegionFromSelection(crypto.randomUUID(), 'New region');
-// annotations.updateRegion('intro', { label: 'Opening' });
-// void player.playRange(annotations.getSnapshot().document.regions[0]).catch(console.error);
-// annotations.remove('intro');
-
-// On teardown: view.dispose(); annotations.dispose(); player.dispose();`,
+// On teardown:
+// unsubscribe(); actions.dispose(); view.dispose();
+// annotations.dispose(); player.dispose();`,
     React: `import { useState } from 'react';
 import type { AnnotationDocument } from 'raavl';
-import { Waveform } from 'raavl/react';
+import { AudioPlayer } from 'raavl/react';
 import 'raavl/styles.css';
 
 const initial: AnnotationDocument = {
@@ -74,19 +87,20 @@ const initial: AnnotationDocument = {
 
 export function AudioRegions() {
   const [annotations, setAnnotations] = useState({ value: initial, revision: 0 });
-  return <Waveform
+  return <AudioPlayer
     source={{ kind: 'url', id: 'my-audio', url: '/audio.mp3' }}
-    annotations={annotations.value}
-    annotationsRevision={annotations.revision}
-    onAnnotationsCommit={(value, change) => {
-      setAnnotations(current => change.baseRevision === current.revision
-        ? { value, revision: current.revision + 1 }
-        : current);
+    waveform={{
+      annotations: annotations.value,
+      annotationsRevision: annotations.revision,
+      annotationEditor: 'modal',
+      interaction: { drag: 'select' },
+      annotationRules: { minLength: 0.1 },
+      onAnnotationsCommit: (value, change) => {
+        setAnnotations(current => change.baseRevision === current.revision
+          ? { value, revision: current.revision + 1 }
+          : current);
+      },
     }}
-    interaction={{ drag: 'select' }}
-    annotationRules={{ minLength: 0.1 }}
-    onSelectionChange={range => console.log('Selection', range)}
-    onAnnotationSelect={id => console.log('Selected region', id)}
     onError={console.error}
     aria-label="Editable audio regions"
   />;

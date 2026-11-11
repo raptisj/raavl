@@ -47,7 +47,7 @@
 :where(.raavl-region-body) {
   cursor: grab;
 }
-:where(.raavl-region-body:focus-visible, .raavl-region-handle:focus-visible) {
+:where(.raavl-region-body:focus-visible, .raavl-region-handle:focus-visible, .raavl-selection-handle:focus-visible) {
   outline: 3px solid var(--raavl-focus-color, #bd722e);
   outline-offset: 1px;
   z-index: 2;
@@ -107,16 +107,13 @@
   border: 1px solid var(--raavl-control-border, #d6dfd2);
   border-radius: 8px;
 }
-:where(.raavl-annotation-create) {
-  margin-top: 8px;
-}
 :where(.raavl-annotation-create label, .raavl-annotation-editor label) {
   display: grid;
   gap: 5px;
   min-width: 0;
   max-width: 100%;
 }
-:where(.raavl-annotation-editor label:first-child) {
+:where(.raavl-annotation-create, .raavl-annotation-editor) > :where(label:first-child) {
   flex: 1 1 200px;
 }
 :where(.raavl-annotation-list input) {
@@ -131,7 +128,7 @@
   color: inherit;
   font: inherit;
 }
-:where(.raavl-annotation-editor input[type="number"]) {
+:where(.raavl-annotation-create, .raavl-annotation-editor) :where(input[type="number"]) {
   width: 100px;
 }
 :where(.raavl-annotation-create button, .raavl-annotation-actions button) {
@@ -144,14 +141,13 @@
   flex-wrap: wrap;
   gap: 6px;
 }
-:where(.raavl-annotation-selection-time) {
-  align-self: center;
-  font-variant-numeric: tabular-nums;
-}
-:where(.raavl-annotation-actions .raavl-annotation-action) {
+:where(.raavl-annotation-actions .raavl-annotation-action, .raavl-annotation-dialog-close) {
   display: grid;
   place-items: center;
   min-width: 36px;
+}
+:where(.raavl-annotation-action-cancel) {
+  border-style: none;
 }
 :where(.raavl-annotation-action svg) {
   width: 18px;
@@ -307,4 +303,80 @@
 }
 :where(.raavl-status:empty) {
   display: none;
+}
+
+:where(.raavl-actions-toolbar) {
+  margin-top: 12px;
+}
+:where(.raavl-actions-toolbar .raavl-button) {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+}
+:where(.raavl-actions-toolbar svg) {
+  width: 18px;
+  height: 18px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.8;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+:where(.raavl-play-pause-icon-button) {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  width: 42px;
+  height: 42px;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: var(--raavl-progress-color, #245e49);
+  color: var(--raavl-control-active-color, #fff);
+  background: var(--raavl-progress-color, light-dark(#245e49, #a0d3ae));
+  color: var(--raavl-control-active-color, light-dark(#fff, #12251a));
+}
+:where(.raavl-play-pause-icon-button:hover:not(:disabled)) {
+  background: color-mix(in srgb, var(--raavl-progress-color, light-dark(#245e49, #a0d3ae)), light-dark(black, white) 15%);
+}
+:where(.raavl-play-pause-icon) {
+  width: 19px;
+  height: 19px;
+  fill: currentColor;
+  stroke: none;
+}
+
+:where(.raavl-annotation-dialog) {
+  box-sizing: border-box;
+  width: min(560px, calc(100vw - 32px));
+  max-height: calc(100dvh - 32px);
+  overflow: auto;
+  margin: auto;
+  padding: 48px 16px 16px;
+  border: 1px solid var(--raavl-control-border, #d6dfd2);
+  border-radius: 12px;
+  background: var(--raavl-background, #f3f6f2);
+  color: inherit;
+  font: inherit;
+}
+:where(.raavl-annotation-dialog) > :where(.raavl-annotation-create, .raavl-annotation-editor) {
+  border-style: none;
+}
+:where(.raavl-annotation-dialog .raavl-annotation-actions) {
+  flex-basis: 100%;
+}
+:where(.raavl-annotation-dialog-cancel) {
+  margin-inline-start: auto;
+}
+:where(.raavl-annotation-dialog-close) {
+  position: absolute;
+  inset-block-start: 8px;
+  inset-inline-end: 8px;
+  min-height: 36px;
+}
+:where(.raavl-annotation-dialog)::backdrop {
+  background: rgb(0 0 0 / 45%);
 }

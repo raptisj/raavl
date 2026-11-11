@@ -204,7 +204,7 @@ export function ModulesEditor({ mode, onOptionsChange }: {
   return (
     <article className="player-card">
       <h3>Timeline, minimap, undo/redo & magnetic snapping</h3>
-      <p>
+      <p className="helper">
         Click or tap the waveform to move the playhead. Double-click or
         double-tap a region to play it from start to end.
         Drag empty space to select a range, or use Add marker at playhead to

@@ -232,6 +232,7 @@
   border: 1px dashed #b8cdbe;
   background: #f8faf5;
   border-radius: 8px;
+  font-size: 12px;
 }
 .examples-app .demo-settings > summary {
   font-size: 13px;

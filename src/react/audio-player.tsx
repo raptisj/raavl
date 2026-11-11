@@ -1,7 +1,7 @@
 "use client";
 
-import { forwardRef, type HTMLAttributes, type ReactNode } from "react";
-import type { Appearance, WaveformTheme } from "../dom/index.js";
+import { forwardRef, useRef, useState, type HTMLAttributes, type ReactNode } from "react";
+import type { Appearance, WaveformTheme, WaveformView } from "../dom/index.js";
 import { PlayerRoot, type PlayerRootProps } from "./player-root.js";
 import { Waveform, type WaveformProps } from "./waveform.js";
 import {
@@ -23,6 +23,10 @@ import {
   type PlayerStatusProps,
 } from "./controls.js";
 
+import { ActionsToolbar, type ActionsToolbarProps } from './actions-toolbar.js';
+import { useAnnotations } from './hooks.js';
+import type { AnnotationDocument } from '../regions/index.js';
+
 type PartOption<Props> = boolean | Props;
 export type AudioPlayerControls = {
   playPause?: PartOption<PlayPauseButtonProps>;
@@ -39,13 +43,15 @@ export type AudioPlayerWaveformOptions = Omit<
 >;
 type Slot = ReactNode | ((defaultPart: ReactNode) => ReactNode);
 export type AudioPlayerSlots = Partial<
-  Record<keyof AudioPlayerControls | "waveform" | "controls" | "status", Slot>
+  Record<keyof AudioPlayerControls | "waveform" | "controls" | "status" | "actions", Slot>
 >;
 export type AudioPlayerProps = Omit<PlayerRootProps, "children"> &
   Omit<HTMLAttributes<HTMLDivElement>, "children" | "onError"> & {
     waveform?: boolean | AudioPlayerWaveformOptions;
     controls?: boolean | AudioPlayerControls;
     status?: boolean | PlayerStatusProps;
+    /** Enabled by default for annotation editors. */
+    actions?: boolean | ActionsToolbarProps;
     slots?: AudioPlayerSlots;
     /** Shortcut for waveform.appearance; nested options take precedence. */
     appearance?: Appearance;
@@ -69,6 +75,7 @@ export const AudioPlayer = forwardRef<HTMLDivElement, AudioPlayerProps>(
       waveform = true,
       controls = true,
       status = true,
+      actions,
       slots,
       appearance,
       theme,
@@ -77,7 +84,15 @@ export const AudioPlayer = forwardRef<HTMLDivElement, AudioPlayerProps>(
     },
     ref,
   ) {
+    const view = useRef<WaveformView | null>(null);
     const config = options(controls);
+    const wave = options(waveform);
+    const [selectedId, setSelectedId] = useState<string | null>(null);
+    const [editedDocument, setEditedDocument] = useState<AnnotationDocument | null>(null);
+    const annotationSnapshot = useAnnotations(wave.annotationStore ?? null);
+    const document = annotationSnapshot?.document ?? wave.annotations ?? editedDocument ?? wave.defaultAnnotations;
+    const selected = document?.regions.find(region => region.id === selectedId);
+    const showActions = actions !== false && (actions !== undefined || !!wave.annotationEditor);
     const part = (
       name: keyof AudioPlayerSlots,
       defaultPart: ReactNode,
@@ -150,11 +165,21 @@ export const AudioPlayer = forwardRef<HTMLDivElement, AudioPlayerProps>(
             <Waveform
               appearance={appearance}
               theme={theme}
-              {...options(waveform)}
+              {...wave}
+              onView={instance => { view.current = instance; wave.onView?.(instance); }}
+              onAnnotationSelect={(id) => {
+                setSelectedId(id);
+                wave.onAnnotationSelect?.(id);
+              }}
+              onAnnotationsCommit={wave.annotations && !wave.onAnnotationsCommit ? undefined : (next, change) => {
+                setEditedDocument(next);
+                wave.onAnnotationsCommit?.(next, change);
+              }}
             />,
             waveform !== false,
           )}
-          {part("controls", transport, controls !== false)}
+          {part("actions", <ActionsToolbar onCreateRegion={document ? time => view.current?.createRegionAtTime(time) : undefined} range={selected ?? null} sourceId={document?.sourceId ?? null} {...options(actions)} />, showActions)}
+          {part("controls", transport, controls !== false && (!showActions || controls !== true))}
           {part(
             "status",
             <PlayerStatus {...options(status)} />,

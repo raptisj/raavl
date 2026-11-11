@@ -10,3 +10,5 @@ export {
 } from "./player-root.js";
 export * from "./controls.js";
 export * from "./audio-player.js";
+
+export * from "./actions-toolbar.js";

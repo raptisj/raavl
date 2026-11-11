@@ -654,14 +654,29 @@ it("previews dragging without commits, commits once on release, and keeps select
     start: 4,
     end: 6,
   });
+  const shapes = () => [...host.querySelectorAll(".raavl-region, .raavl-marker")];
+  const overlay = shapes()[0].parentElement!;
+  expect(shapes()).toHaveLength(2);
+  expect(overlay.hasAttribute("inert")).toBe(false);
   pointer(test.viewport, "pointerdown", 100);
   pointer(test.viewport, "pointermove", 300);
+  expect(overlay.closest("[hidden]")).toBeNull();
+  expect(overlay.style.opacity).toBe("0.25");
+  expect(overlay.hasAttribute("inert")).toBe(true);
   pointer(test.viewport, "pointerup", 300);
   expect(test.view.getSelection()).toEqual({ start: 1, end: 3 });
+  const endHandle = test.viewport.querySelector(".raavl-selection-handle-end")!;
+  pointer(endHandle, "pointerdown", 300);
+  pointer(test.viewport, "pointerup", 500);
+  expect(test.view.getSelection()).toEqual({ start: 1, end: 5 });
+  expect(overlay.hasAttribute("inert")).toBe(true);
   expect(test.store.getSnapshot().document.regions).toHaveLength(1);
   test.view.createRegionFromSelection("new", "Selected");
   expect(test.store.getSnapshot().document.regions).toHaveLength(2);
   expect(test.view.getSelection()).toBe(null);
+  expect(shapes()).toHaveLength(3);
+  expect(overlay.hasAttribute("inert")).toBe(false);
+  expect(overlay.style.opacity).toBe("");
   test.cleanup();
 });
 it.each(["move", "resize-start", "resize-end", "marker"] as const)(
@@ -1405,13 +1420,14 @@ it.each(["react", "vanilla"] as const)(
   async (mode) => {
     root = createRoot(host);
     await act(async () => root!.render(<AnnotationEditor mode={mode} />));
+    const media = mock.load.mock.contexts.at(-1) as HTMLMediaElement;
     await act(async () => {
-      mock.ready(mock.load.mock.contexts.at(-1) as HTMLMediaElement, 12);
+      mock.ready(media, 12);
       flushFrame();
     });
     const waveform = host.querySelector<HTMLElement>(".raavl-waveform")!;
     waveform.hasPointerCapture = () => false;
-    const creation = host.querySelector<HTMLFieldSetElement>(".raavl-annotation-create")!;
+    const creation = host.querySelector<HTMLElement>(".raavl-annotation-create")!;
     const editor = host.querySelector<HTMLElement>(".raavl-annotation-editor")!;
     const button = (scope: HTMLElement, text: string) =>
       [...scope.querySelectorAll("button")].find(
@@ -1420,6 +1436,7 @@ it.each(["react", "vanilla"] as const)(
     const add = button(creation, "Create region from selection");
     const apply = button(editor, "Apply edit");
     const remove = button(editor, "Delete annotation");
+    expect(creation.hidden).toBe(true);
     expect(add.disabled).toBe(true);
     expect(editor.hidden).toBe(true);
 
@@ -1427,25 +1444,104 @@ it.each(["react", "vanilla"] as const)(
       pointer(waveform, "pointerdown", 600);
       pointer(waveform, "pointerup", 700);
     });
+    expect(creation.hidden).toBe(false);
     expect(add.disabled).toBe(false);
+    const preview = waveform.querySelector<HTMLElement>(".raavl-selection")!;
+    const [, draftStart, draftEnd] = creation.querySelectorAll("input");
+    const initialStart = draftStart.valueAsNumber;
+    const initialLength = draftEnd.valueAsNumber - initialStart;
+    expect(preview.style.pointerEvents).toBe("auto");
+    await act(async () => {
+      pointer(preview, "pointerdown", 650);
+      pointer(waveform, "pointermove", 750);
+      pointer(waveform, "pointercancel", 750);
+    });
+    expect(draftStart.valueAsNumber).toBe(initialStart);
+    await act(async () => {
+      pointer(preview, "pointerdown", 650);
+      pointer(waveform, "pointerup", 750);
+    });
+    expect(draftStart.valueAsNumber).toBeGreaterThan(initialStart);
+    expect(draftEnd.valueAsNumber - draftStart.valueAsNumber).toBeCloseTo(initialLength, 2);
+    const movedStart = draftStart.valueAsNumber;
+    const movedEnd = draftEnd.valueAsNumber;
+    const startHandle = preview.querySelector(".raavl-selection-handle-start")!;
+    const endHandle = preview.querySelector(".raavl-selection-handle-end")!;
+    await act(async () => {
+      pointer(startHandle, "pointerdown", 700);
+      pointer(waveform, "pointerup", 650);
+    });
+    expect(draftStart.valueAsNumber).toBeLessThan(movedStart);
+    expect(draftEnd.valueAsNumber).toBe(movedEnd);
+    const resizedStart = draftStart.valueAsNumber;
+    await act(async () => {
+      endHandle.dispatchEvent(new KeyboardEvent("keydown", { key: "ArrowRight", bubbles: true }));
+    });
+    expect(draftStart.valueAsNumber).toBe(resizedStart);
+    expect(draftEnd.valueAsNumber).toBeGreaterThan(movedEnd);
+    const resizedEnd = draftEnd.valueAsNumber;
+    await act(async () => {
+      draftStart.value = "5.125";
+      draftStart.dispatchEvent(new Event("change", { bubbles: true }));
+    });
+    expect(draftStart.valueAsNumber).toBe(5.125);
+    expect(draftEnd.valueAsNumber).toBe(resizedEnd);
+    await act(async () => {
+      draftStart.dispatchEvent(new KeyboardEvent("keydown", { key: "ArrowUp", bubbles: true }));
+      draftEnd.dispatchEvent(new KeyboardEvent("keydown", { key: "ArrowDown", bubbles: true }));
+    });
+    expect(draftStart.valueAsNumber).toBeCloseTo(5.225, 6);
+    expect(draftEnd.valueAsNumber).toBeCloseTo(resizedEnd - 0.1, 6);
+    await act(async () => button(creation, "Play region").click());
+    expect(media.paused).toBe(false);
+    expect(media.currentTime).toBeCloseTo(draftStart.valueAsNumber, 2);
+    await act(async () => {
+      media.currentTime = draftEnd.valueAsNumber + 0.1;
+      media.dispatchEvent(new Event("timeupdate"));
+    });
+    expect(media.paused).toBe(true);
+    expect(media.currentTime).toBeCloseTo(draftEnd.valueAsNumber, 2);
+    expect(host.querySelectorAll(".raavl-region")).toHaveLength(2);
+    const draftTime = `${draftStart.valueAsNumber.toFixed(2)}–${draftEnd.valueAsNumber.toFixed(2)}s`;
     await act(async () => add.click());
     expect(host.querySelectorAll(".raavl-region")).toHaveLength(3);
-    await act(async () => button(creation, "Add marker at playhead").click());
-    expect(host.querySelectorAll(".raavl-marker")).toHaveLength(2);
+    expect(host.querySelector(".raavl-annotation-list")?.textContent)
+      .toContain(`New annotation · ${draftTime}`);
+    expect(creation.hidden).toBe(true);
 
     const row = (id = "intro") =>
       host.querySelector<HTMLButtonElement>(`[data-row-id="${id}"]`);
-    await act(async () => row()!.click());
+    const region = () => waveform.querySelector<HTMLElement>('.raavl-region[data-raavl-annotation="intro"]')!;
+    const originalLeft = region().style.left;
+    const originalWidth = region().style.width;
+    await act(async () => {
+      pointer(region().querySelector(".raavl-region-body")!, "pointerdown", 100);
+      pointer(waveform, "pointerup", 100);
+      mouseClick(waveform, 100);
+    });
     const [label, start, end] = editor.querySelectorAll("input");
     expect(editor.hidden).toBe(false);
     expect(row()!.closest("[hidden]")).toBeTruthy();
     expect(document.activeElement).toBe(label);
     expect([label.value, start.value, end.value]).toEqual(["Introduction", "0.5", "2.5"]);
-    label.value = "Discarded draft";
+    await act(async () => {
+      label.value = "Discarded draft";
+      start.value = "0.75";
+      end.value = "3";
+      end.dispatchEvent(new Event("input", { bubbles: true }));
+    });
+    expect(region().textContent).toContain("Discarded draft");
+    expect(parseFloat(region().style.left)).toBeGreaterThan(parseFloat(originalLeft));
+    expect(parseFloat(region().style.width)).toBeGreaterThan(parseFloat(originalWidth));
+    expect(row()!.textContent).toBe("Introduction · 0.50–2.50s");
     await act(async () => button(editor, "Cancel edit").click());
     expect(editor.hidden).toBe(true);
+    expect(creation.hidden).toBe(true);
     expect(document.activeElement).toBe(row());
     expect(row()!.textContent).toContain("Introduction");
+    expect(region().textContent).toContain("Introduction");
+    expect(region().style.left).toBe(originalLeft);
+    expect(region().style.width).toBe(originalWidth);
 
     await act(async () => row()!.click());
     label.value = "Renamed intro";
@@ -1938,3 +2034,64 @@ it.each(
     player.dispose();
   },
 );
+
+it("automatically zooms narrow annotation editors while respecting explicit zoom", () => {
+  let width = 360;
+  vi.spyOn(HTMLElement.prototype, 'clientWidth', 'get').mockImplementation(() => width);
+  let resize: () => void = () => {};
+  vi.stubGlobal('ResizeObserver', class {
+    constructor(callback: () => void) { resize = callback; }
+    observe() {}
+    disconnect() {}
+  });
+  const view = mountWaveform(host, {
+    data: { version: 1, sourceId: 'mobile', duration: 12,
+      channels: [{ min: [0, 0], max: [1, 1] }] },
+    annotationEditor: true,
+  });
+  flushFrame();
+  expect(view.getViewport()).toMatchObject({ pixelsPerSecond: 100, end: 3.6 });
+  width = 800;
+  resize();
+  flushFrame();
+  expect(view.getViewport().end).toBe(12);
+  width = 360;
+  resize();
+  flushFrame();
+  expect(view.getViewport().pixelsPerSecond).toBe(100);
+  view.update({ viewport: { zoom: 'fit' } });
+  flushFrame();
+  expect(view.getViewport()).toMatchObject({ pixelsPerSecond: 30, end: 12 });
+  view.update({ viewport: { zoom: 150 } });
+  flushFrame();
+  expect(view.getViewport().pixelsPerSecond).toBe(150);
+  view.update({ viewport: { zoom: 'auto' }, annotationEditor: false });
+  flushFrame();
+  expect(view.getViewport().end).toBe(12);
+  view.dispose();
+});
+
+it("waits for drag completion before opening a modal and supports switching back inline", async () => {
+  const test = await annotationView();
+  test.view.update({ annotationEditor: 'modal' });
+  const dialog = host.querySelector<HTMLDialogElement>('dialog')!;
+  dialog.showModal = vi.fn(() => { dialog.open = true; });
+  dialog.close = vi.fn(() => { dialog.open = false; });
+  pointer(test.viewport, 'pointerdown', 700);
+  pointer(test.viewport, 'pointermove', 900);
+  expect(dialog.open).toBe(false);
+  pointer(test.viewport, 'pointerup', 900);
+  expect(dialog.open).toBe(true);
+  expect(test.onCommit).not.toHaveBeenCalled();
+  test.view.update({ annotationEditor: 'inline' });
+  expect(dialog.open).toBe(false);
+  expect(host.querySelector('dialog')).toBeNull();
+  expect(host.querySelector<HTMLElement>('.raavl-annotation-create')!.hidden).toBe(false);
+  expect(host.querySelector('button[aria-label="Cancel selection"] svg')).not.toBeNull();
+  test.view.update({ annotationEditor: 'modal' });
+  expect(dialog.open).toBe(true);
+  expect(dialog.querySelector('button[aria-label="Cancel selection"]')).toBeNull();
+  test.cleanup();
+  expect(dialog.open).toBe(false);
+  expect(host.querySelector('dialog')).toBeNull();
+});

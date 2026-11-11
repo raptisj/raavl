@@ -1,17 +1,21 @@
 "use client";
 
-import { useId, useMemo, useRef, useState, type ChangeEvent } from "react";
+import { useEffect, useId, useMemo, useRef, useState, type ChangeEvent } from "react";
 import {
   AudioLines,
-  Pause,
-  Play,
   RotateCcw,
   Upload,
   Volume2,
-  Plus,
-  Trash2,
 } from "lucide-react";
-import { Waveform, usePlayerState, usePlayerTime } from "raavl/react";
+import {
+  ActionsToolbar,
+  PlayPauseButton,
+  PlayerRoot,
+  Waveform,
+  usePlayerState,
+  usePlayerTime,
+} from "raavl/react";
+import { mountTimeline } from "raavl/timeline";
 import {
   waveformThemes,
   type Player,
@@ -68,18 +72,13 @@ export function AudioPlayground() {
   const [title, setTitle] = useState(demoSounds[0].file);
   const [error, setError] = useState("");
   const [documents, setDocuments] = useState<Record<string, RegionState>>({});
-  const [selection, setSelection] = useState<{
-    start: number;
-    end: number;
-  } | null>(null);
   const [selectedId, setSelectedId] = useState<string | null>(null);
-  const view = useRef<WaveformView | null>(null);
+  const [view, setView] = useState<WaveformView | null>(null);
+  const timeline = useRef<HTMLDivElement>(null);
   const fileInput = useRef<HTMLInputElement>(null);
   const state = usePlayerState(player, selectState);
-  const time = usePlayerTime(player);
+  const time = usePlayerTime(mode === "playback" ? player : null);
   const ready = state?.source === "ready";
-  const playing =
-    state?.playback === "playing" || state?.playback === "buffering";
   const duration = state?.duration ?? 0;
   const sourceDuration = state?.sourceId === source.id ? duration : 0;
   const initialRegions = useMemo<RegionState>(
@@ -115,6 +114,15 @@ export function AudioPlayground() {
     (region) => region.id === selectedId,
   );
   const canEditRegions = mode === "regions" && ready && sourceDuration > 0;
+  useEffect(() => {
+    if (!canEditRegions || !view || !timeline.current || view.getViewport().disposed) return;
+    const ruler = mountTimeline(timeline.current, { view });
+    return () => ruler.dispose();
+  }, [canEditRegions, view]);
+
+  function reportError(cause: Error) {
+    setError(cause.message);
+  }
   function acceptRegions(value: AnnotationDocument, baseRevision: number) {
     if (value.sourceId !== source.id) return;
     setDocuments((current) => {
@@ -127,36 +135,13 @@ export function AudioPlayground() {
     });
   }
   function clearSelection() {
-    view.current?.clearSelection();
-    setSelection(null);
+    view?.clearSelection();
     setSelectedId(null);
   }
   function switchMode(next: PlaygroundMode) {
+    if (next === mode) return;
     clearSelection();
     setMode(next);
-  }
-  function addRegion() {
-    if (!canEditRegions || sourceDuration < 0.1) return;
-    const length = Math.min(5, sourceDuration);
-    const start = Math.min(
-      player?.getCurrentTime() ?? 0,
-      sourceDuration - length,
-    );
-    const range =
-      selection && selection.end - selection.start >= 0.1
-        ? selection
-        : { start, end: start + length };
-    const region = {
-      id: crypto.randomUUID(),
-      ...range,
-      label: `Region ${regions.value.regions.length + 1}`,
-    };
-    acceptRegions(
-      { ...regions.value, regions: [...regions.value.regions, region] },
-      regions.revision,
-    );
-    view.current?.clearSelection();
-    setSelectedId(region.id);
   }
   function command(action: () => void) {
     try {
@@ -293,16 +278,19 @@ export function AudioPlayground() {
             </label>
           </div>
         </div>
+        {mode === "regions" && (
+          <p className="region-hint">
+            Drag to draft a region. Select a region or its badge to edit it.
+          </p>
+        )}
         <div className="playground-wave">
           <Waveform
             source={source}
             onPlayer={setPlayer}
-            onView={(value) => {
-              view.current = value;
-            }}
+            onView={setView}
             theme={theme}
             themeVersion={pageTheme}
-            onError={(cause) => setError(cause.message)}
+            onError={reportError}
             appearance={{
               style: "bars",
               barWidth: 3,
@@ -317,16 +305,16 @@ export function AudioPlayground() {
               seek: "click",
               drag: mode === "regions" ? "select" : "seek",
             }}
-            {...(mode === "regions" && sourceDuration > 0
+            {...(canEditRegions
               ? {
                   annotations: regions.value,
                   annotationsRevision: regions.revision,
+                  annotationEditor: "modal",
                   onAnnotationsCommit: (
                     value: AnnotationDocument,
                     change: { baseRevision: number },
                   ) => acceptRegions(value, change.baseRevision),
                   annotationRules: { minLength: 0.1 },
-                  onSelectionChange: setSelection,
                   onAnnotationSelect: setSelectedId,
                 }
               : {})}
@@ -337,30 +325,31 @@ export function AudioPlayground() {
             }
           />
         </div>
-        <div className="wave-ruler" aria-hidden="true">
-          {[0, 0.25, 0.5, 0.75, 1].map((fraction) => (
-            <span key={fraction}>{timeLabel(duration * fraction)}</span>
-          ))}
-        </div>
-        <div className="playback-controls">
-          <button
-            className="listen-play"
-            type="button"
-            disabled={!ready || state?.playback === "starting"}
-            aria-label={playing ? "Pause audio" : "Play audio"}
-            onClick={() => {
-              setError("");
-              if (playing) command(() => player!.pause());
-              else
-                void player?.play().catch((cause) => setError(cause.message));
-            }}
-          >
-            {playing ? (
-              <Pause size={19} fill="currentColor" aria-hidden="true" />
+        {mode === "regions" ? (
+          <div ref={timeline} className="playground-timeline" />
+        ) : (
+          <div className="wave-ruler" aria-hidden="true">
+            {[0, 0.25, 0.5, 0.75, 1].map((fraction) => (
+              <span key={fraction}>{timeLabel(duration * fraction)}</span>
+            ))}
+          </div>
+        )}
+        <div className={mode === "regions" ? "playback-controls region-transport" : "playback-controls"}>
+          <PlayerRoot player={player} onError={reportError}>
+            {mode === "regions" ? (
+              <ActionsToolbar
+                range={selectedRegion ?? null}
+                sourceId={regions.value.sourceId}
+                onCreateRegion={
+                  canEditRegions && view
+                    ? (time) => view.createRegionAtTime(time)
+                    : undefined
+                }
+              />
             ) : (
-              <Play size={19} fill="currentColor" aria-hidden="true" />
+              <PlayPauseButton onClick={() => setError("")} />
             )}
-          </button>
+          </PlayerRoot>
           <button
             className="icon-button"
             type="button"
@@ -370,121 +359,30 @@ export function AudioPlayground() {
           >
             <RotateCcw size={17} aria-hidden="true" />
           </button>
-          <span
-            className="playback-time"
-            aria-label={`Playback time ${timeLabel(time)} of ${timeLabel(duration)}`}
-          >
-            {timeLabel(time)} <span>/ {timeLabel(duration)}</span>
-          </span>
-          <div className="listening-settings">
-            <label className="speed-control">
-              <span className="sr-only">Playback speed</span>
-              <select
-                aria-label="Playback speed"
-                disabled={!ready}
-                value={state?.playbackRate ?? 1}
-                onChange={(event) =>
-                  command(() =>
-                    player!.setPlaybackRate(Number(event.target.value)),
-                  )
-                }
-              >
-                {[0.75, 1, 1.25, 1.5, 2].map((rate) => (
-                  <option key={rate} value={rate}>
-                    {rate}×
-                  </option>
-                ))}
-              </select>
-            </label>
-            <label className="volume-control">
-              <Volume2 size={17} aria-hidden="true" />
-              <span className="sr-only">Volume</span>
-              <input
-                type="range"
-                aria-label="Volume"
-                min="0"
-                max="1"
-                step="0.05"
-                disabled={!ready}
-                value={state?.volume ?? 1}
-                onChange={(event) =>
-                  command(() => player!.setVolume(Number(event.target.value)))
-                }
-              />
-            </label>
-          </div>
+          {mode === "playback" && (
+            <span
+              className="playback-time"
+              aria-label={`Playback time ${timeLabel(time)} of ${timeLabel(duration)}`}
+            >
+              {timeLabel(time)} <span>/ {timeLabel(duration)}</span>
+            </span>
+          )}
+          <label className="volume-control">
+            <Volume2 size={17} aria-hidden="true" />
+            <span className="sr-only">Volume</span>
+            <input
+              type="range"
+              min="0"
+              max="1"
+              step="0.05"
+              disabled={!ready}
+              value={state?.volume ?? 1}
+              onChange={(event) =>
+                command(() => player!.setVolume(Number(event.target.value)))
+              }
+            />
+          </label>
         </div>
-        {mode === "regions" && (
-          <div className="region-tools">
-            <p className="region-hint">
-              Drag to select a range. Move regions or resize their edges.
-            </p>
-            <div className="region-actions">
-              <button
-                type="button"
-                disabled={!canEditRegions || sourceDuration < 0.1}
-                onClick={addRegion}
-              >
-                <Plus size={13} aria-hidden="true" />{" "}
-                {selection ? "Save selection" : "Add region"}
-              </button>
-              <button
-                type="button"
-                disabled={!canEditRegions || !selectedRegion}
-                onClick={() => {
-                  if (selectedRegion)
-                    void player
-                      ?.playRange(selectedRegion)
-                      .catch((cause) => setError(cause.message));
-                }}
-              >
-                <Play size={12} aria-hidden="true" /> Play region
-              </button>
-              <button
-                type="button"
-                disabled={!canEditRegions || !selectedRegion}
-                onClick={() => {
-                  if (!selectedRegion) return;
-                  acceptRegions(
-                    {
-                      ...regions.value,
-                      regions: regions.value.regions.filter(
-                        (region) => region.id !== selectedRegion.id,
-                      ),
-                    },
-                    regions.revision,
-                  );
-                  setSelectedId(null);
-                }}
-              >
-                <Trash2 size={13} aria-hidden="true" /> Delete region
-              </button>
-              {selectedRegion && (
-                <label className="region-name">
-                  Name
-                  <input
-                    aria-label="Region name"
-                    value={selectedRegion.label ?? ""}
-                    disabled={!canEditRegions}
-                    onChange={(event) => {
-                      acceptRegions(
-                        {
-                          ...regions.value,
-                          regions: regions.value.regions.map((region) =>
-                            region.id === selectedRegion.id
-                              ? { ...region, label: event.target.value }
-                              : region,
-                          ),
-                        },
-                        regions.revision,
-                      );
-                    }}
-                  />
-                </label>
-              )}
-            </div>
-          </div>
-        )}
         <div className="recording-footer">
           <input
             ref={fileInput}
