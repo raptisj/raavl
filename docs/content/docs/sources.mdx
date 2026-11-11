@@ -54,11 +54,13 @@ type WaveformData = {
 
 Each channel has nonempty, equally sized min/max arrays representing uniform time buckets. Values must be finite and within `[-1, 1]`, with `min <= max`. All channels must have the same bucket count. Duration is positive and finite.
 
-`validateWaveform(input)` validates structure and returns the input or throws `INVALID_DATA`. The player separately validates source identity, revision, and duration against the audio. Use plain number arrays for JSON; treat all supplied buffers as immutable.
+`validateWaveform(input)` validates structure and returns the input or throws `INVALID_DATA`. For supplied peaks, the player also checks source identity and revision. A duration difference greater than 0.1 seconds or 0.1% of media duration, whichever is larger, reports `DURATION_MISMATCH`. Use plain number arrays for JSON and treat all supplied buffers as immutable.
 
 `createPeaks(buffer, sourceId, sourceRevision?)` builds at most 24,000 buckets per channel from an AudioBuffer-compatible object.
 
-Local files use this same peak generator after Web Audio decoding. Generated peaks stay in memory for the active source; they are not uploaded or automatically saved. Combining channel rows for display does not modify these per-channel peaks or the audio.
+Local files use this same peak generator after Web Audio decoding. Generated peaks stay in memory for the active source without being uploaded or automatically saved. Combining channel rows for display does not modify these per-channel peaks or the audio.
+
+Generated peaks stay available when the browser revises its duration estimate. Seeking and the player timeline follow the current media duration.
 
 ## Readiness and cancellation
 

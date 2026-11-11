@@ -137,6 +137,49 @@ describe("source lifecycle", () => {
     expect(player.getSnapshot().source).toBe("ready");
     player.dispose();
   });
+  it.each([10, 10.25])(
+    "keeps decoded peaks after seeking to the end with initial media duration %s",
+    async (duration) => {
+      vi.stubGlobal("fetch", vi.fn(async () => ({
+        ok: true,
+        arrayBuffer: async () => new ArrayBuffer(4),
+      })));
+      vi.stubGlobal("AudioContext", class {
+        async decodeAudioData() {
+          return {
+            duration: 10,
+            numberOfChannels: 1,
+            length: 2,
+            getChannelData: () => new Float32Array([0, 1]),
+          };
+        }
+        async close() {}
+      });
+      const player = createPlayer();
+      try {
+        const ready = player.setSource({ kind: "url", id: "a", url: "/a.mp3" });
+        const element = player.getMediaElement()!;
+        mock.ready(element, duration);
+        await ready;
+        await vi.waitFor(() => expect(player.getSnapshot().waveform).toBe("ready"));
+        const data = player.getSnapshot().data;
+
+        player.seekFraction(1);
+        mock.changeDuration(element, 10.5);
+
+        expect(player.getSnapshot()).toMatchObject({
+          duration: 10.5,
+          waveform: "ready",
+          waveformError: null,
+        });
+        expect(player.getSnapshot().data).toBe(data);
+        player.seekFraction(1);
+        expect(element.currentTime).toBe(10.5);
+      } finally {
+        player.dispose();
+      }
+    },
+  );
   it("does not pause, reset, remove or revoke borrowed media", async () => {
     const player = createPlayer(),
       element = document.createElement("audio");

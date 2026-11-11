@@ -180,6 +180,7 @@ export function createPlayer(): Player {
         );
       reset("superseded");
       const token = generation;
+      const input = source.waveform ?? { kind: "decode" as const };
       const owned = source.kind !== "media";
       const element = owned ? document.createElement("audio") : source.element;
       media = element;
@@ -279,7 +280,8 @@ export function createPlayer(): Player {
         }
         publish({ duration: element.duration, source: "ready" });
         if (!current()) return;
-        if (state.data) {
+        // Browsers can revise their duration estimate for the audio we decoded.
+        if (input.kind === "peaks" && state.data) {
           try {
             checkDuration(state.data);
           } catch (error) {
@@ -358,7 +360,6 @@ export function createPlayer(): Player {
         rejectPending(error);
         publish({ source: "error", error });
       }
-      const input = source.waveform ?? { kind: "decode" as const };
       const prepareWaveform = async () => {
         if (!current()) return;
         if (input.kind === "none") return;
@@ -411,7 +412,6 @@ export function createPlayer(): Player {
           const buffer = await context.decodeAudioData(bytes);
           if (!current()) return;
           const data = createPeaks(buffer, source.id, source.revision);
-          checkDuration(data);
           if (current()) publish({ data, waveform: "ready" });
         } finally {
           await context.close().catch(() => {});
