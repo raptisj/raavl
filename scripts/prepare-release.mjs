@@ -29,4 +29,23 @@ const tarball = `./artifacts/${filename}`;
 const sha512 = createHash("sha512").update(readFileSync(join(root, tarball))).digest("hex");
 writeFileSync(join(root, `${tarball}.sha512`), `${sha512}  ${tarball}\n`);
 writeFileSync(join(root, "artifacts/release.json"), JSON.stringify({ name: pkg.name, version: pkg.version, commit, tag, distTag, tarball, sha512 }, null, 2) + "\n");
-console.log(`\nRelease validated: ${pkg.name}@${pkg.version}\nCommit: ${commit}\n\nPublish manually from the repository root:\n  shasum -a 512 -c ${tarball}.sha512\n  npm publish ${tarball} --access public --tag ${distTag}\n\nAfter npm confirms publication:\n  npm run release:verify\n\nAfter verification succeeds:\n  git tag -a ${tag} ${commit} -m "Release ${tag}"\n  git push origin main\n  git push origin ${tag}\n\nSee RELEASING.md for first-publish setup, GitHub release notes, and recovery.\nNothing was published, tagged, or pushed.`);
+console.log(`
+Release validated: ${pkg.name}@${pkg.version}
+Commit: ${commit}
+
+If the validated commit is still local, push it to main:
+  git push origin main
+
+After CI passes for the validated commit, publish manually from the repository root:
+  shasum -a 512 -c ${tarball}.sha512
+  npm publish ${tarball} --access public --tag ${distTag}
+
+After npm confirms publication:
+  npm run release:verify
+
+After verification succeeds:
+  git tag -a ${tag} ${commit} -m "Release ${tag}"
+  git push origin ${tag}
+
+See RELEASING.md for first-publish setup, GitHub release notes, and recovery.
+Nothing was published, tagged, or pushed.`);
