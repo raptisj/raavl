@@ -16,6 +16,7 @@ void player
   .setSource({ kind: "url", id: "vanilla", url: "/tone.wav" })
   .catch((error) => errors.push(error.message));
 const root = createRoot(document.getElementById("react")!);
+const editAnnotations = new URLSearchParams(window.location.search).has("annotations");
 let reactPlayer: ReturnType<typeof createPlayer> | null = null;
 let reactView: WaveformView | null = null;
 root.render(
@@ -23,7 +24,19 @@ root.render(
     <AudioPlayer
       source={{ kind: "url", id: "react", url: "/tone.wav" }}
       theme={waveformThemes.sage}
-      waveform={{ onView: (instance) => { reactView = instance; } }}
+      waveform={{
+        onView: (instance) => { reactView = instance; },
+        ...(editAnnotations && {
+          interaction: { drag: "select" },
+          annotationEditor: true,
+          defaultAnnotations: {
+            version: 1,
+            sourceId: "react",
+            regions: [{ id: "intro", start: 0.3, end: 0.65, label: "Intro" }],
+            markers: [],
+          },
+        }),
+      }}
       onError={(error) => errors.push(error.message)}
       onPlayer={(instance) => {
         reactPlayer = instance;

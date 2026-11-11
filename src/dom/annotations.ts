@@ -66,7 +66,10 @@ function createResizeHandle(
   handle.type = "button";
   handle.className = `${className} ${className}-${side}`;
   handle.dataset.side = side;
-  handle.setAttribute("aria-label", `Resize ${side} of ${label}. Arrow keys adjust boundary.`);
+  handle.setAttribute(
+    "aria-label",
+    `Resize ${side} of ${label}. Arrow keys adjust boundary.`,
+  );
   Object.assign(handle.style, {
     position: "absolute",
     top: "0",
@@ -80,6 +83,63 @@ function createResizeHandle(
     touchAction: "none",
   });
   return handle;
+}
+
+function createAnnotationNode(
+  document: Document,
+  item: Region | Marker,
+  selected: boolean,
+  renderer: AnnotationViewOptions["renderRegionLabel"],
+) {
+  const element = document.createElement("div");
+  element.className = "start" in item ? "raavl-region" : "raavl-marker";
+  element.dataset.raavlAnnotation = item.id;
+  element.dataset.selected = String(selected);
+  Object.assign(element.style, {
+    position: "absolute",
+    pointerEvents: "auto",
+    background:
+      "start" in item
+        ? "var(--raavl-region-color, #a67ce333)"
+        : "repeating-linear-gradient(to bottom, var(--raavl-marker-color, #b65d29) 0 6px, transparent 6px 10px)",
+  });
+  const body = document.createElement("button");
+  body.type = "button";
+  body.className = "raavl-region-body";
+  body.dataset.raavlAnnotation = item.id;
+  Object.assign(body.style, {
+    position: "absolute",
+    inset: "0",
+    width: "100%",
+    minWidth: "10px",
+    padding: "0",
+    border: "0",
+    background: "transparent",
+  });
+  body.setAttribute(
+    "aria-label",
+    `${item.label || item.id}${item.locked ? ", locked" : ""}. ${"start" in item ? `${item.start.toFixed(2)} to ${item.end.toFixed(2)}` : item.time.toFixed(2)} seconds. Arrow keys move; Delete removes.`,
+  );
+  const label = document.createElement("span");
+  label.className = "raavl-region-label";
+  label.style.pointerEvents = "none";
+  let cleanup: (() => void) | undefined;
+  if ("start" in item && renderer) {
+    const result = renderer(item);
+    label.append(result instanceof HTMLElement ? result : result.element);
+    if (!(result instanceof HTMLElement)) cleanup = result.dispose;
+  } else label.textContent = item.label || item.id;
+  body.append(label);
+  element.append(body);
+  if ("start" in item)
+    for (const side of ["start", "end"] as const) {
+      const handle = createResizeHandle(document, side, item.label || item.id);
+      handle.dataset.raavlAnnotation = item.id;
+      handle.disabled = !!item.locked;
+      if (item.locked) handle.style.touchAction = "auto";
+      element.append(handle);
+    }
+  return { element, cleanup };
 }
 
 export function mountAnnotations(
@@ -120,13 +180,19 @@ export function mountAnnotations(
     top: "0",
     bottom: "0",
     zIndex: "1",
-    touchAction: "none",
     background: "var(--raavl-selection-color, #538ce644)",
     border: "1px dashed currentColor",
   });
-  const previewHandles = (["start", "end"] as const).map((side) =>
-    createResizeHandle(gestureDocument, side, "temporary region", "raavl-selection-handle"),
-  );
+  const previewHandles = (["start", "end"] as const).map((side) => {
+    const handle = createResizeHandle(
+      gestureDocument,
+      side,
+      "temporary region",
+      "raavl-selection-handle",
+    );
+    handle.style.pointerEvents = "auto";
+    return handle;
+  });
   preview.append(...previewHandles);
   overlay.append(shapes, preview);
   surface.append(overlay);
@@ -257,7 +323,7 @@ export function mountAnnotations(
     const draggable = drafting && geometry().selectMode;
     preview.style.pointerEvents = draggable ? "auto" : "none";
     preview.style.cursor = draggable ? "grab" : "";
-    for (const handle of previewHandles) handle.disabled = !draggable;
+    for (const handle of previewHandles) handle.disabled = !drafting;
     if (next) {
       preview.style.left = `${(next.start / geometry().duration) * 100}%`;
       preview.style.width = `${((next.end - next.start) / geometry().duration) * 100}%`;
@@ -273,7 +339,8 @@ export function mountAnnotations(
     trackGesture(false);
     if (previous && root.hasPointerCapture?.(previous.pointer))
       root.releasePointerCapture(previous.pointer);
-    if (previous && !previous.id) setSelection(previous.initialSelection ?? null);
+    if (previous && !previous.id)
+      setSelection(previous.initialSelection ?? null);
   };
   const position = (element: HTMLElement, item: Region | Marker) => {
     const { duration, channels, splitChannels } = geometry();
@@ -357,12 +424,14 @@ export function mountAnnotations(
         active() && geometry().width > 0
           ? items.filter((item) => {
               const displayItem = editor?.preview(item) ?? item;
-              return !invalid.has(item.id) &&
+              return (
+                !invalid.has(item.id) &&
                 (item.id === focusId ||
                   item.id === gesture?.id ||
                   ("start" in displayItem
                     ? displayItem.end >= from && displayItem.start <= to
-                    : displayItem.time >= from && displayItem.time <= to));
+                    : displayItem.time >= from && displayItem.time <= to))
+              );
             })
           : [];
       const ids = new Set(visible.map((item) => item.id));
@@ -382,56 +451,12 @@ export function mountAnnotations(
         ) {
           node?.cleanup?.();
           node?.element.remove();
-          const element = document.createElement("div");
-          element.className = "start" in item ? "raavl-region" : "raavl-marker";
-          element.dataset.raavlAnnotation = item.id;
-          element.dataset.selected = String(selected === item.id);
-          Object.assign(element.style, {
-            position: "absolute",
-            pointerEvents: "auto",
-            background:
-              "start" in item
-                ? "var(--raavl-region-color, #a67ce333)"
-                : "repeating-linear-gradient(to bottom, var(--raavl-marker-color, #b65d29) 0 6px, transparent 6px 10px)",
-          });
-          const body = document.createElement("button");
-          body.type = "button";
-          body.className = "raavl-region-body";
-          body.dataset.raavlAnnotation = item.id;
-          Object.assign(body.style, {
-            position: "absolute",
-            inset: "0",
-            width: "100%",
-            minWidth: "10px",
-            padding: "0",
-            border: "0",
-            background: "transparent",
-            touchAction: "none",
-          });
-          body.setAttribute(
-            "aria-label",
-            `${item.label || item.id}${item.locked ? ", locked" : ""}. ${"start" in item ? `${item.start.toFixed(2)} to ${item.end.toFixed(2)}` : item.time.toFixed(2)} seconds. Arrow keys move; Delete removes.`,
+          const { element, cleanup } = createAnnotationNode(
+            document,
+            item,
+            selected === item.id,
+            options.renderRegionLabel,
           );
-          const label = document.createElement("span");
-          label.className = "raavl-region-label";
-          label.style.pointerEvents = "none";
-          let cleanup: (() => void) | undefined;
-          if ("start" in item && options.renderRegionLabel) {
-            const result = options.renderRegionLabel(item);
-            label.append(
-              result instanceof HTMLElement ? result : result.element,
-            );
-            if (!(result instanceof HTMLElement)) cleanup = result.dispose;
-          } else label.textContent = item.label || item.id;
-          body.append(label);
-          element.append(body);
-          if ("start" in item)
-            for (const side of ["start", "end"] as const) {
-              const handle = createResizeHandle(document, side, item.label || item.id);
-              handle.dataset.raavlAnnotation = item.id;
-              handle.disabled = !!item.locked;
-              element.append(handle);
-            }
           shapes.append(element);
           node = {
             element,
@@ -527,7 +552,8 @@ export function mountAnnotations(
   const click = (event: MouseEvent) => {
     const target = annotationTarget(event.target);
     if (target) event.stopPropagation();
-    const id = target?.dataset.raavlAnnotation ??
+    const id =
+      target?.dataset.raavlAnnotation ??
       (event.target === root ? clickedRegionId : undefined);
     if (id === undefined) return;
     if (target || selected !== id) select(id);
@@ -537,13 +563,20 @@ export function mountAnnotations(
     if (item && "start" in item) editor?.open(id);
   };
   const down = (event: PointerEvent) => {
-    if (event.button !== 0 || (event.pointerType === "touch" && !event.isPrimary))
+    if (
+      event.button !== 0 ||
+      (event.pointerType === "touch" && !event.isPrimary)
+    )
       return;
     if (gesture && event.pointerId !== gesture.pointer) return;
     playbackBlocked = false;
     clickedRegionId = undefined;
     if (!active()) return;
     const target = annotationTarget(event.target);
+    const draftTarget = isPreviewTarget(event.target) ? event.target : null;
+    const side = (target ?? draftTarget)?.dataset.side as Gesture["side"];
+    // Touch pans over the waveform and annotation bodies. Handles opt into editing.
+    if (event.pointerType === "touch" && !side) return;
     const id = target?.dataset.raavlAnnotation;
     const item = id
       ? [
@@ -552,7 +585,7 @@ export function mountAnnotations(
         ].find((item) => item.id === id)
       : undefined;
     if (id && (!item || item.locked)) return;
-    if (!id && !geometry().selectMode) return;
+    if (!id && !geometry().selectMode && !(draftTarget && side)) return;
     event.preventDefault();
     event.stopPropagation();
     if (target)
@@ -560,11 +593,10 @@ export function mountAnnotations(
         ? target
         : target.querySelector<HTMLElement>("button")
       )?.focus({ preventScroll: true });
-    else if (isPreviewTarget(event.target) && event.target.matches("button"))
-      event.target.focus({ preventScroll: true });
+    else if (draftTarget?.matches("button"))
+      draftTarget.focus({ preventScroll: true });
     else root.focus({ preventScroll: true });
     cancel();
-    const draftTarget = isPreviewTarget(event.target) ? event.target : null;
     const initialSelection = draftTarget ? selection : null;
     if (id) select(id);
     else {
@@ -578,7 +610,7 @@ export function mountAnnotations(
       id,
       item,
       initialSelection: initialSelection ?? undefined,
-      side: (target ?? draftTarget)?.dataset.side as Gesture["side"],
+      side,
       revision: store!.getSnapshot().revision,
       moved: false,
     };
@@ -619,9 +651,13 @@ export function mountAnnotations(
     duration: number,
     side: Gesture["side"],
   ) => {
-    if (side) return resizeRange(range, snap(range[side] + delta), duration, side);
+    if (side)
+      return resizeRange(range, snap(range[side] + delta), duration, side);
     const length = range.end - range.start;
-    const start = Math.max(0, Math.min(duration - length, snap(range.start + delta)));
+    const start = Math.max(
+      0,
+      Math.min(duration - length, snap(range.start + delta)),
+    );
     return { start, end: start + length };
   };
   const move = (event: PointerEvent) => {
@@ -632,7 +668,9 @@ export function mountAnnotations(
     g.moved ||= Math.abs(event.clientX - g.startX) >= 3;
     if (!g.moved) return;
     if (g.initialSelection) {
-      setSelection(adjustRange(g.initialSelection, now - g.anchor, duration, g.side));
+      setSelection(
+        adjustRange(g.initialSelection, now - g.anchor, duration, g.side),
+      );
       return;
     }
     if (!g.item) {
@@ -642,7 +680,10 @@ export function mountAnnotations(
       return;
     }
     if ("start" in g.item) {
-      g.next = { ...g.item, ...adjustRange(g.item, now - g.anchor, duration, g.side) };
+      g.next = {
+        ...g.item,
+        ...adjustRange(g.item, now - g.anchor, duration, g.side),
+      };
     } else g.next = { ...g.item, time: snap(g.item.time + now - g.anchor) };
     const node = nodes.get(g.id!);
     if (node && g.next) position(node.element, g.next);
@@ -751,12 +792,14 @@ export function mountAnnotations(
       (rules.snap && event.shiftKey ? 10 : 1);
     if (draftTarget) {
       if (selection && arrow)
-        setSelection(adjustRange(
-          selection,
-          delta,
-          geometry().duration,
-          draftTarget.dataset.side as Gesture["side"],
-        ));
+        setSelection(
+          adjustRange(
+            selection,
+            delta,
+            geometry().duration,
+            draftTarget.dataset.side as Gesture["side"],
+          ),
+        );
       return;
     }
     if (!target) return;
@@ -774,39 +817,15 @@ export function mountAnnotations(
         return;
       }
       if ("start" in item) {
-        const length = item.end - item.start,
-          min = Math.max(0.001, rules.minLength);
-        if (target.dataset.side === "start")
-          store!.updateRegion(
-            id,
-            {
-              start: Math.max(
-                0,
-                item.end - rules.maxLength,
-                Math.min(item.end - min, snap(item.start + delta)),
-              ),
-            },
-            "keyboard",
-          );
-        else if (target.dataset.side === "end")
-          store!.updateRegion(
-            id,
-            {
-              end: Math.min(
-                geometry().duration,
-                item.start + rules.maxLength,
-                Math.max(item.start + min, snap(item.end + delta)),
-              ),
-            },
-            "keyboard",
-          );
-        else {
-          const start = Math.max(
-            0,
-            Math.min(geometry().duration - length, snap(item.start + delta)),
-          );
-          store!.updateRegion(id, { start, end: start + length }, "keyboard");
-        }
+        const side = target.dataset.side as Gesture["side"];
+        const adjusted = adjustRange(item, delta, geometry().duration, side);
+        const patch =
+          side === "start"
+            ? { start: adjusted.start }
+            : side === "end"
+              ? { end: adjusted.end }
+              : adjusted;
+        store!.updateRegion(id, patch, "keyboard");
       } else
         store!.updateMarker(id, { time: snap(item.time + delta) }, "keyboard");
     });
@@ -858,8 +877,12 @@ export function mountAnnotations(
           playSelection,
           (side, time) => {
             if (selection && active())
-              setSelection(resizeRange(selection, time, geometry().duration, side));
+              setSelection(
+                resizeRange(selection, time, geometry().duration, side),
+              );
           },
+          (range, time, side) =>
+            resizeRange(range, time, geometry().duration, side),
           render,
           () => !gesture,
         );
@@ -878,10 +901,18 @@ export function mountAnnotations(
     clearSelection: () => setSelection(null),
     createRegionAtTime(time: number) {
       if (!store || !active())
-        throw failure("NOT_READY", "view", "Load matching audio before creating a region");
+        throw failure(
+          "NOT_READY",
+          "view",
+          "Load matching audio before creating a region",
+        );
       const duration = geometry().duration;
       if (!Number.isFinite(time) || time < 0 || time >= duration)
-        throw failure("INVALID_DATA", "view", "Place the playhead before the end of the recording");
+        throw failure(
+          "INVALID_DATA",
+          "view",
+          "Place the playhead before the end of the recording",
+        );
       const length = Math.min(Math.max(1, rules.minLength), rules.maxLength);
       const end = Math.min(duration, time + length);
       select(null);

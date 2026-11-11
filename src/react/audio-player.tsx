@@ -1,6 +1,12 @@
 "use client";
 
-import { forwardRef, useRef, useState, type HTMLAttributes, type ReactNode } from "react";
+import {
+  forwardRef,
+  useRef,
+  useState,
+  type HTMLAttributes,
+  type ReactNode,
+} from "react";
 import type { Appearance, WaveformTheme, WaveformView } from "../dom/index.js";
 import { PlayerRoot, type PlayerRootProps } from "./player-root.js";
 import { Waveform, type WaveformProps } from "./waveform.js";
@@ -23,9 +29,9 @@ import {
   type PlayerStatusProps,
 } from "./controls.js";
 
-import { ActionsToolbar, type ActionsToolbarProps } from './actions-toolbar.js';
-import { useAnnotations } from './hooks.js';
-import type { AnnotationDocument } from '../regions/index.js';
+import { ActionsToolbar, type ActionsToolbarProps } from "./actions-toolbar.js";
+import { useAnnotations } from "./hooks.js";
+import type { AnnotationDocument, CommitHandler } from "../regions/index.js";
 
 type PartOption<Props> = boolean | Props;
 export type AudioPlayerControls = {
@@ -43,7 +49,10 @@ export type AudioPlayerWaveformOptions = Omit<
 >;
 type Slot = ReactNode | ((defaultPart: ReactNode) => ReactNode);
 export type AudioPlayerSlots = Partial<
-  Record<keyof AudioPlayerControls | "waveform" | "controls" | "status" | "actions", Slot>
+  Record<
+    keyof AudioPlayerControls | "waveform" | "controls" | "status" | "actions",
+    Slot
+  >
 >;
 export type AudioPlayerProps = Omit<PlayerRootProps, "children"> &
   Omit<HTMLAttributes<HTMLDivElement>, "children" | "onError"> & {
@@ -88,11 +97,37 @@ export const AudioPlayer = forwardRef<HTMLDivElement, AudioPlayerProps>(
     const config = options(controls);
     const wave = options(waveform);
     const [selectedId, setSelectedId] = useState<string | null>(null);
-    const [editedDocument, setEditedDocument] = useState<AnnotationDocument | null>(null);
+    const [editedDocument, setEditedDocument] =
+      useState<AnnotationDocument | null>(null);
     const annotationSnapshot = useAnnotations(wave.annotationStore ?? null);
-    const document = annotationSnapshot?.document ?? wave.annotations ?? editedDocument ?? wave.defaultAnnotations;
-    const selected = document?.regions.find(region => region.id === selectedId);
-    const showActions = actions !== false && (actions !== undefined || !!wave.annotationEditor);
+    const document =
+      annotationSnapshot?.document ??
+      wave.annotations ??
+      editedDocument ??
+      wave.defaultAnnotations;
+    const selected = document?.regions.find(
+      (region) => region.id === selectedId,
+    );
+    const showActions =
+      actions !== false && (actions !== undefined || !!wave.annotationEditor);
+    const handleView = (instance: WaveformView | null) => {
+      view.current = instance;
+      wave.onView?.(instance);
+    };
+    const handleSelect = (id: string | null) => {
+      setSelectedId(id);
+      wave.onAnnotationSelect?.(id);
+    };
+    const handleCommit: CommitHandler = (next, change) => {
+      setEditedDocument(next);
+      wave.onAnnotationsCommit?.(next, change);
+    };
+    // A controlled document without a commit handler remains read-only.
+    const onCommit =
+      wave.annotations && !wave.onAnnotationsCommit ? undefined : handleCommit;
+    const createRegion = document
+      ? (time: number) => view.current?.createRegionAtTime(time)
+      : undefined;
     const part = (
       name: keyof AudioPlayerSlots,
       defaultPart: ReactNode,
@@ -166,20 +201,27 @@ export const AudioPlayer = forwardRef<HTMLDivElement, AudioPlayerProps>(
               appearance={appearance}
               theme={theme}
               {...wave}
-              onView={instance => { view.current = instance; wave.onView?.(instance); }}
-              onAnnotationSelect={(id) => {
-                setSelectedId(id);
-                wave.onAnnotationSelect?.(id);
-              }}
-              onAnnotationsCommit={wave.annotations && !wave.onAnnotationsCommit ? undefined : (next, change) => {
-                setEditedDocument(next);
-                wave.onAnnotationsCommit?.(next, change);
-              }}
+              onView={handleView}
+              onAnnotationSelect={handleSelect}
+              onAnnotationsCommit={onCommit}
             />,
             waveform !== false,
           )}
-          {part("actions", <ActionsToolbar onCreateRegion={document ? time => view.current?.createRegionAtTime(time) : undefined} range={selected ?? null} sourceId={document?.sourceId ?? null} {...options(actions)} />, showActions)}
-          {part("controls", transport, controls !== false && (!showActions || controls !== true))}
+          {part(
+            "actions",
+            <ActionsToolbar
+              onCreateRegion={createRegion}
+              range={selected ?? null}
+              sourceId={document?.sourceId ?? null}
+              {...options(actions)}
+            />,
+            showActions,
+          )}
+          {part(
+            "controls",
+            transport,
+            controls !== false && (!showActions || controls !== true),
+          )}
           {part(
             "status",
             <PlayerStatus {...options(status)} />,

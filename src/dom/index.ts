@@ -1,3 +1,4 @@
+import { mountWaveformGestures, maxZoom } from "./waveform-gestures.js";
 import { mountAnnotations, type AnnotationViewOptions } from "./annotations.js";
 import type { Selection } from "../regions/index.js";
 export type {
@@ -68,7 +69,6 @@ const defaults = {
   viewport: { zoom: "auto", follow: "visible" } as Required<Viewport>,
   interaction: { seek: "click", drag: "none" } as Required<Interaction>,
 };
-const maxZoom = 10000;
 function merge<T extends object>(
   base: T,
   patch: Partial<T> | undefined,
@@ -128,22 +128,11 @@ export function mountWaveform(
     duration = 0,
     normalization = 1;
   let lastData: WaveformData | null = null;
-  let pointer: number | null = null;
   let dirty = true;
   let annotationOptions: AnnotationViewOptions = {};
   const player = options.player;
   const getDuration = () =>
     player?.getSnapshot().duration || data?.duration || 0;
-  const touchPoints = new Map<number, { x: number; y: number }>();
-  let multiTouch = false;
-  let pinch: { distance: number; zoom: number; time: number } | null = null;
-  let pinchZoom: number | "fit" | null = null;
-  let pendingPinch: { zoom: number; scrollLeft: number } | null = null;
-  const resetPinchZoom = () => {
-    pinch = null;
-    pinchZoom = null;
-    pendingPinch = null;
-  };
   let viewportState: ViewportSnapshot = Object.freeze({
     sourceId: null,
     duration: 0,
@@ -155,7 +144,7 @@ export function mountWaveform(
   });
   const viewportListeners = new Set<() => void>();
   function contentWidth(width: number, duration: number) {
-    const setting = pinchZoom ?? viewport.zoom;
+    const setting = gestures.zoom ?? viewport.zoom;
     const zoom = setting === "auto"
       ? annotationOptions.annotationEditor && width < 600 ? 100 : "fit"
       : setting;
@@ -262,15 +251,10 @@ export function mountWaveform(
   function draw() {
     width = Math.max(1, root.clientWidth);
     duration = getDuration();
-    if (pendingPinch)
-      pinchZoom =
-        pendingPinch.zoom <= width / duration ? "fit" : pendingPinch.zoom;
+    gestures.prepareDraw(width, duration);
     totalWidth = contentWidth(width, duration);
     surface.style.width = `${totalWidth}px`;
-    if (pendingPinch) {
-      root.scrollLeft = pendingPinch.scrollLeft;
-      pendingPinch = null;
-    }
+    gestures.finishLayout();
     root.style.height = `${appearance.height}px`;
     const ratio = Math.min(devicePixelRatio || 1, 3);
     for (const canvas of [wave, progress]) {
@@ -439,8 +423,7 @@ export function mountWaveform(
     }
     if (
       state?.playback === "playing" &&
-      pointer === null &&
-      !(multiTouch && touchPoints.size) &&
+      !gestures.isActive() &&
       !annotationLayer.isEditing()
     ) {
       if (viewport.follow === "center") root.scrollLeft = x - width / 2;
@@ -453,273 +436,24 @@ export function mountWaveform(
     if (state?.playback === "playing" || state?.playback === "buffering")
       request();
   }
-  const seekAt = (clientX: number) => {
-    if (!player || player.getSnapshot().source !== "ready" || totalWidth <= 0)
-      return;
-    const x = clientX - root.getBoundingClientRect().left + root.scrollLeft;
-    player.seekFraction(Math.max(0, Math.min(1, x / totalWidth)));
-    request();
-  };
-  // Track taps directly so a drag, scroll, or cancelled touch cannot activate playback.
-  let touch: {
-    id: number;
-    x: number;
-    y: number;
-    time: number;
-    moved: boolean;
-    regionId: string | undefined;
-  } | null = null;
-  let lastRegionTap: { id: string; x: number; y: number; time: number } | null =
-    null;
-  let lastTouchTime = -Infinity;
-  let lastClickRegionId: string | undefined;
-  let doubleClickBlocked = false;
   const playRegion = (region: NonNullable<Selection>) => {
     if (player?.getSnapshot().source !== "ready") return;
     void player
       .playRange({ start: region.start, end: region.end })
       .catch(() => {});
   };
-  const pinchGeometry = () => {
-    const [first, second] = touchPoints.values();
-    return {
-      distance: Math.hypot(first.x - second.x, first.y - second.y),
-      center: (first.x + second.x) / 2 - root.getBoundingClientRect().left,
-    };
-  };
-  const touchDown = (event: PointerEvent) => {
-    if (!touchPoints.size) multiTouch = false;
-    if (event.pointerType !== "touch" || event.button !== 0) return;
-    if (event.isPrimary) {
-      touchPoints.clear();
-      pinch = null;
-      multiTouch = false;
-    }
-    lastTouchTime = performance.now();
-    touchPoints.set(event.pointerId, { x: event.clientX, y: event.clientY });
-    if (!event.isPrimary) {
-      multiTouch = true;
-      touch = null;
-      lastRegionTap = null;
-      pointer = null;
-      pinch = null;
-      annotationLayer.cancelGesture();
-      const duration = getDuration();
-      if (touchPoints.size === 2 && duration > 0) {
-        const { distance, center } = pinchGeometry();
-        const zoom =
-          pendingPinch?.zoom ??
-          contentWidth(Math.max(1, root.clientWidth), duration) / duration;
-        const scrollLeft = pendingPinch?.scrollLeft ?? root.scrollLeft;
-        pinch = {
-          distance: Math.max(1, distance),
-          zoom,
-          time: (scrollLeft + center) / zoom,
-        };
-        // Keep tracking if a finger moves outside or its annotation is removed.
-        for (const id of touchPoints.keys()) {
-          try {
-            root.setPointerCapture(id);
-          } catch {
-            // The browser may have already cancelled the pointer for scrolling.
-          }
-        }
-      }
-      return;
-    }
-    const region = annotationLayer.getPlaybackTarget(event.target);
-    if (
-      region === undefined ||
-      !player ||
-      player.getSnapshot().source !== "ready"
-    ) {
-      touch = null;
-      lastRegionTap = null;
-      pointer = null;
-      return;
-    }
-    touch = {
-      id: event.pointerId,
-      x: event.clientX,
-      y: event.clientY,
-      time: lastTouchTime,
-      moved: false,
-      regionId: region?.id,
-    };
-  };
-  const touchMove = (event: PointerEvent) => {
-    const point =
-      event.pointerType === "touch" && touchPoints.get(event.pointerId);
-    if (!point || (point.x === event.clientX && point.y === event.clientY)) return;
-    point.x = event.clientX;
-    point.y = event.clientY;
-    if (pinch) {
-      const duration = getDuration();
-      if (duration <= 0) return;
-      const { distance, center } = pinchGeometry();
-      const width = Math.max(1, root.clientWidth);
-      const zoom = Math.max(
-        width / duration,
-        Math.min(maxZoom, (pinch.zoom * distance) / pinch.distance),
-      );
-      const scrollLeft = Math.max(
-        0,
-        Math.min(duration * zoom - width, pinch.time * zoom - center),
-      );
-      pendingPinch = { zoom, scrollLeft };
-      invalidate();
-      return;
-    }
-    if (!touch || event.pointerId !== touch.id) return;
-    const dx = Math.abs(event.clientX - touch.x),
-      dy = Math.abs(event.clientY - touch.y);
-    touch.moved ||= Math.hypot(dx, dy) > 10;
-    // Vertical scrolling stays with the browser.
-    if (
-      touch.regionId === undefined &&
-      touch.moved &&
-      dx > dy &&
-      interaction.drag === "seek"
-    ) {
-      pointer = event.pointerId;
-      seekAt(event.clientX);
-    }
-  };
-  const endTouch = (event: PointerEvent) => {
-    if (touchPoints.delete(event.pointerId)) pinch = null;
-  };
-  const touchUp = (event: PointerEvent) => {
-    if (event.pointerType !== "touch") return;
-    endTouch(event);
-    lastTouchTime = performance.now();
-    if (!touch || event.pointerId !== touch.id) return;
-    const gesture = touch;
-    touch = null;
-    const previousTap = lastRegionTap;
-    lastRegionTap = null;
-    const target = annotationLayer.getPlaybackTarget(event.target, true);
-    if (
-      target === undefined ||
-      target?.id !== gesture.regionId ||
-      gesture.moved ||
-      lastTouchTime - gesture.time > 350 ||
-      Math.hypot(event.clientX - gesture.x, event.clientY - gesture.y) > 10
-    )
-      return;
-    if (
-      target &&
-      previousTap?.id === target.id &&
-      lastTouchTime - previousTap.time <= 350 &&
-      Math.hypot(event.clientX - previousTap.x, event.clientY - previousTap.y) <= 24
-    ) {
-      playRegion(target);
-      return;
-    }
-    if (target)
-      lastRegionTap = {
-        id: target.id,
-        x: event.clientX,
-        y: event.clientY,
-        time: lastTouchTime,
-      };
-    if (interaction.seek === "click") seekAt(event.clientX);
-  };
-  const touchCancel = (event: PointerEvent) => {
-    // Switching capture from a child to the root keeps the contact active.
-    if (
-      event.type === "lostpointercapture" &&
-      root.hasPointerCapture?.(event.pointerId)
-    )
-      return;
-    if (event.pointerType === "touch") endTouch(event);
-    if (touch?.id !== event.pointerId) return;
-    touch = null;
-    lastRegionTap = null;
-    lastTouchTime = performance.now();
-  };
-  const blockPinchClick = (event: MouseEvent) => {
-    if (!multiTouch || event.detail === 0) return;
-    event.preventDefault();
-    event.stopImmediatePropagation();
-  };
-  const click = (event: MouseEvent) => {
-    if (event.button !== 0 || performance.now() - lastTouchTime < 700) return;
-    const target = annotationLayer.getPlaybackTarget(event.target, true);
-    if (event.detail > 0) {
-      // Pointer capture can give clicks on different targets the same DOM target.
-      doubleClickBlocked = event.detail > 1 && lastClickRegionId !== target?.id;
-      lastClickRegionId = target?.id;
-    }
-    // A keyboard activation selects the focused annotation without a pointer position.
-    if (event.detail === 0 && target) return;
-    if (target !== undefined && interaction.seek === "click")
-      seekAt(event.clientX);
-  };
-  const doubleClick = (event: MouseEvent) => {
-    if (event.button !== 0 || performance.now() - lastTouchTime < 700) return;
-    if (event.detail > 1 && doubleClickBlocked) return;
-    const target = annotationLayer.getPlaybackTarget(event.target, true);
-    if (target) playRegion(target);
-  };
-  const down = (event: PointerEvent) => {
-    if (event.pointerType === "touch") return;
-    if (annotationLayer.isAnnotationTarget(event.target)) return;
-    if (
-      !player ||
-      event.button !== 0 ||
-      interaction.drag !== "seek" ||
-      player.getSnapshot().source !== "ready"
-    )
-      return;
-    pointer = event.pointerId;
-    root.setPointerCapture(pointer);
-    seekAt(event.clientX);
-  };
-  const move = (event: PointerEvent) => {
-    if (event.pointerType === "touch") return;
-    if (event.pointerId === pointer) seekAt(event.clientX);
-  };
-  const up = (event: PointerEvent) => {
-    if (event.pointerId !== pointer) return;
-    if (root.hasPointerCapture(pointer)) root.releasePointerCapture(pointer);
-    pointer = null;
-  };
-  const key = (event: KeyboardEvent) => {
-    if (annotationLayer.isAnnotationTarget(event.target)) return;
-    if (
-      !player ||
-      interaction.seek === "off" ||
-      player.getSnapshot().source !== "ready"
-    )
-      return;
-    const now = player.getMediaElement()?.currentTime ?? 0;
-    const step = event.shiftKey ? 10 : 1;
-    const times: Record<string, number> = {
-      ArrowRight: now + step,
-      ArrowLeft: now - step,
-      Home: 0,
-      End: duration,
-    };
-    if (event.key in times) {
-      event.preventDefault();
-      player.seek(Math.max(0, Math.min(duration, times[event.key])));
-      request();
-    }
-  };
-  root.addEventListener("click", blockPinchClick, true);
-  root.addEventListener("click", click);
-  root.addEventListener("dblclick", doubleClick);
-  root.addEventListener("keydown", key);
-  root.addEventListener("pointerdown", touchDown);
-  root.addEventListener("pointermove", touchMove);
-  root.addEventListener("pointerup", touchUp);
-  root.addEventListener("pointercancel", touchCancel);
-  root.addEventListener("lostpointercapture", touchCancel);
-  root.addEventListener("pointerdown", down);
-  root.addEventListener("pointermove", move);
-  root.addEventListener("pointerup", up);
-  root.addEventListener("pointercancel", up);
-  root.addEventListener("lostpointercapture", up);
+  const gestures = mountWaveformGestures({
+    root,
+    player,
+    interaction: () => interaction,
+    annotations: () => annotationLayer,
+    geometry: () => ({ totalWidth, duration }),
+    getDuration,
+    contentWidth,
+    playRegion,
+    request,
+    invalidate,
+  });
   root.addEventListener("scroll", invalidate, { passive: true });
   const annotationLayer = mountAnnotations(
     container,
@@ -741,11 +475,7 @@ export function mountWaveform(
   const unsubscribe = player?.subscribe(() => {
     const state = player.getSnapshot();
     if (state.sourceId !== sourceId || state.source !== "ready") {
-      touch = null;
-      lastRegionTap = null;
-      lastClickRegionId = undefined;
-      doubleClickBlocked = false;
-      resetPinchZoom();
+      gestures.resetSource();
       sourceId = state.sourceId;
     }
     const next = state.data;
@@ -753,7 +483,7 @@ export function mountWaveform(
       data = next;
       dirty = true;
     }
-    if (state.source === "disposed") pointer = null;
+    if (state.source === "disposed") gestures.stopSeeking();
     annotationLayer.sync();
     request();
   });
@@ -876,14 +606,14 @@ export function mountWaveform(
         (patch.viewport && "zoom" in patch.viewport) ||
         (patch.data && patch.data.sourceId !== data?.sourceId)
       )
-        resetPinchZoom();
+        gestures.resetZoom();
       viewport = v;
       interaction = i;
       if (patch.data) data = patch.data;
       if (patch.label !== undefined) label = patch.label;
       if ("onDraw" in patch) onDraw = patch.onDraw;
       root.style.touchAction =
-        interaction.drag === "none" ? "pan-x pan-y" : "pan-y";
+        interaction.drag === "seek" ? "pan-y" : "pan-x pan-y";
       invalidate();
     },
     refreshTheme: invalidate,
@@ -901,24 +631,7 @@ export function mountWaveform(
       annotationLayer.dispose();
       unsubscribe?.();
       unsubscribeTime?.();
-      root.removeEventListener("click", blockPinchClick, true);
-      root.removeEventListener("click", click);
-      root.removeEventListener("dblclick", doubleClick);
-      root.removeEventListener("keydown", key);
-      touch = null;
-      touchPoints.clear();
-      resetPinchZoom();
-      lastRegionTap = null;
-      root.removeEventListener("pointerdown", touchDown);
-      root.removeEventListener("pointermove", touchMove);
-      root.removeEventListener("pointerup", touchUp);
-      root.removeEventListener("pointercancel", touchCancel);
-      root.removeEventListener("lostpointercapture", touchCancel);
-      root.removeEventListener("pointerdown", down);
-      root.removeEventListener("pointermove", move);
-      root.removeEventListener("pointerup", up);
-      root.removeEventListener("pointercancel", up);
-      root.removeEventListener("lostpointercapture", up);
+      gestures.dispose();
       root.removeEventListener("scroll", invalidate);
       root.remove();
     },

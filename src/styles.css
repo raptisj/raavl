@@ -131,10 +131,34 @@
 :where(.raavl-annotation-create, .raavl-annotation-editor) :where(input[type="number"]) {
   width: 100px;
 }
-:where(.raavl-annotation-create button, .raavl-annotation-actions button) {
+:where(.raavl-annotation-time-field) {
+  display: flex;
+  align-items: flex-end;
+  gap: 4px;
+  min-width: 0;
+  max-width: 100%;
+}
+:where(.raavl-annotation-time-steps) {
+  display: none;
+}
+:where(.raavl-annotation-create button, .raavl-annotation-actions button, .raavl-annotation-time-steps button) {
   min-height: 36px;
   background: var(--raavl-control-background, #fff);
   border-color: var(--raavl-control-border, #d6dfd2);
+}
+@media (any-pointer: coarse) {
+  :where(.raavl-annotation-time-steps) {
+    display: flex;
+    gap: 4px;
+  }
+  :where(.raavl-annotation-time-field input, .raavl-annotation-time-steps button) {
+    min-height: 44px;
+  }
+  :where(.raavl-annotation-time-steps button) {
+    min-width: 44px;
+    font-size: 1rem;
+    touch-action: manipulation;
+  }
 }
 :where(.raavl-annotation-actions) {
   display: flex;

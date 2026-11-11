@@ -179,22 +179,27 @@ until the new document is published or the draft is cancelled.
 Drag out a temporary range to open the inline editor. Drag the range to move it
 or drag either edge to resize it. You can also type a start or end time or use
 Up and Down in either time field to adjust it by 0.1 seconds (1 second with
-Shift). With a player attached, use **Play region**
+Shift). On touch screens, tap **−** or **+** next to Start or End to adjust
+the time by 0.1 seconds. With a player attached, use **Play region**
 to preview only that range. Use the checkmark to save it as a region, or use
 Cancel or Escape to clear it. The controls use the supplied store's validation
 and show validation errors inline. Style them with
 `.raavl-annotation-create`, `.raavl-annotation-editor`,
 and `.raavl-annotation-actions`.
 
-- `interaction.drag: 'select'` creates a temporary range over empty waveform space.
-  It does not create a region automatically or seek playback on release.
+- With `interaction.drag: 'select'`, dragging empty waveform space with a mouse
+  or pen creates a temporary range for review before saving.
+- On touch screens, swipe sideways to scroll a zoomed waveform or vertically
+  to scroll the page. Tap to place the playhead, then use **Create region at
+  playhead** in the actions toolbar to start a draft. Adjust its times in the
+  editor or drag its resize handles when using the inline editor.
 - Vanilla views expose `getSelection()`, `clearSelection()`, and
   `createRegionFromSelection(id, label?)`. React applications use the selection
   callback to add a region to their controlled document/store.
 - Click or tap a region body to select it and seek when click seeking is
   enabled. Double-click or double-tap a region body to play it once from start
-  to end. Drag the region body to move it or a handle to resize it. Drag a
-  marker to move it.
+  to end. Use a mouse or pen to drag a region body or marker to move it.
+  Region resize handles also support touch dragging.
 - To add a marker at a single point, seek there and call
   `store.addMarker({ id, time: player.getCurrentTime(), label })`. The modules
   example exposes this as **Add marker at playhead**.

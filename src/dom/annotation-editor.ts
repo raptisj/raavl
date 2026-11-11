@@ -25,28 +25,39 @@ function button(
   const path = document.createElementNS(namespace, "path");
   svg.setAttribute("viewBox", "0 0 24 24");
   svg.setAttribute("aria-hidden", "true");
-  path.setAttribute("d", {
-    apply: "M5 12l4 4L19 6",
-    delete: "M4 7h16M10 11v6m4-6v6M6 7l1 13h10l1-13M9 7V4h6v3",
-    cancel: "M6 6l12 12M18 6L6 18",
-  }[icon]);
+  path.setAttribute(
+    "d",
+    {
+      apply: "M5 12l4 4L19 6",
+      delete: "M4 7h16M10 11v6m4-6v6M6 7l1 13h10l1-13M9 7V4h6v3",
+      cancel: "M6 6l12 12M18 6L6 18",
+    }[icon],
+  );
   svg.append(path);
   element.append(svg);
   return element;
 }
 
 type Annotation = Region | Marker;
+type Boundary = "start" | "end";
+const timeStep = 0.1;
+const formatTime = (time: number) => String(Number(time.toFixed(6)));
+
 function coordinates(item: Annotation): [number, number?] {
   return "start" in item ? [item.start, item.end] : [item.time];
 }
 function findAnnotation(document: AnnotationDocument, id: string) {
-  return document.regions.find((item) => item.id === id)
-    ?? document.markers.find((item) => item.id === id);
+  return (
+    document.regions.find((item) => item.id === id) ??
+    document.markers.find((item) => item.id === id)
+  );
 }
 function sameEditableValues(a: Annotation, b: Annotation) {
   const [from, to] = coordinates(a);
   const [otherFrom, otherTo] = coordinates(b);
-  return a.id === b.id && a.label === b.label && from === otherFrom && to === otherTo;
+  return (
+    a.id === b.id && a.label === b.label && from === otherFrom && to === otherTo
+  );
 }
 
 export function createAnnotationEditor(
@@ -54,7 +65,12 @@ export function createAnnotationEditor(
   focusBadge: (id: string) => void,
   clearSelection: () => void,
   playSelection: ((range: NonNullable<Selection>) => void) | undefined,
-  setSelectionBoundary: (side: "start" | "end", time: number) => void,
+  setSelectionBoundary: (side: Boundary, time: number) => void,
+  resizeBoundary: (
+    range: NonNullable<Selection>,
+    time: number,
+    side: Boundary,
+  ) => NonNullable<Selection>,
   renderPreview: () => void,
   canOpenModal: () => boolean = () => true,
 ) {
@@ -87,13 +103,30 @@ export function createAnnotationEditor(
     label.append(caption, input);
     return { label, caption, input };
   }
+  function timeField(side: Boundary, update: (step: number) => void) {
+    const name = side === "start" ? "Start" : "End";
+    const time = field(`${name} (seconds)`, true);
+    const element = document.createElement("div");
+    element.className = "raavl-annotation-time-field";
+    const steps = document.createElement("span");
+    steps.className = "raavl-annotation-time-steps";
+    const decrease = button(document, "−");
+    const increase = button(document, "+");
+    decrease.setAttribute("aria-label", `Decrease ${side} by ${timeStep} seconds`);
+    increase.setAttribute("aria-label", `Increase ${side} by ${timeStep} seconds`);
+    decrease.onclick = () => update(-timeStep);
+    increase.onclick = () => update(timeStep);
+    steps.append(decrease, increase);
+    element.append(time.label, steps);
+    return { ...time, element, steps, decrease, increase };
+  }
   const newLabel = field("Label");
   newLabel.input.value = "New annotation";
-  const selectionStart = field("Start (seconds)", true);
-  const selectionEnd = field("End (seconds)", true);
+  const selectionStart = timeField("start", (step) => updateSelection("start", step));
+  const selectionEnd = timeField("end", (step) => updateSelection("end", step));
   const label = field("Label");
-  const start = field("Start (seconds)", true);
-  const end = field("End (seconds)", true);
+  const start = timeField("start", (step) => stepRegionBoundary("start", step));
+  const end = timeField("end", (step) => stepRegionBoundary("end", step));
   const addRegion = button(document, "Create region from selection", "apply");
   addRegion.disabled = true;
   const cancelRegion = button(document, "Cancel selection", "cancel");
@@ -116,8 +149,13 @@ export function createAnnotationEditor(
   creationActions.className = "raavl-annotation-actions";
   creationActions.append(addRegion, cancelRegion);
   if (playSelection) creationActions.prepend(preview);
-  creation.append(newLabel.label, selectionStart.label, selectionEnd.label, creationActions);
-  editor.append(label.label, start.label, end.label, actions);
+  creation.append(
+    newLabel.label,
+    selectionStart.element,
+    selectionEnd.element,
+    creationActions,
+  );
+  editor.append(label.label, start.element, end.element, actions);
   element.append(creation, editor, error);
 
   let store: AnnotationStore | null = null;
@@ -131,35 +169,36 @@ export function createAnnotationEditor(
     if (item) close(true);
   }
   closeDialog.onclick = dismissDialog;
-  dialog.addEventListener("cancel", event => {
+  dialog.addEventListener("cancel", (event) => {
     event.preventDefault();
     dismissDialog();
   });
-  const formatTime = (time: number) => String(Number(time.toFixed(6)));
+  function updateSelection(side: Boundary, step = 0) {
+    if (!selection) return;
+    const { input } = side === "start" ? selectionStart : selectionEnd;
+    const current = selection[side];
+    const typed = input.valueAsNumber;
+    const time =
+      Number.isFinite(typed) && input.value !== formatTime(current)
+        ? typed
+        : current;
+    setSelectionBoundary(side, time + step);
+    input.value = selection ? formatTime(selection[side]) : "";
+  }
   for (const [side, { input }] of [
     ["start", selectionStart],
     ["end", selectionEnd],
   ] as const) {
-    const update = (step = 0) => {
-      if (!selection) return;
-      const current = selection[side];
-      const typed = input.valueAsNumber;
-      const time = Number.isFinite(typed) && input.value !== formatTime(current)
-        ? typed
-        : current;
-      setSelectionBoundary(side, time + step);
-      input.value = selection ? formatTime(selection[side]) : "";
-    };
-    input.onchange = () => update();
+    input.onchange = () => updateSelection(side);
     input.onkeydown = (event) => {
       if (event.isComposing) return;
       if (event.key === "Enter") {
         event.preventDefault();
-        update();
+        updateSelection(side);
       } else if (event.key === "ArrowUp" || event.key === "ArrowDown") {
         event.preventDefault();
-        const step = event.shiftKey ? 1 : 0.1;
-        update(event.key === "ArrowUp" ? step : -step);
+        const step = event.shiftKey ? 1 : timeStep;
+        updateSelection(side, event.key === "ArrowUp" ? step : -step);
       }
     };
   }
@@ -174,7 +213,7 @@ export function createAnnotationEditor(
     renderPreview();
     if (restoreFocus) focusBadge(id);
   }
-  editor.oninput = () => {
+  function updatePreview() {
     if (!item) return;
     const from = start.input.valueAsNumber;
     const to = end.input.valueAsNumber;
@@ -183,11 +222,12 @@ export function createAnnotationEditor(
     const [previousStart, previousEnd] = coordinates(draft ?? item);
     const nextLabel = label.input.value;
     if ("start" in item) {
-      const validRange = !item.locked && validStart && to > from && to <= duration;
+      const validRange =
+        !item.locked && validStart && to > from && to <= duration;
       draft = {
         ...item,
         start: validRange ? from : previousStart,
-        end: validRange ? to : previousEnd ?? item.end,
+        end: validRange ? to : (previousEnd ?? item.end),
         label: nextLabel,
       };
     } else {
@@ -198,14 +238,25 @@ export function createAnnotationEditor(
       };
     }
     renderPreview();
-  };
+  }
+  editor.oninput = updatePreview;
+  function stepRegionBoundary(side: Boundary, step: number) {
+    if (!item || !("start" in item) || item.locked) return;
+    const current = draft && "start" in draft ? draft : item;
+    const time = Number(formatTime(current[side] + step));
+    const next = resizeBoundary(current, time, side);
+    start.input.value = String(next.start);
+    end.input.value = String(next.end);
+    updatePreview();
+  }
   function edit(operation: (store: AnnotationStore) => void) {
     if (!store) return;
     error.textContent = "";
     try {
       operation(store);
     } catch (cause) {
-      error.textContent = cause instanceof Error ? cause.message : String(cause);
+      error.textContent =
+        cause instanceof Error ? cause.message : String(cause);
     }
   }
   function newRegionId(target: AnnotationStore) {
@@ -216,52 +267,59 @@ export function createAnnotationEditor(
     while (ids.has(id));
     return id;
   }
-  addRegion.onclick = () => edit((target) => {
-    if (!selection) return;
-    target.addRegion({
-      id: newRegionId(target),
-      ...selection,
-      label: newLabel.input.value,
+  addRegion.onclick = () =>
+    edit((target) => {
+      if (!selection) return;
+      target.addRegion({
+        id: newRegionId(target),
+        ...selection,
+        label: newLabel.input.value,
+      });
+      clearSelection();
     });
-    clearSelection();
-  });
   cancelRegion.onclick = cancelRegionText.onclick = clearSelection;
   preview.onclick = () => {
     if (selection) playSelection?.(selection);
   };
-  apply.onclick = () => edit((target) => {
-    if (!item) return;
-    const [from, to] = coordinates(item);
-    const nextLabel = label.input.value;
-    const nextStart = start.input.valueAsNumber;
-    const nextEnd = end.input.valueAsNumber;
-    const labelChanged = nextLabel !== (item.label ?? "");
-    const timeChanged =
-      !item.locked &&
-      (nextStart !== from || (to !== undefined && nextEnd !== to));
-    if (!labelChanged && !timeChanged) {
-      close(true);
-      return;
-    }
-    const patch = labelChanged ? { label: nextLabel } : {};
-    if ("start" in item) {
-      target.updateRegion(
-        item.id,
-        timeChanged ? { ...patch, start: nextStart, end: nextEnd } : patch,
-      );
-    } else {
-      target.updateMarker(item.id, timeChanged ? { ...patch, time: nextStart } : patch);
-    }
-  });
-  lock.onclick = () => edit((target) => {
-    if (!item) return;
-    const patch = { locked: !item.locked };
-    if ("start" in item) target.updateRegion(item.id, patch);
-    else target.updateMarker(item.id, patch);
-  });
-  remove.onclick = () => edit((target) => {
-    if (item) target.remove(item.id);
-  });
+  apply.onclick = () =>
+    edit((target) => {
+      if (!item) return;
+      const [from, to] = coordinates(item);
+      const nextLabel = label.input.value;
+      const nextStart = start.input.valueAsNumber;
+      const nextEnd = end.input.valueAsNumber;
+      const labelChanged = nextLabel !== (item.label ?? "");
+      const timeChanged =
+        !item.locked &&
+        (nextStart !== from || (to !== undefined && nextEnd !== to));
+      if (!labelChanged && !timeChanged) {
+        close(true);
+        return;
+      }
+      const patch = labelChanged ? { label: nextLabel } : {};
+      if ("start" in item) {
+        target.updateRegion(
+          item.id,
+          timeChanged ? { ...patch, start: nextStart, end: nextEnd } : patch,
+        );
+      } else {
+        target.updateMarker(
+          item.id,
+          timeChanged ? { ...patch, time: nextStart } : patch,
+        );
+      }
+    });
+  lock.onclick = () =>
+    edit((target) => {
+      if (!item) return;
+      const patch = { locked: !item.locked };
+      if ("start" in item) target.updateRegion(item.id, patch);
+      else target.updateMarker(item.id, patch);
+    });
+  remove.onclick = () =>
+    edit((target) => {
+      if (item) target.remove(item.id);
+    });
   cancel.onclick = () => close(true);
   cancelEditText.onclick = dismissDialog;
   creation.onkeydown = (event) => {
@@ -281,29 +339,51 @@ export function createAnnotationEditor(
       event.stopPropagation();
       if (mode === "modal") dismissDialog();
       else close(true);
-    } else if (event.key === "Enter" && event.target instanceof HTMLInputElement) {
+    } else if (
+      event.key === "Enter" &&
+      event.target instanceof HTMLInputElement
+    ) {
       event.preventDefault();
       apply.click();
     }
   };
   function showLockState(annotation: Annotation) {
-    start.input.disabled = end.input.disabled = remove.disabled = !!annotation.locked;
+    const locked = !!annotation.locked;
+    for (const { input, decrease, increase } of [start, end])
+      input.disabled = decrease.disabled = increase.disabled = locked;
+    remove.disabled = locked;
     lock.textContent = annotation.locked ? "Unlock" : "Lock";
   }
   function syncVisibility() {
     creation.hidden = !store || !selection || item !== null;
     badges.hidden = mode === "inline" && (item !== null || !creation.hidden);
-    const show = mode === "modal" && (!creation.hidden || !editor.hidden) && canOpenModal();
-    dialog.setAttribute("aria-label", item ? `Edit ${item.label || item.id}` : "New region");
+    const show =
+      mode === "modal" &&
+      (!creation.hidden || !editor.hidden) &&
+      canOpenModal();
+    dialog.setAttribute(
+      "aria-label",
+      item ? `Edit ${item.label || item.id}` : "New region",
+    );
     if (show && !dialog.open && dialog.isConnected) dialog.showModal();
     else if (!show && dialog.open) dialog.close();
   }
   function previewAnnotation(annotation: Annotation): Annotation {
-    if (!item || !draft || item.id !== annotation.id ||
-        !sameEditableValues(item, annotation)) return annotation;
+    if (
+      !item ||
+      !draft ||
+      item.id !== annotation.id ||
+      !sameEditableValues(item, annotation)
+    )
+      return annotation;
     if (item === annotation) return draft;
     if ("start" in annotation && "start" in draft)
-      return { ...annotation, label: draft.label, start: draft.start, end: draft.end };
+      return {
+        ...annotation,
+        label: draft.label,
+        start: draft.start,
+        end: draft.end,
+      };
     if ("time" in annotation && "time" in draft)
       return { ...annotation, label: draft.label, time: draft.time };
     return annotation;
@@ -331,6 +411,7 @@ export function createAnnotationEditor(
     },
     dispose() {
       if (dialog.open) dialog.close();
+      badges.hidden = false;
       element.remove();
     },
     focusCreation() {
@@ -343,17 +424,22 @@ export function createAnnotationEditor(
         label.input.focus({ preventScroll: true });
         return;
       }
-      const annotation = store && findAnnotation(store.getSnapshot().document, id);
+      const annotation =
+        store && findAnnotation(store.getSnapshot().document, id);
       if (!annotation) return;
       item = annotation;
       draft = null;
       const [from, to] = coordinates(annotation);
       label.input.value = annotation.label ?? "";
-      start.caption.textContent = to === undefined ? "Time (seconds)" : "Start (seconds)";
+      start.caption.textContent =
+        to === undefined ? "Time (seconds)" : "Start (seconds)";
       start.input.value = String(from);
-      end.label.hidden = to === undefined;
+      start.steps.hidden = end.element.hidden = to === undefined;
       end.input.value = to === undefined ? "" : String(to);
-      editor.setAttribute("aria-label", `Edit ${annotation.label || annotation.id}`);
+      editor.setAttribute(
+        "aria-label",
+        `Edit ${annotation.label || annotation.id}`,
+      );
       showLockState(annotation);
       error.textContent = "";
       editor.hidden = false;

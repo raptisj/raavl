@@ -155,4 +155,81 @@ test.describe("touch waveform", () => {
     await expect.poll(async () => (await viewport()).width).toBeLessThan(initial.width);
     expect((await viewport()).end).toBe(2);
   });
+
+  test("scrolls from annotations and creates a region using the toolbar and a touch handle", async ({
+    page,
+    context,
+  }) => {
+    await page.goto("/?annotations");
+    const viewport = () =>
+      page.evaluate(() => window.packageTest?.reactView?.getViewport());
+    await expect.poll(async () => (await viewport())?.duration).toBe(2);
+    await page.evaluate(() => {
+      document.body.style.minHeight = "1600px";
+      window.packageTest.reactView.update({ viewport: { zoom: 480 } });
+    });
+    await expect.poll(async () => (await viewport()).pixelsPerSecond).toBe(480);
+    const waveform = page.locator("#react .raavl-waveform");
+    const region = waveform.locator(".raavl-region-body");
+    const bounds = await waveform.boundingBox();
+    const regionBounds = await region.boundingBox();
+    const y = Math.round(bounds.y + bounds.height / 2);
+    const cdp = await context.newCDPSession(page);
+    const swipe = (x, distance) =>
+      cdp.send("Input.synthesizeScrollGesture", {
+        x: Math.round(x),
+        y,
+        gestureSourceType: "touch",
+        ...distance,
+      });
+
+    const regionX = regionBounds.x + regionBounds.width / 2;
+    await swipe(regionX, { yDistance: -60 });
+    await expect.poll(() => page.evaluate(() => window.scrollY)).toBeGreaterThan(0);
+    await page.evaluate(() => window.scrollTo(0, 0));
+
+    await swipe(regionX, { xDistance: -100 });
+    await expect.poll(async () => (await viewport()).start).toBeGreaterThan(0);
+    const start = (await viewport()).start;
+    await swipe(bounds.x + bounds.width - 25, { xDistance: -100 });
+    await expect.poll(async () => (await viewport()).start).toBeGreaterThan(start);
+
+    const selection = () =>
+      page.evaluate(() => window.packageTest.reactView.getSelection());
+    const time = () =>
+      page.evaluate(() => window.packageTest.reactPlayer.getCurrentTime());
+    expect(await selection()).toBeNull();
+    expect(await time()).toBe(0);
+    await expect(region).toHaveAccessibleName(/0\.30 to 0\.65/);
+
+    const tapX = Math.round(bounds.x + bounds.width / 2);
+    await page.touchscreen.tap(tapX, y);
+    await expect.poll(time).toBeGreaterThan(0.65);
+    const playhead = await time();
+    await page.getByRole("button", { name: "Create region at playhead" }).tap();
+    await expect.poll(async () => (await selection())?.start).toBe(playhead);
+
+    const handle = await waveform.locator(".raavl-selection-handle-start").boundingBox();
+    const x = Math.round(handle.x + handle.width / 2);
+    const handleY = Math.round(handle.y + handle.height / 2);
+    const touch = (type, ...xs) => cdp.send("Input.dispatchTouchEvent", {
+      type,
+      touchPoints: xs.map((x) => ({ x, y: handleY })),
+    });
+    await touch("touchStart", x);
+    await touch("touchMove", x - 48);
+    await touch("touchEnd");
+    await expect.poll(async () => (await selection())?.start).toBeCloseTo(playhead - 0.1);
+
+    const draft = page.getByRole("group", { name: "New region" });
+    const previousEnd = (await selection()).end;
+    await draft.getByRole("button", { name: "Increase start by 0.1 seconds" }).tap();
+    await draft.getByRole("button", { name: "Decrease end by 0.1 seconds" }).tap();
+    await expect.poll(async () => (await selection())?.start).toBeCloseTo(playhead);
+    await expect.poll(async () => (await selection())?.end).toBeCloseTo(previousEnd - 0.1);
+    await expect(draft.getByRole("spinbutton", { name: "End (seconds)" })).not.toBeFocused();
+    await page.getByRole("button", { name: "Create region from selection" }).tap();
+    await expect(page.getByRole("button", { name: /New annotation.*seconds/ }).first()).toBeVisible();
+    expect(await selection()).toBeNull();
+  });
 });

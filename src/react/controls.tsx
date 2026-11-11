@@ -13,6 +13,7 @@ import {
   type ReactNode,
 } from "react";
 import type { Player, PlayerSnapshot, RaavlError } from "../core/types.js";
+import { playbackState as getPlaybackState } from "../core/playback-state.js";
 import { playbackIcons } from "../dom/playback-icons.js";
 import { usePlayerState, usePlayerTime } from "./hooks.js";
 import { usePlayerRoot } from "./player-root.js";
@@ -47,15 +48,11 @@ export const PlayPauseButton = forwardRef<
   const { player, run } = usePlayerRoot();
   const ready = usePlayerState(player, isReady);
   const playback = usePlayerState(player, playbackState);
-  const state = {
-    playing: playback === "playing" || playback === "buffering",
-    pending: playback === "starting",
-    buffering: playback === "buffering",
-    disabled: Boolean(disabled || !ready || playback === "starting"),
-  };
-  const defaultClass = children == null
-    ? "raavl-button raavl-play-pause raavl-play-pause-icon-button"
-    : "raavl-button raavl-play-pause";
+  const state = getPlaybackState(playback, ready, disabled);
+  const defaultClass =
+    children == null
+      ? "raavl-button raavl-play-pause raavl-play-pause-icon-button"
+      : "raavl-button raavl-play-pause";
   return (
     <button
       {...props}
@@ -78,10 +75,16 @@ export const PlayPauseButton = forwardRef<
       {typeof children === "function"
         ? children(state)
         : (children ?? (
-          <svg className="raavl-play-pause-icon" viewBox="0 0 24 24" aria-hidden="true">
-            <path d={state.playing ? playbackIcons.pause : playbackIcons.play} />
-          </svg>
-        ))}
+            <svg
+              className="raavl-play-pause-icon"
+              viewBox="0 0 24 24"
+              aria-hidden="true"
+            >
+              <path
+                d={state.playing ? playbackIcons.pause : playbackIcons.play}
+              />
+            </svg>
+          ))}
     </button>
   );
 });

@@ -1250,59 +1250,79 @@ it("ignores taps during multi-touch and clears cancelled or lost touch gestures"
   test.cleanup();
 });
 
-it("cancels a region drag when a second finger lands and resumes editing after release", async () => {
+it("cancels a region resize when a second finger lands and resumes editing after release", async () => {
   const test = await annotationView();
-  const body = host.querySelector(".raavl-region-body")!;
-  touchEvent(body, "pointerdown", 250);
-  touchEvent(test.viewport, "pointermove", 300);
-  touchEvent(test.viewport, "pointerdown", 500, 50, 2, false);
-  touchEvent(test.viewport, "pointermove", 650, 50, 2, false);
-  touchEvent(test.viewport, "pointerup", 650, 50, 2, false);
-  touchEvent(test.viewport, "pointerup", 300);
+  const end = () => host.querySelector(".raavl-region-handle-end")!;
+  touchEvent(end(), "pointerdown", 400);
+  touchEvent(test.viewport, "pointermove", 450);
+  touchEvent(test.viewport, "pointerdown", 650, 50, 2, false);
+  touchEvent(test.viewport, "pointermove", 800, 50, 2, false);
+  touchEvent(test.viewport, "pointerup", 800, 50, 2, false);
+  touchEvent(test.viewport, "pointerup", 450);
   flushFrame();
   expect(test.view.getViewport().pixelsPerSecond).toBe(175);
-  expect(test.store.getSnapshot().document.regions[0].start).toBe(2);
+  expect(test.store.getSnapshot().document.regions[0].end).toBe(4);
   expect(test.onCommit).not.toHaveBeenCalled();
   expect(test.player.getCurrentTime()).toBe(0);
 
-  touchEvent(body, "pointerdown", 250);
-  touchEvent(test.viewport, "pointerup", 285);
-  expect(test.store.getSnapshot().document.regions[0].start).toBeCloseTo(2.2);
+  touchEvent(end(), "pointerdown", 400);
+  touchEvent(test.viewport, "pointerup", 435);
+  expect(test.store.getSnapshot().document.regions[0].end).toBeCloseTo(4.2);
   expect(test.onCommit).toHaveBeenCalledOnce();
   test.cleanup();
 });
 
-it("plays a region on a double-tap while preserving touch selection and dragging", async () => {
+it("lets touch swipes pass through in selection mode and preserves tap playback", async () => {
   const test = await annotationView();
+  expect(test.viewport.style.touchAction).toBe("pan-x pan-y");
   const handle = host.querySelector(".raavl-region-handle-end")!;
   tap(handle, 400);
   tap(handle, 400);
   touchEvent(test.viewport, "pointerdown", 500);
-  touchEvent(test.viewport, "pointerup", 505);
-  expect(test.view.getSelection()).toEqual({ start: 5, end: 5.05 });
+  touchEvent(test.viewport, "pointermove", 540);
+  touchEvent(test.viewport, "pointerup", 540);
+  expect(test.view.getSelection()).toBeNull();
   expect(test.player.getCurrentTime()).toBe(0);
   expect(mock.play).not.toHaveBeenCalled();
   tap(test.viewport, 500);
   expect(test.player.getCurrentTime()).toBe(5);
   const body = host.querySelector(".raavl-region .raavl-region-body")!;
   touchEvent(body, "pointerdown", 250);
-  touchEvent(test.viewport, "pointerup", 300);
-  expect(test.store.getSnapshot().document.regions[0].start).toBe(2.5);
+  touchEvent(body, "pointermove", 300);
+  touchEvent(body, "pointerup", 300);
+  expect(test.store.getSnapshot().document.regions[0].start).toBe(2);
+  expect(test.onCommit).not.toHaveBeenCalled();
+  expect(test.player.getCurrentTime()).toBe(5);
   expect(mock.play).not.toHaveBeenCalled();
 
-  const moved = host.querySelector(".raavl-region .raavl-region-body")!;
   tap(test.viewport, 249);
-  touchEvent(moved, "pointerdown", 251);
-  touchEvent(test.viewport, "pointerup", 251);
+  tap(body, 251);
   expect(test.player.getCurrentTime()).toBeCloseTo(2.51);
   expect(mock.play).not.toHaveBeenCalled();
-  touchEvent(moved, "pointerdown", 253);
-  touchEvent(test.viewport, "pointerup", 253);
-  mouseClick(test.viewport, 253);
+  tap(body, 253);
   await Promise.resolve();
-  expect(test.player.getCurrentTime()).toBe(2.5);
+  expect(test.player.getCurrentTime()).toBe(2);
   expect(test.player.getSnapshot().playback).toBe("playing");
   expect(mock.play).toHaveBeenCalledOnce();
+  test.cleanup();
+});
+
+it("resizes a playhead draft with touch handles without enabling drag selection", async () => {
+  const test = await annotationView();
+  test.view.update({ interaction: { drag: "none" } });
+  test.view.createRegionAtTime(5);
+  const handle = host.querySelector<HTMLButtonElement>(".raavl-selection-handle-end")!;
+  expect(handle.disabled).toBe(false);
+
+  touchEvent(handle, "pointerdown", 600);
+  touchEvent(test.viewport, "pointermove", 700);
+  touchEvent(test.viewport, "pointercancel", 700);
+  expect(test.view.getSelection()).toEqual({ start: 5, end: 6 });
+
+  touchEvent(handle, "pointerdown", 600);
+  touchEvent(test.viewport, "pointerup", 700);
+  expect(test.view.getSelection()).toEqual({ start: 5, end: 7 });
+  expect(test.onCommit).not.toHaveBeenCalled();
   test.cleanup();
 });
 
@@ -1547,6 +1567,12 @@ it.each(["react", "vanilla"] as const)(
     expect(document.activeElement).toBe(label);
     expect([label.value, start.value, end.value]).toEqual(["Introduction", "0.5", "2.5"]);
     await act(async () => {
+      button(editor, "Increase start by 0.1 seconds").click();
+      button(editor, "Decrease end by 0.1 seconds").click();
+    });
+    expect([start.valueAsNumber, end.valueAsNumber]).toEqual([0.6, 2.4]);
+    expect(row()!.textContent).toBe("Introduction · 0.50–2.50s");
+    await act(async () => {
       label.value = "Discarded draft";
       start.value = "0.75";
       end.value = "3";
@@ -1592,7 +1618,7 @@ it.each(["react", "vanilla"] as const)(
 
     await act(async () => row("cue")!.click());
     expect(start.labels?.[0]?.textContent).toBe("Time (seconds)");
-    expect(end.labels?.[0]?.hidden).toBe(true);
+    expect(end.closest("[hidden]")).toBeTruthy();
     await act(async () => button(editor, "Lock").click());
     expect(start.disabled).toBe(true);
     expect(remove.disabled).toBe(true);
@@ -2116,4 +2142,29 @@ it("waits for drag completion before opening a modal and supports switching back
   test.cleanup();
   expect(dialog.open).toBe(false);
   expect(host.querySelector('dialog')).toBeNull();
+});
+
+
+it("restores annotation badges when disabling the inline editor during creation", async () => {
+  const test = await annotationView();
+  try {
+    test.view.update({ annotationEditor: true });
+    test.view.createRegionAtTime(1);
+    const badges = host.querySelector(".raavl-annotation-list ul")!.parentElement!;
+    expect(badges.hidden).toBe(true);
+    expect(host.querySelector(".raavl-annotation-create")).not.toBeNull();
+
+    test.view.update({ annotationEditor: false });
+    expect(badges.hidden).toBe(false);
+    expect(host.querySelector(".raavl-annotation-create")).toBeNull();
+    expect(test.view.getSelection()).toEqual({ start: 1, end: 2 });
+    expect(test.onCommit).not.toHaveBeenCalled();
+
+    test.view.update({ annotationEditor: true });
+    expect(badges.hidden).toBe(true);
+    test.view.clearSelection();
+    expect(badges.hidden).toBe(false);
+  } finally {
+    test.cleanup();
+  }
 });
