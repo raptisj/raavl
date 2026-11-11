@@ -288,7 +288,7 @@ entry points do not import React.
 
 | Surface             | Controls                                                                                                                                                                    |
 | ------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Waveform playback   | Click/tap to seek when enabled. Drag to scrub in seek mode. Double-click/double-tap the background to play from that point or a region body to play the region once. |
+| Waveform playback   | Click or tap to seek when enabled. Double-click or double-tap a region body to play the region once. Drag to scrub in seek mode. |
 | Waveform keyboard   | Left/Right seek 1 second, Shift seeks 10 seconds, Home/End seek bounds                                                                                                      |
 | Annotation keyboard | Arrows move items/handles by 0.1 seconds or the configured snap interval; Shift multiplies by 10; Delete/Backspace removes unlocked items; Escape cancels gesture/selection |
 | Minimap keyboard    | Left/Right pan 10% of a window; Shift pans a full window; Home/End reach viewport bounds                                                                                    |

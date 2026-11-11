@@ -37,7 +37,8 @@ export function exampleThemeCss(dark = false) {
 .example-app .raavl-timeline { --raavl-timeline-color: ${p.muted}; }
 .example-app .raavl-minimap-control { --raavl-focus-color: ${p.focus}; }
 .example-app .helper, .example-app label, .example-app .source-form p, .example-app .file-drop span { color: ${p.muted}; }
-.example-app .annotation-fields, .example-app .file-drop { border-color: ${p.border}; }
+.example-app .raavl-annotation-list { --raavl-control-border: ${p.border}; --raavl-control-background: ${p.control}; --raavl-error-color: ${dark ? "#ffb6a8" : "#a32323"}; }
+.example-app .file-drop { border-color: ${p.border}; }
 .example-app .file-drop { background: ${p.control}; }
 .example-app :focus-visible { outline: 3px solid ${p.focus}; outline-offset: 3px; }
 `;

@@ -101,8 +101,8 @@ function PlayerCard({
     <article className="player-card">
       <h3>{title}</h3>
       <p className="helper">
-        Click, tap, or drag to seek · Double-click or double-tap to play · Tab
-        to focus · ← → seek 1s · Shift seeks 10s
+        Click, tap, or drag to seek · Tab to focus · ← → seek 1s · Shift seeks
+        10s
       </p>
       <Preview>
         <style>{playbackStyles}</style>

@@ -205,8 +205,8 @@ export function ModulesEditor({ mode, onOptionsChange }: {
     <article className="player-card">
       <h3>Timeline, minimap, undo/redo & magnetic snapping</h3>
       <p>
-        Click or tap to move the playhead. Double-click or double-tap inside a
-        region to play it from start to end.
+        Click or tap the waveform to move the playhead. Double-click or
+        double-tap a region to play it from start to end.
         Drag empty space to select a range, or use Add marker at playhead to
         mark a single point. Move or resize a region near the cue at 8s to try
         magnetic snapping.

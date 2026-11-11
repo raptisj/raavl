@@ -436,35 +436,25 @@ export function mountWaveform(
     player.seekFraction(Math.max(0, Math.min(1, x / totalWidth)));
     request();
   };
-  // Recognize touch directly: mobile browsers need not synthesize dblclick.
+  // Track taps directly so a drag, scroll, or cancelled touch cannot activate playback.
   let touch: {
     id: number;
     x: number;
     y: number;
     time: number;
     moved: boolean;
-    region: Region | null;
+    regionId: string | undefined;
   } | null = null;
-  let lastTap: {
-    x: number;
-    y: number;
-    time: number;
-    regionId?: string;
-  } | null = null;
+  let lastRegionTap: { id: string; x: number; y: number; time: number } | null =
+    null;
   let lastTouchTime = -Infinity;
-  let lastClickTarget: Region | null | undefined = null;
+  let lastClickRegionId: string | undefined;
   let doubleClickBlocked = false;
-  const startPlayback = (clientX: number, region: Region | null) => {
-    if (!player || player.getSnapshot().source !== "ready") return;
-    if (region) {
-      void player
-        .playRange({ start: region.start, end: region.end })
-        .catch(() => {});
-      return;
-    }
-    if (interaction.seek === "click") seekAt(clientX);
-    // play() publishes failures to the player snapshot for subscribers to report.
-    void player.play().catch(() => {});
+  const playRegion = (region: Region) => {
+    if (player?.getSnapshot().source !== "ready") return;
+    void player
+      .playRange({ start: region.start, end: region.end })
+      .catch(() => {});
   };
   const touchDown = (event: PointerEvent) => {
     if (event.pointerType !== "touch") return;
@@ -478,7 +468,7 @@ export function mountWaveform(
       player.getSnapshot().source !== "ready"
     ) {
       touch = null;
-      lastTap = null;
+      lastRegionTap = null;
       pointer = null;
       return;
     }
@@ -486,22 +476,19 @@ export function mountWaveform(
       id: event.pointerId,
       x: event.clientX,
       y: event.clientY,
-      time: performance.now(),
+      time: lastTouchTime,
       moved: false,
-      region,
+      regionId: region?.id,
     };
   };
   const touchMove = (event: PointerEvent) => {
     if (!touch || event.pointerId !== touch.id) return;
     const dx = Math.abs(event.clientX - touch.x),
       dy = Math.abs(event.clientY - touch.y);
-    if (Math.hypot(dx, dy) > 10) {
-      touch.moved = true;
-      lastTap = null;
-    }
+    touch.moved ||= Math.hypot(dx, dy) > 10;
     // Leave vertical scrolling and pinch zoom to the browser.
     if (
-      !touch.region &&
+      touch.regionId === undefined &&
       touch.moved &&
       dx > dy &&
       interaction.drag === "seek"
@@ -516,57 +503,59 @@ export function mountWaveform(
     if (!touch || event.pointerId !== touch.id) return;
     const gesture = touch;
     touch = null;
-    const now = performance.now();
+    const previousTap = lastRegionTap;
+    lastRegionTap = null;
+    const target = annotationLayer.getPlaybackTarget(event.target, true);
     if (
-      annotationLayer.isPlaybackBlocked() ||
+      target === undefined ||
+      target?.id !== gesture.regionId ||
       gesture.moved ||
-      now - gesture.time > 350 ||
+      lastTouchTime - gesture.time > 350 ||
       Math.hypot(event.clientX - gesture.x, event.clientY - gesture.y) > 10
+    )
+      return;
+    if (
+      target &&
+      previousTap?.id === target.id &&
+      lastTouchTime - previousTap.time <= 350 &&
+      Math.hypot(event.clientX - previousTap.x, event.clientY - previousTap.y) <= 24
     ) {
-      lastTap = null;
+      playRegion(target);
       return;
     }
-    const regionId = gesture.region?.id;
-    if (
-      lastTap &&
-      lastTap.regionId === regionId &&
-      now - lastTap.time <= 350 &&
-      Math.hypot(event.clientX - lastTap.x, event.clientY - lastTap.y) <= 24
-    ) {
-      lastTap = null;
-      startPlayback(event.clientX, gesture.region);
-    } else {
-      if (interaction.seek === "click") seekAt(event.clientX);
-      lastTap = { x: event.clientX, y: event.clientY, time: now, regionId };
-    }
+    if (target)
+      lastRegionTap = {
+        id: target.id,
+        x: event.clientX,
+        y: event.clientY,
+        time: lastTouchTime,
+      };
+    if (interaction.seek === "click") seekAt(event.clientX);
   };
   const touchCancel = (event: PointerEvent) => {
     if (touch?.id !== event.pointerId) return;
     touch = null;
-    lastTap = null;
+    lastRegionTap = null;
     lastTouchTime = performance.now();
   };
   const click = (event: MouseEvent) => {
-    if (performance.now() - lastTouchTime < 700) return;
-    // A keyboard activation selects the focused annotation without a pointer position.
-    if (event.detail === 0 && annotationLayer.isAnnotationTarget(event.target))
-      return;
+    if (event.button !== 0 || performance.now() - lastTouchTime < 700) return;
     const target = annotationLayer.getPlaybackTarget(event.target, true);
     if (event.detail > 0) {
-      // Capture can give two clicks on different targets the same DOM target.
-      doubleClickBlocked =
-        event.detail > 1 &&
-        (lastClickTarget === undefined || lastClickTarget?.id !== target?.id);
-      lastClickTarget = target;
+      // Pointer capture can give clicks on different targets the same DOM target.
+      doubleClickBlocked = event.detail > 1 && lastClickRegionId !== target?.id;
+      lastClickRegionId = target?.id;
     }
+    // A keyboard activation selects the focused annotation without a pointer position.
+    if (event.detail === 0 && target) return;
     if (target !== undefined && interaction.seek === "click")
       seekAt(event.clientX);
   };
   const doubleClick = (event: MouseEvent) => {
-    if (performance.now() - lastTouchTime < 700) return;
-    if (event.button !== 0 || (event.detail > 1 && doubleClickBlocked)) return;
+    if (event.button !== 0 || performance.now() - lastTouchTime < 700) return;
+    if (event.detail > 1 && doubleClickBlocked) return;
     const target = annotationLayer.getPlaybackTarget(event.target, true);
-    if (target !== undefined) startPlayback(event.clientX, target);
+    if (target) playRegion(target);
   };
   const down = (event: PointerEvent) => {
     if (event.pointerType === "touch") return;
@@ -627,14 +616,20 @@ export function mountWaveform(
   root.addEventListener("pointercancel", up);
   root.addEventListener("lostpointercapture", up);
   root.addEventListener("scroll", invalidate, { passive: true });
-  const annotationLayer = mountAnnotations(container, root, surface, () => ({
-    sourceId: player?.getSnapshot().sourceId ?? data?.sourceId ?? null,
-    duration: player?.getSnapshot().duration || data?.duration || 0,
-    width: totalWidth,
-    channels: data?.channels.length ?? 0,
-    splitChannels: appearance.splitChannels,
-    selectMode: interaction.drag === "select",
-  }));
+  const annotationLayer = mountAnnotations(
+    container,
+    root,
+    surface,
+    () => ({
+      sourceId: player?.getSnapshot().sourceId ?? data?.sourceId ?? null,
+      duration: player?.getSnapshot().duration || data?.duration || 0,
+      width: totalWidth,
+      channels: data?.channels.length ?? 0,
+      splitChannels: appearance.splitChannels,
+      selectMode: interaction.drag === "select",
+    }),
+    player?.getCurrentTime,
+  );
   const observer = new ResizeObserver(invalidate);
   observer.observe(root);
   let tapSourceId = player?.getSnapshot().sourceId;
@@ -644,8 +639,8 @@ export function mountWaveform(
       player.getSnapshot().source !== "ready"
     ) {
       touch = null;
-      lastTap = null;
-      lastClickTarget = null;
+      lastRegionTap = null;
+      lastClickRegionId = undefined;
       doubleClickBlocked = false;
       tapSourceId = player.getSnapshot().sourceId;
     }
@@ -725,6 +720,7 @@ export function mountWaveform(
       const nextAnnotations = { ...annotationOptions };
       for (const key of [
         "annotations",
+        "annotationEditor",
         "annotationRules",
         "snapAnnotation",
         "renderRegionLabel",
@@ -798,7 +794,7 @@ export function mountWaveform(
       root.removeEventListener("dblclick", doubleClick);
       root.removeEventListener("keydown", key);
       touch = null;
-      lastTap = null;
+      lastRegionTap = null;
       root.removeEventListener("pointerdown", touchDown);
       root.removeEventListener("pointermove", touchMove);
       root.removeEventListener("pointerup", touchUp);

@@ -73,7 +73,7 @@ The browser `document` global above must not be shadowed by a variable containin
 annotation data. A label renderer may alternatively return `{ element, dispose }`
 for custom cleanup. Label content is presentation-only and is not serialized.
 Label slots are intended for noninteractive text/visual content inside the region
-button; put editable inputs in your application's inspector.
+button. Use the inline editor below for editable inputs.
 
 `getSnapshot()` returns `{ document, revision, duration, invalidIds }`.
 `subscribe(callback)` observes committed snapshots and validation-context changes.
@@ -147,15 +147,49 @@ alongside React for the React entry point; vanilla entry points import neither.
 
 ## Selection, editing, and playback
 
+Enable the built-in annotation controls with `annotationEditor` and an annotation
+document or store. Import `raavl/styles.css` for the default layout.
+
+```ts
+const view = mountWaveform(container, {
+  player,
+  annotations,
+  annotationEditor: true,
+  interaction: { drag: 'select' },
+})
+```
+
+```tsx
+<Waveform
+  source={source}
+  annotationStore={annotations}
+  annotationEditor
+  interaction={{ drag: 'select' }}
+/>
+```
+
+Choose a badge below the waveform to replace the badge list with an inline editor.
+Regions have label, start, and end fields. Markers have label and time fields.
+Apply or press Enter in a field to save. Cancel or press Escape to discard the draft.
+Locked annotations can be relabeled. Unlock them to change their times or delete them.
+In controlled mode, apply and delete propose a change and the editor stays open
+until the new document is published or the draft is cancelled.
+
+The controls also create regions from the current drag selection and, when a
+player is attached, add markers at the playhead. They use the supplied store's
+validation and show validation errors inline. Style them with
+`.raavl-annotation-create`, `.raavl-annotation-editor`,
+and `.raavl-annotation-actions`.
+
 - `interaction.drag: 'select'` creates a temporary range over empty waveform space.
   It does not create a region automatically or seek playback on release.
 - Vanilla views expose `getSelection()`, `clearSelection()`, and
   `createRegionFromSelection(id, label?)`. React applications use the selection
   callback to add a region to their controlled document/store.
-- Click or tap inside a region to select it and seek when click seeking is
-  enabled. Double-click or double-tap inside it to play the region once from
-  start to end. Drag the region body to move it or a handle to resize it. Drag
-  a marker to move it.
+- Click or tap a region body to select it and seek when click seeking is
+  enabled. Double-click or double-tap a region body to play it once from start
+  to end. Drag the region body to move it or a handle to resize it. Drag a
+  marker to move it.
 - To add a marker at a single point, seek there and call
   `store.addMarker({ id, time: player.getCurrentTime(), label })`. The examples
   expose this as **Add marker at playhead**.
@@ -164,7 +198,7 @@ alongside React for the React entry point; vanilla entry points import neither.
   base step, with Shift using ten intervals. Delete/Backspace removes an unlocked
   annotation. Escape cancels the current gesture/selection.
 - Locked items can be selected but cannot be moved, resized, or removed. Unlock
-  through the store/inspector. The accessible list below the waveform selects
+  through the store or inline editor. By default the accessible badge list selects
   annotations and focuses their overlay controls.
 
 ```ts

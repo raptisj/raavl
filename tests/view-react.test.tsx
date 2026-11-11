@@ -1002,7 +1002,7 @@ it("supports React-owned default annotations through Strict Mode remount and cle
   expect(frames.size).toBe(0);
 });
 
-it("starts playback at a double-clicked position and removes the handler on disposal", async () => {
+it("seeks on the waveform background without starting playback", async () => {
   const player = createPlayer();
   const ready = player.setSource(source);
   mock.ready(player.getMediaElement()!);
@@ -1010,56 +1010,64 @@ it("starts playback at a double-clicked position and removes the handler on disp
   const view = mountWaveform(host, { player });
   flushFrame();
   const waveform = host.querySelector(".raavl-waveform")!;
-  waveform.dispatchEvent(
-    new MouseEvent("dblclick", { clientX: 400, bubbles: true }),
-  );
-  await Promise.resolve();
+  mouseClick(waveform, 390);
+  mouseClick(waveform, 400, "click", 2);
+  mouseClick(waveform, 400, "dblclick", 2);
   expect(player.getCurrentTime()).toBe(4);
-  expect(player.getSnapshot().playback).toBe("playing");
-  player.pause();
-  view.dispose();
-  waveform.dispatchEvent(new MouseEvent("dblclick", { bubbles: true }));
-  expect(player.getSnapshot().playback).toBe("paused");
-  player.dispose();
-});
-
-it("ignores double-click playback before a source is ready and reports play failures through state", async () => {
-  const player = createPlayer();
-  const view = mountWaveform(host, { player });
-  const waveform = host.querySelector(".raavl-waveform")!;
-  waveform.dispatchEvent(new MouseEvent("dblclick", { bubbles: true }));
   expect(mock.play).not.toHaveBeenCalled();
-  const ready = player.setSource(source);
-  mock.ready(player.getMediaElement()!);
-  await ready;
-  mock.play.mockRejectedValueOnce(new Error("Playback blocked"));
-  waveform.dispatchEvent(new MouseEvent("dblclick", { bubbles: true }));
-  await Promise.resolve();
-  await Promise.resolve();
-  expect(player.getSnapshot().playback).toBe("paused");
-  expect(player.getSnapshot().error).toBeTruthy();
   view.dispose();
+  mouseClick(waveform, 600);
+  expect(player.getCurrentTime()).toBe(4);
   player.dispose();
 });
 
-it("seeks on click and plays the region once on a captured double-click", async () => {
+it("reports failures from region double-click playback through player state", async () => {
+  const test = await annotationView();
+  mock.play.mockRejectedValueOnce(new Error("Playback blocked"));
+  mouseClick(host.querySelector(".raavl-region-body")!, 300, "dblclick");
+  await Promise.resolve();
+  await Promise.resolve();
+  expect(test.player.getSnapshot().playback).toBe("paused");
+  expect(test.player.getSnapshot().error).toBeTruthy();
+  test.cleanup();
+});
+
+it("plays a region once after two captured clicks on that region", async () => {
   const test = await annotationView();
   const body = host.querySelector(".raavl-region .raavl-region-body")!;
   const playRange = vi.spyOn(test.player, "playRange");
   mouseClick(test.viewport, 500);
   expect(test.player.getCurrentTime()).toBe(5);
-  mouseClick(body, 300);
-  expect(test.player.getCurrentTime()).toBe(3);
+  mouseClick(body, 300, "click", 0);
+  expect(test.player.getCurrentTime()).toBe(5);
   expect(
     host.querySelector(".raavl-region")!.getAttribute("data-selected"),
   ).toBe("true");
   expect(mock.play).not.toHaveBeenCalled();
-  for (const detail of [1, 2]) {
-    pointer(body, "pointerdown", 310);
-    pointer(test.viewport, "pointerup", 310);
-    mouseClick(test.viewport, 310, "click", detail);
-  }
+
+  // Pointer capture can make a click on the background and one on a region
+  // look like a double-click on the same element.
+  pointer(test.viewport, "pointerdown", 199);
+  pointer(test.viewport, "pointerup", 199);
+  mouseClick(test.viewport, 199);
+  pointer(body, "pointerdown", 201);
+  pointer(test.viewport, "pointerup", 201);
+  mouseClick(test.viewport, 201, "click", 2);
+  mouseClick(test.viewport, 201, "dblclick", 2);
+  expect(test.player.getCurrentTime()).toBeCloseTo(2.01);
+  expect(playRange).not.toHaveBeenCalled();
+
+  test.view.update({ interaction: { seek: "off" } });
+  pointer(body, "pointerdown", 310);
+  pointer(test.viewport, "pointerup", 310);
+  mouseClick(test.viewport, 310);
+  expect(playRange).not.toHaveBeenCalled();
+  pointer(body, "pointerdown", 310);
+  pointer(test.viewport, "pointerup", 310);
+  mouseClick(test.viewport, 310, "click", 2);
+  expect(playRange).not.toHaveBeenCalled();
   mouseClick(test.viewport, 310, "dblclick", 2);
+  expect(playRange).toHaveBeenCalledOnce();
   expect(playRange).toHaveBeenCalledWith({ start: 2, end: 4 });
   await playRange.mock.results[0].value;
   expect(test.player.getSnapshot().playback).toBe("playing");
@@ -1163,43 +1171,31 @@ async function touchView(drag: "none" | "seek" = "none") {
   };
 }
 
-it("seeks on touch taps and plays on a nearby double-tap without synthetic mouse events", async () => {
+it("seeks on repeated background taps and ignores their compatibility clicks", async () => {
   const test = await touchView();
   tap(test.waveform, 400);
   expect(test.player.getCurrentTime()).toBe(4);
   expect(mock.play).not.toHaveBeenCalled();
   tap(test.waveform, 410);
-  await Promise.resolve();
   expect(test.player.getCurrentTime()).toBeCloseTo(4.1);
-  expect(test.player.getSnapshot().playback).toBe("playing");
-  expect(mock.play).toHaveBeenCalledOnce();
-  // Compatibility events from the same gesture must not seek or play twice.
-  test.waveform.dispatchEvent(
-    new MouseEvent("click", { clientX: 800, bubbles: true }),
-  );
-  test.waveform.dispatchEvent(
-    new MouseEvent("dblclick", { clientX: 800, bubbles: true }),
-  );
+  mouseClick(test.waveform, 800);
   expect(test.player.getCurrentTime()).toBeCloseTo(4.1);
-  expect(mock.play).toHaveBeenCalledOnce();
+  expect(mock.play).not.toHaveBeenCalled();
   expect(test.waveform.style.touchAction).toBe("manipulation");
   test.cleanup();
 });
 
-it("requires taps to be close in time and position and excludes long presses", async () => {
+it("excludes long presses from tap seeking", async () => {
   let now = 0;
   vi.spyOn(performance, "now").mockImplementation(() => now);
   const test = await touchView();
   tap(test.waveform, 200);
-  now = 400;
-  tap(test.waveform, 200);
-  tap(test.waveform, 500);
-  expect(mock.play).not.toHaveBeenCalled();
   touchEvent(test.waveform, "pointerdown", 500);
   now = 1000;
   touchEvent(test.waveform, "pointerup", 500);
+  expect(test.player.getCurrentTime()).toBe(2);
   tap(test.waveform, 500);
-  expect(mock.play).not.toHaveBeenCalled();
+  expect(test.player.getCurrentTime()).toBe(5);
   test.cleanup();
 });
 
@@ -1225,22 +1221,21 @@ it("allows touch scrubbing but does not treat drags or vertical scrolling as tap
 it("rejects multi-touch and clears cancelled or lost touch gestures", async () => {
   const test = await touchView();
   tap(test.waveform, 300);
-  touchEvent(test.waveform, "pointerdown", 300);
-  touchEvent(test.waveform, "pointerdown", 300, 50, 2, false);
-  touchEvent(test.waveform, "pointerup", 300, 50, 2, false);
-  touchEvent(test.waveform, "pointerup", 300);
-  expect(mock.play).not.toHaveBeenCalled();
+  touchEvent(test.waveform, "pointerdown", 400);
+  touchEvent(test.waveform, "pointerdown", 400, 50, 2, false);
+  touchEvent(test.waveform, "pointerup", 400, 50, 2, false);
+  touchEvent(test.waveform, "pointerup", 400);
+  expect(test.player.getCurrentTime()).toBe(3);
   for (const cancel of ["pointercancel", "lostpointercapture"]) {
-    tap(test.waveform, 300);
-    touchEvent(test.waveform, "pointerdown", 300);
-    touchEvent(test.waveform, cancel, 300);
-    touchEvent(test.waveform, "pointerup", 300);
-    expect(mock.play).not.toHaveBeenCalled();
+    touchEvent(test.waveform, "pointerdown", 400);
+    touchEvent(test.waveform, cancel, 400);
+    touchEvent(test.waveform, "pointerup", 400);
+    expect(test.player.getCurrentTime()).toBe(3);
   }
   test.cleanup();
 });
 
-it("seeks and plays in selection mode on touch while preserving annotation drags", async () => {
+it("plays a region on a double-tap while preserving touch selection and dragging", async () => {
   const test = await annotationView();
   const handle = host.querySelector(".raavl-region-handle-end")!;
   tap(handle, 400);
@@ -1253,14 +1248,24 @@ it("seeks and plays in selection mode on touch while preserving annotation drags
   tap(test.viewport, 500);
   expect(test.player.getCurrentTime()).toBe(5);
   const body = host.querySelector(".raavl-region .raavl-region-body")!;
-  tap(test.viewport, 190);
-  tap(body, 210);
-  expect(test.player.getCurrentTime()).toBe(2.1);
+  touchEvent(body, "pointerdown", 250);
+  touchEvent(test.viewport, "pointerup", 300);
+  expect(test.store.getSnapshot().document.regions[0].start).toBe(2.5);
   expect(mock.play).not.toHaveBeenCalled();
-  tap(body, 215);
+
+  const moved = host.querySelector(".raavl-region .raavl-region-body")!;
+  tap(test.viewport, 249);
+  touchEvent(moved, "pointerdown", 251);
+  touchEvent(test.viewport, "pointerup", 251);
+  expect(test.player.getCurrentTime()).toBeCloseTo(2.51);
+  expect(mock.play).not.toHaveBeenCalled();
+  touchEvent(moved, "pointerdown", 253);
+  touchEvent(test.viewport, "pointerup", 253);
+  mouseClick(test.viewport, 253);
   await Promise.resolve();
-  expect(test.player.getCurrentTime()).toBe(2);
+  expect(test.player.getCurrentTime()).toBe(2.5);
   expect(test.player.getSnapshot().playback).toBe("playing");
+  expect(mock.play).toHaveBeenCalledOnce();
   test.cleanup();
 });
 
@@ -1396,7 +1401,7 @@ import { AnnotationEditor } from "../examples/live/AnnotationEditor";
 import { ModulesEditor } from "../examples/live/ModulesEditor";
 
 it.each(["react", "vanilla"] as const)(
-  "shows annotation actions before selection and edits through them (%s)",
+  "creates annotations and edits them inline from the badges (%s)",
   async (mode) => {
     root = createRoot(host);
     await act(async () => root!.render(<AnnotationEditor mode={mode} />));
@@ -1406,17 +1411,17 @@ it.each(["react", "vanilla"] as const)(
     });
     const waveform = host.querySelector<HTMLElement>(".raavl-waveform")!;
     waveform.hasPointerCapture = () => false;
-    const fields = host.querySelector("fieldset")!;
-    const button = (text: string) =>
-      [...fields.querySelectorAll("button")].find(
-        (node) => node.textContent === text,
+    const creation = host.querySelector<HTMLFieldSetElement>(".raavl-annotation-create")!;
+    const editor = host.querySelector<HTMLElement>(".raavl-annotation-editor")!;
+    const button = (scope: HTMLElement, text: string) =>
+      [...scope.querySelectorAll("button")].find(
+        (node) => (node.getAttribute("aria-label") ?? node.textContent) === text,
       )!;
-    const add = button("Create region from selection");
-    const apply = button("Apply edit");
-    const remove = button("Delete annotation");
+    const add = button(creation, "Create region from selection");
+    const apply = button(editor, "Apply edit");
+    const remove = button(editor, "Delete annotation");
     expect(add.disabled).toBe(true);
-    expect(apply.disabled).toBe(true);
-    expect(remove.disabled).toBe(true);
+    expect(editor.hidden).toBe(true);
 
     await act(async () => {
       pointer(waveform, "pointerdown", 600);
@@ -1425,28 +1430,59 @@ it.each(["react", "vanilla"] as const)(
     expect(add.disabled).toBe(false);
     await act(async () => add.click());
     expect(host.querySelectorAll(".raavl-region")).toHaveLength(3);
-    await act(async () => button("Add marker at playhead").click());
+    await act(async () => button(creation, "Add marker at playhead").click());
     expect(host.querySelectorAll(".raavl-marker")).toHaveLength(2);
 
-    const row = () =>
-      host.querySelector<HTMLButtonElement>('[data-row-id="intro"]');
+    const row = (id = "intro") =>
+      host.querySelector<HTMLButtonElement>(`[data-row-id="${id}"]`);
     await act(async () => row()!.click());
-    expect(apply.disabled).toBe(false);
-    expect(remove.disabled).toBe(false);
-    const label = fields.querySelector("input")!;
-    await act(async () => {
-      const setter = Object.getOwnPropertyDescriptor(
-        HTMLInputElement.prototype,
-        "value",
-      )!.set!;
-      setter.call(label, "Renamed intro");
-      label.dispatchEvent(new Event("input", { bubbles: true }));
-    });
+    const [label, start, end] = editor.querySelectorAll("input");
+    expect(editor.hidden).toBe(false);
+    expect(row()!.closest("[hidden]")).toBeTruthy();
+    expect(document.activeElement).toBe(label);
+    expect([label.value, start.value, end.value]).toEqual(["Introduction", "0.5", "2.5"]);
+    label.value = "Discarded draft";
+    await act(async () => button(editor, "Cancel edit").click());
+    expect(editor.hidden).toBe(true);
+    expect(document.activeElement).toBe(row());
+    expect(row()!.textContent).toContain("Introduction");
+
+    await act(async () => row()!.click());
+    label.value = "Renamed intro";
+    start.value = "3";
     await act(async () => apply.click());
-    expect(row()!.textContent).toContain("Renamed intro");
+    expect(editor.hidden).toBe(false);
+    expect(host.querySelector(".raavl-annotation-error")?.textContent).toContain("start < end");
+    start.value = "0.75";
+    end.value = "2.75";
+
+    const accept = host.querySelector<HTMLInputElement>('.editor-settings input[type="checkbox"]')!;
+    await act(async () => accept.click());
+    await act(async () => apply.click());
+    expect(editor.hidden).toBe(false);
+    expect(row()!.textContent).toBe("Introduction · 0.50–2.50s");
+    expect(label.value).toBe("Renamed intro");
+    await act(async () => accept.click());
+    await act(async () => apply.click());
+    expect(editor.hidden).toBe(true);
+    expect(row()!.textContent).toBe("Renamed intro · 0.75–2.75s");
+
+    await act(async () => row()!.click());
     await act(async () => remove.click());
     expect(row()).toBeNull();
+    expect(editor.hidden).toBe(true);
+
+    await act(async () => row("cue")!.click());
+    expect(start.labels?.[0]?.textContent).toBe("Time (seconds)");
+    expect(end.labels?.[0]?.hidden).toBe(true);
+    await act(async () => button(editor, "Lock").click());
+    expect(start.disabled).toBe(true);
     expect(remove.disabled).toBe(true);
+    await act(async () => button(editor, "Unlock").click());
+    start.value = "8.5";
+    await act(async () => start.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter", bubbles: true })));
+    expect(editor.hidden).toBe(true);
+    expect(row("cue")!.textContent).toBe("Cue · 8.50s");
   },
 );
 
@@ -1508,11 +1544,11 @@ it("runs the composed React modules example through Strict Mode, history and tea
       (node) => node.textContent === text,
     )!;
   await act(async () => {
-    mouseClick(host.querySelector(".raavl-region .raavl-region-body")!, 300);
+    mouseClick(host.querySelector(".raavl-waveform")!, 600);
     button("Add marker at playhead").click();
   });
   expect(host.querySelector(".raavl-annotation-list")?.textContent).toContain(
-    "New cue · 2.00s",
+    "New cue · 4.00s",
   );
   expect(button("Undo").disabled).toBe(false);
   expect(button("Redo").disabled).toBe(true);

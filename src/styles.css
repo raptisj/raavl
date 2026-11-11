@@ -85,6 +85,93 @@
   color: inherit;
   cursor: pointer;
 }
+:where(.raavl-annotation-list button:disabled) {
+  opacity: .5;
+  cursor: default;
+}
+:where(.raavl-annotation-list button:hover:not(:disabled)) {
+  background: var(--raavl-control-hover-background, #eaf1e4);
+}
+:where(.raavl-annotation-list button:focus-visible, .raavl-annotation-list input:focus-visible) {
+  outline: 2px solid var(--raavl-focus-color, #bd722e);
+  outline-offset: 2px;
+}
+:where(.raavl-annotation-create, .raavl-annotation-editor) {
+  display: flex;
+  align-items: flex-end;
+  flex-wrap: wrap;
+  gap: 10px;
+  min-width: 0;
+  margin: 0;
+  padding: 12px;
+  border: 1px solid var(--raavl-control-border, #d6dfd2);
+  border-radius: 8px;
+}
+:where(.raavl-annotation-create) {
+  margin-top: 8px;
+}
+:where(.raavl-annotation-create label, .raavl-annotation-editor label) {
+  display: grid;
+  gap: 5px;
+  min-width: 0;
+  max-width: 100%;
+}
+:where(.raavl-annotation-editor label:first-child) {
+  flex: 1 1 200px;
+}
+:where(.raavl-annotation-list input) {
+  box-sizing: border-box;
+  width: 100%;
+  min-width: 0;
+  min-height: 36px;
+  padding: 6px 8px;
+  border: 1px solid var(--raavl-control-border, #d6dfd2);
+  border-radius: 5px;
+  background: var(--raavl-control-background, #fff);
+  color: inherit;
+  font: inherit;
+}
+:where(.raavl-annotation-editor input[type="number"]) {
+  width: 100px;
+}
+:where(.raavl-annotation-create button, .raavl-annotation-actions button) {
+  min-height: 36px;
+  background: var(--raavl-control-background, #fff);
+  border-color: var(--raavl-control-border, #d6dfd2);
+}
+:where(.raavl-annotation-actions) {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+:where(.raavl-annotation-selection-time) {
+  align-self: center;
+  font-variant-numeric: tabular-nums;
+}
+:where(.raavl-annotation-actions .raavl-annotation-action) {
+  display: grid;
+  place-items: center;
+  min-width: 36px;
+}
+:where(.raavl-annotation-action svg) {
+  width: 18px;
+  height: 18px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.8;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+:where(.raavl-annotation-error) {
+  margin: 0;
+  color: var(--raavl-error-color, #a32323);
+}
+:where(.raavl-annotation-error:not(:empty)) {
+  margin-top: 8px;
+}
+:where(.raavl-annotation-list [hidden]) {
+  display: none;
+}
 :where(.raavl-annotation-status:empty) {
   display: none;
 }

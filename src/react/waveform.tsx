@@ -53,6 +53,7 @@ type CommonProps = Omit<
   annotationsRevision?: number;
   defaultAnnotations?: AnnotationDocument;
   annotationStore?: AnnotationStore;
+  annotationEditor?: boolean;
   annotationRules?: AnnotationRules;
   onAnnotationsCommit?: CommitHandler;
   onSelectionChange?: (selection: Selection) => void;
@@ -85,6 +86,7 @@ export const Waveform = forwardRef<Player | null, WaveformProps>(
       annotationsRevision,
       defaultAnnotations,
       annotationStore,
+      annotationEditor,
       annotationRules,
       onAnnotationsCommit,
       onSelectionChange,
@@ -264,6 +266,7 @@ export const Waveform = forwardRef<Player | null, WaveformProps>(
               },
             }
           : (annotationStore ?? localAnnotations),
+        annotationEditor,
         annotationRules,
         snapAnnotation,
         renderRegionLabel: labelRenderer,
@@ -277,6 +280,7 @@ export const Waveform = forwardRef<Player | null, WaveformProps>(
       annotations,
       annotationsRevision,
       annotationStore,
+      annotationEditor,
       localAnnotations,
       annotationRules?.minLength,
       annotationRules?.maxLength,

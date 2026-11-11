@@ -5,9 +5,9 @@ description: Seeking, selection, and editing that work beyond a mouse.
 
 ## Playback and seeking
 
-- Click or tap the waveform, including inside a region, to seek when `interaction.seek` is `'click'`.
+- Click or tap the waveform to seek when `interaction.seek` is `'click'`. A single click or tap on a region body also selects it.
+- Double-click or double-tap a region body to play it once from start to end. Marker and resize controls retain their editing gestures.
 - Set `interaction.drag: 'seek'` to scrub while dragging.
-- Double-click or double-tap empty waveform space to start playback. Do the same inside a region to play it once from start to end. Marker and resize controls retain their editing gestures.
 - Focus the waveform with Tab. Left/Right seek by one second; Shift changes the step to ten seconds. Home/End seek to the start/end.
 - On touch screens, vertical page scrolling remains available; horizontal gestures are used by the configured waveform interaction.
 

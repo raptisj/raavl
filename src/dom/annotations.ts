@@ -12,6 +12,7 @@ import {
   type Selection,
 } from "../regions/index.js";
 import type { RaavlError } from "../core/types.js";
+import { createAnnotationEditor } from "./annotation-editor.js";
 
 export type LabelSlot = HTMLElement | { element: HTMLElement; dispose(): void };
 export type AnnotationSnapper = (
@@ -26,6 +27,8 @@ export type AnnotationSnapper = (
 export type AnnotationViewOptions = {
   snapAnnotation?: AnnotationSnapper;
   annotations?: AnnotationStore | ControlledAnnotations | null;
+  /** Replace badge selection with an inline editor and show annotation creation controls. */
+  annotationEditor?: boolean;
   annotationRules?: AnnotationRules;
   renderRegionLabel?: (region: Region) => LabelSlot;
   onSelectionChange?: (selection: Selection) => void;
@@ -57,6 +60,7 @@ export function mountAnnotations(
   root: HTMLElement,
   surface: HTMLElement,
   geometry: () => AnnotationGeometry,
+  getTime?: () => number,
 ) {
   const gestureDocument = root.ownerDocument;
   const gestureWindow = gestureDocument.defaultView;
@@ -100,6 +104,8 @@ export function mountAnnotations(
   status.className = "raavl-annotation-status";
   status.setAttribute("role", "status");
   const rows = document.createElement("ul");
+  const badges = document.createElement("div");
+  let editor: ReturnType<typeof createAnnotationEditor> | undefined;
   const pagination = document.createElement("div");
   pagination.className = "raavl-annotation-pagination";
   const previous = document.createElement("button"),
@@ -124,7 +130,8 @@ export function mountAnnotations(
     render();
   };
   pagination.append(previous, pageLabel, next);
-  list.append(status, rows, pagination);
+  badges.append(rows, pagination);
+  list.append(status, badges);
   container.append(list);
   list.hidden = true;
   const nodes = new Map<
@@ -199,6 +206,7 @@ export function mountAnnotations(
   };
   const select = (id: string | null) => {
     selected = id;
+    editor?.select(id);
     for (const [key, node] of nodes)
       node.element.dataset.selected = String(key === id);
     options.onAnnotationSelect?.(id);
@@ -210,7 +218,10 @@ export function mountAnnotations(
       preview.style.left = `${(next.start / geometry().duration) * 100}%`;
       preview.style.width = `${((next.end - next.start) / geometry().duration) * 100}%`;
     }
-    if (notify) options.onSelectionChange?.(next);
+    if (notify) {
+      editor?.sync(active() ? store : null, next);
+      options.onSelectionChange?.(next);
+    }
   };
   const cancel = () => {
     const previous = gesture;
@@ -250,6 +261,7 @@ export function mountAnnotations(
         lastSource = sourceId;
       }
       if (!store) {
+        editor?.sync(null, null);
         for (const node of nodes.values()) {
           node.cleanup?.();
           node.element.remove();
@@ -422,12 +434,12 @@ export function mountAnnotations(
         0,
         Math.min(page, Math.ceil(items.length / pageSize) - 1),
       );
-      if (
+      const listChanged =
         listSnapshot !== snapshot ||
         listPage !== page ||
         listChannels !== channels ||
-        listSource !== sourceId
-      ) {
+        listSource !== sourceId;
+      if (listChanged) {
         listSnapshot = snapshot;
         listPage = page;
         listChannels = channels;
@@ -457,16 +469,28 @@ export function mountAnnotations(
                     root.clientWidth / 3,
                 );
                 render();
-                nodes
-                  .get(item.id)
-                  ?.element.querySelector<HTMLElement>(".raavl-region-body")
-                  ?.focus({ preventScroll: true });
+                if (editor) editor.open(item.id);
+                else
+                  nodes
+                    .get(item.id)
+                    ?.element.querySelector<HTMLElement>(".raavl-region-body")
+                    ?.focus({ preventScroll: true });
               }
             };
             row.append(button);
             rows.append(row);
             if (focusedRow === item.id) button.focus({ preventScroll: true });
           }
+      }
+      if (editor) {
+        editor.element.hidden = !matches();
+        editor.sync(active() ? store : null, selection);
+        if (
+          listChanged &&
+          selected !== null &&
+          !items.some((item) => item.id === selected)
+        )
+          select(null);
       }
       setSelection(selection, false);
     } finally {
@@ -748,6 +772,25 @@ export function mountAnnotations(
       }
       options = next;
       rules = nextRules;
+      if (next.annotationEditor && !editor) {
+        editor = createAnnotationEditor(
+          badges,
+          (id) => {
+            const buttons = [...rows.querySelectorAll("button")];
+            const target =
+              buttons.find((button) => button.dataset.rowId === id) ??
+              buttons[0] ??
+              root;
+            target.focus({ preventScroll: true });
+          },
+          getTime,
+        );
+        list.append(editor.element);
+      } else if (!next.annotationEditor && editor) {
+        editor.close();
+        editor.element.remove();
+        editor = undefined;
+      }
       render();
     },
     sync: render,
@@ -762,7 +805,6 @@ export function mountAnnotations(
     isEditing: () => gesture !== null,
     isAnnotationTarget: (target: EventTarget | null) => !!annotationTarget(target),
     getPlaybackTarget,
-    isPlaybackBlocked: () => playbackBlocked,
     dispose() {
       if (disposed) return;
       cancel();

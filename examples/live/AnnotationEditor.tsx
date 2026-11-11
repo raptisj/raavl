@@ -13,7 +13,6 @@ import {
   type AnnotationChange,
   type ControlledAnnotations,
   type Region,
-  type Selection,
 } from "raavl";
 import { Waveform, usePlayerState, usePlayerTime } from "raavl/react";
 import { usePageTheme } from './usePageTheme';
@@ -36,7 +35,6 @@ type CanvasProps = {
   zoom: number | "fit";
   snap: number;
   onPlayer: (player: Player | null) => void;
-  onSelection: (selection: Selection) => void;
   onSelect: (id: string | null) => void;
   onError: (error: Error) => void;
 };
@@ -77,10 +75,10 @@ function VanillaEditor(props: CanvasProps) {
   useEffect(() => {
     view.current?.update({
       annotations: props.annotations,
+      annotationEditor: true,
       annotationRules: { snap: props.snap, minLength: 0.1 },
       viewport: { zoom: props.zoom },
       renderRegionLabel: labelSlot,
-      onSelectionChange: props.onSelection,
       onAnnotationSelect: props.onSelect,
       onAnnotationError: props.onError,
     });
@@ -88,7 +86,6 @@ function VanillaEditor(props: CanvasProps) {
     props.annotations,
     props.zoom,
     props.snap,
-    props.onSelection,
     props.onSelect,
     props.onError,
   ]);
@@ -111,8 +108,7 @@ export function AnnotationEditor({ mode, onOptionsChange }: {
     [accept, setAccept] = useState(true);
   const [store, setStore] = useState<AnnotationStore | null>(null),
     [player, setPlayer] = useState<Player | null>(null);
-  const [selection, setSelection] = useState<Selection>(null),
-    [selectedId, setSelectedId] = useState<string | null>(null);
+  const [selectedId, setSelectedId] = useState<string | null>(null);
   const [error, setError] = useState(""),
     [notice, setNotice] = useState(""),
     [commits, setCommits] = useState(0);
@@ -120,10 +116,7 @@ export function AnnotationEditor({ mode, onOptionsChange }: {
     [zoom, setZoom] = useState<number | "fit">("fit"),
     [snap, setSnap] = useState(0.1);
   useEffect(() => { onOptionsChange?.({ annotations: { zoom, snap } }); }, [zoom, snap, onOptionsChange]);
-  const [json, setJson] = useState(stringifyAnnotations(initial)),
-    [label, setLabel] = useState("New annotation");
-  const [start, setStart] = useState("0"),
-    [end, setEnd] = useState("1");
+  const [json, setJson] = useState(stringifyAnnotations(initial));
   const status = usePlayerState(player, (snapshot) => snapshot?.source);
   const playing = usePlayerState(
     player,
@@ -174,13 +167,6 @@ export function AnnotationEditor({ mode, onOptionsChange }: {
     [document, revision, commit],
   );
   useEffect(() => {
-    if (!selected) return;
-    setLabel(selected.label ?? "");
-    setStart(String("start" in selected ? selected.start : selected.time));
-    setEnd(String("end" in selected ? selected.end : 0));
-  }, [selected]);
-  useEffect(() => {
-    setSelection(null);
     setSelectedId(null);
   }, [source]);
   const attempt = (fn: () => void) => {
@@ -231,10 +217,10 @@ export function AnnotationEditor({ mode, onOptionsChange }: {
     <article className="player-card annotation-editor">
       <h3>Annotation studio</h3>
       <p className="helper">
-        Click or tap to move the playhead. Double-click or double-tap inside a
-        region to play it from start to end.
+        Click or tap the waveform to move the playhead. Double-click or
+        double-tap a region to play it from start to end.
         Drag empty space to select, drag labels to move, and drag handles to
-        resize. Use Add marker at playhead to mark a single point.
+        resize. Choose a badge below the waveform to edit a region or marker.
       </p>
       <Preview>
         <style>{annotationStyles}</style>
@@ -256,7 +242,7 @@ export function AnnotationEditor({ mode, onOptionsChange }: {
                     onAnnotationsCommit: commit,
                   }
                 : { annotationStore: store ?? undefined })}
-              onSelectionChange={setSelection}
+              annotationEditor
               onAnnotationSelect={setSelectedId}
               renderRegionLabel={(region) => (
                 <strong>◆ {region.label || region.id}</strong>
@@ -270,7 +256,6 @@ export function AnnotationEditor({ mode, onOptionsChange }: {
               zoom={zoom}
               snap={snap}
               onPlayer={setPlayer}
-              onSelection={setSelection}
               onSelect={setSelectedId}
               onError={report}
             />
@@ -306,121 +291,6 @@ export function AnnotationEditor({ mode, onOptionsChange }: {
             </button>
             <Time player={player} />
           </div>
-          <fieldset disabled={!enabled} className="annotation-fields">
-            <legend>Annotations</legend>
-            <p className="helper">
-              {selection
-                ? `Selection: ${selection.start.toFixed(2)}–${selection.end.toFixed(2)}s`
-                : selected
-                  ? `Selected: ${selected.label || selected.id}`
-                  : "Drag to select a range, or choose an annotation to edit or delete."}
-            </p>
-            <label>
-              {selected ? "Label" : "New annotation label"}
-              <input
-                value={label}
-                onChange={(event) => setLabel(event.target.value)}
-              />
-            </label>
-            {selected && (
-              <>
-                <label>
-                  {"start" in selected ? "Start (seconds)" : "Time (seconds)"}
-                  <input
-                    type="number"
-                    min="0"
-                    step="0.1"
-                    value={start}
-                    onChange={(event) => setStart(event.target.value)}
-                  />
-                </label>
-                {"end" in selected && (
-                  <label>
-                    End (seconds)
-                    <input
-                      type="number"
-                      min="0"
-                      step="0.1"
-                      value={end}
-                      onChange={(event) => setEnd(event.target.value)}
-                    />
-                  </label>
-                )}
-              </>
-            )}
-            <div className="editor-actions">
-              <button
-                disabled={!selection}
-                onClick={() => {
-                  if (!selection) return;
-                  edit((target) =>
-                    target.addRegion({
-                      id: crypto.randomUUID(),
-                      ...selection,
-                      label,
-                    }),
-                  );
-                }}
-              >
-                Create region from selection
-              </button>
-              <button
-                onClick={() =>
-                  edit((target) =>
-                    target.addMarker({
-                      id: crypto.randomUUID(),
-                      time: player!.getCurrentTime(),
-                      label,
-                    }),
-                  )
-                }
-              >
-                Add marker at playhead
-              </button>
-              <button
-                disabled={!selected}
-                onClick={() => {
-                  if (!selected) return;
-                  edit((target) => {
-                    if ("start" in selected)
-                      target.updateRegion(selected.id, {
-                        label,
-                        start: Number(start),
-                        end: Number(end),
-                      });
-                    else
-                      target.updateMarker(selected.id, {
-                        label,
-                        time: Number(start),
-                      });
-                  });
-                }}
-              >
-                Apply edit
-              </button>
-              <button
-                disabled={!selected}
-                onClick={() => {
-                  if (!selected) return;
-                  edit((target) => {
-                    const patch = { locked: !selected.locked };
-                    if ("start" in selected) target.updateRegion(selected.id, patch);
-                    else target.updateMarker(selected.id, patch);
-                  });
-                }}
-              >
-                {selected?.locked ? "Unlock" : "Lock"}
-              </button>
-              <button
-                disabled={!selected || selected.locked}
-                onClick={() => {
-                  if (selected) edit((target) => target.remove(selected.id));
-                }}
-              >
-                Delete annotation
-              </button>
-            </div>
-          </fieldset>
           {error && <p role="alert" className="error">{error}</p>}
         </div>
       </Preview>

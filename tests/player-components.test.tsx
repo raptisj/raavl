@@ -529,12 +529,15 @@ it.each(["react", "vanilla"])("shows the annotation app actions in Preview and t
     expect(preview.querySelector("h4")?.textContent).toBe("Preview");
     const settings = host.querySelector(".demo-settings")!;
     const code = host.querySelector("#example-code")?.textContent ?? "";
-    const actions = ["Play region", "Loop region", "Create region from selection", "Add marker at playhead", "Apply edit", "Lock", "Delete annotation"];
-    const buttons = [...preview.querySelectorAll("button")].map(button => button.textContent);
-    for (const action of actions) {
-      expect(buttons).toContain(action);
-      expect(code).toContain(action);
-    }
+    const buttons = [...preview.querySelectorAll("button")].map(
+      (button) => button.getAttribute("aria-label") ?? button.textContent,
+    );
+    expect(buttons).toEqual(expect.arrayContaining([
+      "Play region", "Loop region", "Create region from selection",
+      "Add marker at playhead", "Apply edit", "Delete annotation", "Cancel edit",
+    ]));
+    expect(code).toContain(mode === "react" ? "annotationEditor" : "annotationEditor: true");
+    expect(code).not.toContain("Create region from selection");
     expect(settings.textContent).toContain("Simulate external edit");
     expect(code).not.toContain("Simulate external edit");
   } finally {
