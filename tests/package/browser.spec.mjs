@@ -99,3 +99,60 @@ test("keeps zoom scrolling inside AudioPlayer and clears it on Fit", async ({
     )
     .toEqual([0, fitWidth]);
 });
+
+test.describe("touch waveform", () => {
+  test.use({
+    hasTouch: true,
+    isMobile: true,
+    viewport: { width: 390, height: 844 },
+  });
+
+  test("pinches around the fingers without zooming the page or seeking", async ({
+    page,
+    context,
+  }) => {
+    await page.goto("/");
+    const viewport = () =>
+      page.evaluate(() => window.packageTest?.reactView?.getViewport());
+    await expect.poll(async () => (await viewport())?.duration).toBe(2);
+    const waveform = page.locator("#react .raavl-waveform");
+    const bounds = await waveform.boundingBox();
+    const x = Math.round(bounds.x + bounds.width / 2);
+    const y = Math.round(bounds.y + bounds.height / 2);
+    const cdp = await context.newCDPSession(page);
+    const touch = (type, ...xs) =>
+      cdp.send("Input.dispatchTouchEvent", {
+        type,
+        touchPoints: xs.map((x, id) => ({ x, y, id })),
+      });
+
+    const initial = await viewport();
+    await touch("touchStart", x - 40);
+    await touch("touchStart", x - 40, x + 40);
+    await touch("touchMove", x - 60, x + 100);
+    await expect
+      .poll(async () => (await viewport()).pixelsPerSecond)
+      .toBeCloseTo(initial.pixelsPerSecond * 2);
+    const zoomed = await viewport();
+    expect(
+      zoomed.start + (x + 20 - bounds.x) / zoomed.pixelsPerSecond,
+    ).toBeCloseTo((x - bounds.x) / initial.pixelsPerSecond);
+    await touch("touchEnd");
+
+    await touch("touchStart", x - 80, x + 80);
+    await touch("touchMove", x - 30, x + 30);
+    await touch("touchEnd");
+    await expect.poll(async () => (await viewport()).end).toBe(2);
+    expect((await viewport()).start).toBe(0);
+    expect(await page.evaluate(() => window.visualViewport.scale)).toBe(1);
+    const playbackTime = () =>
+      page.evaluate(() => window.packageTest.reactPlayer.getCurrentTime());
+    expect(await playbackTime()).toBe(0);
+    await page.touchscreen.tap(x, y);
+    await expect.poll(playbackTime).toBeCloseTo(1);
+
+    await page.setViewportSize({ width: 320, height: 844 });
+    await expect.poll(async () => (await viewport()).width).toBeLessThan(initial.width);
+    expect((await viewport()).end).toBe(2);
+  });
+});

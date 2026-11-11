@@ -8,8 +8,9 @@ description: Seeking, selection, and editing that work beyond a mouse.
 - Click or tap the waveform to seek when `interaction.seek` is `'click'`. A single click or tap on a region body also selects it.
 - Double-click or double-tap a region body to play it once from start to end. Marker and resize controls retain their editing gestures.
 - Set `interaction.drag: 'seek'` to scrub while dragging.
+- Spread two fingers on the waveform to zoom in around their midpoint. Pinch them together to zoom out until the full recording fits.
 - Focus the waveform with Tab. Left/Right seek by one second; Shift changes the step to ten seconds. Home/End seek to the start/end.
-- On touch screens, vertical page scrolling remains available; horizontal gestures are used by the configured waveform interaction.
+- With one finger on the waveform background, swipe vertically to scroll the page. Horizontal swipes pan the zoomed waveform when `interaction.drag` is `'none'`.
 
 Use `interaction.drag: 'select'` to drag out a temporary range on empty waveform space and observe `onSelectionChange`. Committing it as a region requires an annotation store or controlled integration. To mark a single point, seek to it and use **Add marker at playhead** in the annotation examples.
 

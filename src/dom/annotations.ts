@@ -537,7 +537,8 @@ export function mountAnnotations(
     if (item && "start" in item) editor?.open(id);
   };
   const down = (event: PointerEvent) => {
-    if (event.button !== 0) return;
+    if (event.button !== 0 || (event.pointerType === "touch" && !event.isPrimary))
+      return;
     if (gesture && event.pointerId !== gesture.pointer) return;
     playbackBlocked = false;
     clickedRegionId = undefined;
@@ -698,16 +699,16 @@ export function mountAnnotations(
     // If still pressed, document tracking carries on until release or cancellation.
     if (event.buttons === 0) up(event);
   };
-  const blur = () => {
+  const cancelGesture = () => {
     if (!gesture) return;
     cancel();
     render();
   };
   const visibility = () => {
-    if (gestureDocument.hidden) blur();
+    if (gestureDocument.hidden) cancelGesture();
   };
   const escape = (event: KeyboardEvent) => {
-    if (event.key === "Escape") blur();
+    if (event.key === "Escape") cancelGesture();
   };
   function trackGesture(listen: boolean) {
     // Capture-phase tracking survives capture loss, releases outside the waveform,
@@ -718,14 +719,14 @@ export function mountAnnotations(
       gestureDocument.addEventListener("pointercancel", abort, true);
       gestureDocument.addEventListener("keydown", escape, true);
       gestureDocument.addEventListener("visibilitychange", visibility);
-      gestureWindow?.addEventListener("blur", blur);
+      gestureWindow?.addEventListener("blur", cancelGesture);
     } else {
       gestureDocument.removeEventListener("pointermove", move, true);
       gestureDocument.removeEventListener("pointerup", up, true);
       gestureDocument.removeEventListener("pointercancel", abort, true);
       gestureDocument.removeEventListener("keydown", escape, true);
       gestureDocument.removeEventListener("visibilitychange", visibility);
-      gestureWindow?.removeEventListener("blur", blur);
+      gestureWindow?.removeEventListener("blur", cancelGesture);
     }
   }
   const key = (event: KeyboardEvent) => {
@@ -872,6 +873,7 @@ export function mountAnnotations(
       render();
     },
     sync: render,
+    cancelGesture,
     getSelection: () => selection,
     clearSelection: () => setSelection(null),
     createRegionAtTime(time: number) {

@@ -68,6 +68,7 @@ const defaults = {
   viewport: { zoom: "auto", follow: "visible" } as Required<Viewport>,
   interaction: { seek: "click", drag: "none" } as Required<Interaction>,
 };
+const maxZoom = 10000;
 function merge<T extends object>(
   base: T,
   patch: Partial<T> | undefined,
@@ -131,6 +132,18 @@ export function mountWaveform(
   let dirty = true;
   let annotationOptions: AnnotationViewOptions = {};
   const player = options.player;
+  const getDuration = () =>
+    player?.getSnapshot().duration || data?.duration || 0;
+  const touchPoints = new Map<number, { x: number; y: number }>();
+  let multiTouch = false;
+  let pinch: { distance: number; zoom: number; time: number } | null = null;
+  let pinchZoom: number | "fit" | null = null;
+  let pendingPinch: { zoom: number; scrollLeft: number } | null = null;
+  const resetPinchZoom = () => {
+    pinch = null;
+    pinchZoom = null;
+    pendingPinch = null;
+  };
   let viewportState: ViewportSnapshot = Object.freeze({
     sourceId: null,
     duration: 0,
@@ -142,14 +155,14 @@ export function mountWaveform(
   });
   const viewportListeners = new Set<() => void>();
   function contentWidth(width: number, duration: number) {
-    const zoom = viewport.zoom === "auto"
+    const setting = pinchZoom ?? viewport.zoom;
+    const zoom = setting === "auto"
       ? annotationOptions.annotationEditor && width < 600 ? 100 : "fit"
-      : viewport.zoom;
+      : setting;
     return zoom === "fit" ? width : Math.max(width, duration * zoom);
   }
   const publishViewport = () => {
-    const currentDuration =
-      player?.getSnapshot().duration || data?.duration || 0;
+    const currentDuration = getDuration();
     const currentWidth = Math.max(1, root.clientWidth);
     const total = contentWidth(currentWidth, currentDuration);
     const pps = currentDuration ? total / currentDuration : 0;
@@ -248,9 +261,16 @@ export function mountWaveform(
   };
   function draw() {
     width = Math.max(1, root.clientWidth);
-    duration = player?.getSnapshot().duration || data?.duration || 0;
+    duration = getDuration();
+    if (pendingPinch)
+      pinchZoom =
+        pendingPinch.zoom <= width / duration ? "fit" : pendingPinch.zoom;
     totalWidth = contentWidth(width, duration);
     surface.style.width = `${totalWidth}px`;
+    if (pendingPinch) {
+      root.scrollLeft = pendingPinch.scrollLeft;
+      pendingPinch = null;
+    }
     root.style.height = `${appearance.height}px`;
     const ratio = Math.min(devicePixelRatio || 1, 3);
     for (const canvas of [wave, progress]) {
@@ -420,6 +440,7 @@ export function mountWaveform(
     if (
       state?.playback === "playing" &&
       pointer === null &&
+      !(multiTouch && touchPoints.size) &&
       !annotationLayer.isEditing()
     ) {
       if (viewport.follow === "center") root.scrollLeft = x - width / 2;
@@ -459,13 +480,55 @@ export function mountWaveform(
       .playRange({ start: region.start, end: region.end })
       .catch(() => {});
   };
+  const pinchGeometry = () => {
+    const [first, second] = touchPoints.values();
+    return {
+      distance: Math.hypot(first.x - second.x, first.y - second.y),
+      center: (first.x + second.x) / 2 - root.getBoundingClientRect().left,
+    };
+  };
   const touchDown = (event: PointerEvent) => {
-    if (event.pointerType !== "touch") return;
+    if (!touchPoints.size) multiTouch = false;
+    if (event.pointerType !== "touch" || event.button !== 0) return;
+    if (event.isPrimary) {
+      touchPoints.clear();
+      pinch = null;
+      multiTouch = false;
+    }
     lastTouchTime = performance.now();
+    touchPoints.set(event.pointerId, { x: event.clientX, y: event.clientY });
+    if (!event.isPrimary) {
+      multiTouch = true;
+      touch = null;
+      lastRegionTap = null;
+      pointer = null;
+      pinch = null;
+      annotationLayer.cancelGesture();
+      const duration = getDuration();
+      if (touchPoints.size === 2 && duration > 0) {
+        const { distance, center } = pinchGeometry();
+        const zoom =
+          pendingPinch?.zoom ??
+          contentWidth(Math.max(1, root.clientWidth), duration) / duration;
+        const scrollLeft = pendingPinch?.scrollLeft ?? root.scrollLeft;
+        pinch = {
+          distance: Math.max(1, distance),
+          zoom,
+          time: (scrollLeft + center) / zoom,
+        };
+        // Keep tracking if a finger moves outside or its annotation is removed.
+        for (const id of touchPoints.keys()) {
+          try {
+            root.setPointerCapture(id);
+          } catch {
+            // The browser may have already cancelled the pointer for scrolling.
+          }
+        }
+      }
+      return;
+    }
     const region = annotationLayer.getPlaybackTarget(event.target);
     if (
-      !event.isPrimary ||
-      event.button !== 0 ||
       region === undefined ||
       !player ||
       player.getSnapshot().source !== "ready"
@@ -485,11 +548,33 @@ export function mountWaveform(
     };
   };
   const touchMove = (event: PointerEvent) => {
+    const point =
+      event.pointerType === "touch" && touchPoints.get(event.pointerId);
+    if (!point || (point.x === event.clientX && point.y === event.clientY)) return;
+    point.x = event.clientX;
+    point.y = event.clientY;
+    if (pinch) {
+      const duration = getDuration();
+      if (duration <= 0) return;
+      const { distance, center } = pinchGeometry();
+      const width = Math.max(1, root.clientWidth);
+      const zoom = Math.max(
+        width / duration,
+        Math.min(maxZoom, (pinch.zoom * distance) / pinch.distance),
+      );
+      const scrollLeft = Math.max(
+        0,
+        Math.min(duration * zoom - width, pinch.time * zoom - center),
+      );
+      pendingPinch = { zoom, scrollLeft };
+      invalidate();
+      return;
+    }
     if (!touch || event.pointerId !== touch.id) return;
     const dx = Math.abs(event.clientX - touch.x),
       dy = Math.abs(event.clientY - touch.y);
     touch.moved ||= Math.hypot(dx, dy) > 10;
-    // Leave vertical scrolling and pinch zoom to the browser.
+    // Vertical scrolling stays with the browser.
     if (
       touch.regionId === undefined &&
       touch.moved &&
@@ -500,8 +585,12 @@ export function mountWaveform(
       seekAt(event.clientX);
     }
   };
+  const endTouch = (event: PointerEvent) => {
+    if (touchPoints.delete(event.pointerId)) pinch = null;
+  };
   const touchUp = (event: PointerEvent) => {
     if (event.pointerType !== "touch") return;
+    endTouch(event);
     lastTouchTime = performance.now();
     if (!touch || event.pointerId !== touch.id) return;
     const gesture = touch;
@@ -536,10 +625,22 @@ export function mountWaveform(
     if (interaction.seek === "click") seekAt(event.clientX);
   };
   const touchCancel = (event: PointerEvent) => {
+    // Switching capture from a child to the root keeps the contact active.
+    if (
+      event.type === "lostpointercapture" &&
+      root.hasPointerCapture?.(event.pointerId)
+    )
+      return;
+    if (event.pointerType === "touch") endTouch(event);
     if (touch?.id !== event.pointerId) return;
     touch = null;
     lastRegionTap = null;
     lastTouchTime = performance.now();
+  };
+  const blockPinchClick = (event: MouseEvent) => {
+    if (!multiTouch || event.detail === 0) return;
+    event.preventDefault();
+    event.stopImmediatePropagation();
   };
   const click = (event: MouseEvent) => {
     if (event.button !== 0 || performance.now() - lastTouchTime < 700) return;
@@ -605,6 +706,7 @@ export function mountWaveform(
       request();
     }
   };
+  root.addEventListener("click", blockPinchClick, true);
   root.addEventListener("click", click);
   root.addEventListener("dblclick", doubleClick);
   root.addEventListener("keydown", key);
@@ -625,7 +727,7 @@ export function mountWaveform(
     surface,
     () => ({
       sourceId: player?.getSnapshot().sourceId ?? data?.sourceId ?? null,
-      duration: player?.getSnapshot().duration || data?.duration || 0,
+      duration: getDuration(),
       width: totalWidth,
       channels: data?.channels.length ?? 0,
       splitChannels: appearance.splitChannels,
@@ -635,24 +737,23 @@ export function mountWaveform(
   );
   const observer = new ResizeObserver(invalidate);
   observer.observe(root);
-  let tapSourceId = player?.getSnapshot().sourceId;
+  let sourceId = player?.getSnapshot().sourceId;
   const unsubscribe = player?.subscribe(() => {
-    if (
-      player.getSnapshot().sourceId !== tapSourceId ||
-      player.getSnapshot().source !== "ready"
-    ) {
+    const state = player.getSnapshot();
+    if (state.sourceId !== sourceId || state.source !== "ready") {
       touch = null;
       lastRegionTap = null;
       lastClickRegionId = undefined;
       doubleClickBlocked = false;
-      tapSourceId = player.getSnapshot().sourceId;
+      resetPinchZoom();
+      sourceId = state.sourceId;
     }
-    const next = player.getSnapshot().data;
-    if (next !== data || duration !== player.getSnapshot().duration) {
+    const next = state.data;
+    if (next !== data || duration !== state.duration) {
       data = next;
       dirty = true;
     }
-    if (player.getSnapshot().source === "disposed") pointer = null;
+    if (state.source === "disposed") pointer = null;
     annotationLayer.sync();
     request();
   });
@@ -703,7 +804,8 @@ export function mountWaveform(
       const v = merge(viewport, patch.viewport, defaults.viewport);
       const i = merge(interaction, patch.interaction, defaults.interaction);
       validateAppearance(a);
-      if (v.zoom !== "fit" && v.zoom !== "auto") finite(v.zoom, "Zoom", 0.01, 10000);
+      if (v.zoom !== "fit" && v.zoom !== "auto")
+        finite(v.zoom, "Zoom", 0.01, maxZoom);
       if (
         !["line", "bars"].includes(a.style) ||
         !["off", "visible", "center"].includes(v.follow) ||
@@ -770,13 +872,18 @@ export function mountWaveform(
         `${appearance.borderRadius}px`,
       );
       cursor.style.width = `${appearance.cursorWidth}px`;
+      if (
+        (patch.viewport && "zoom" in patch.viewport) ||
+        (patch.data && patch.data.sourceId !== data?.sourceId)
+      )
+        resetPinchZoom();
       viewport = v;
       interaction = i;
       if (patch.data) data = patch.data;
       if (patch.label !== undefined) label = patch.label;
       if ("onDraw" in patch) onDraw = patch.onDraw;
       root.style.touchAction =
-        interaction.drag !== "none" ? "pan-y pinch-zoom" : "manipulation";
+        interaction.drag === "none" ? "pan-x pan-y" : "pan-y";
       invalidate();
     },
     refreshTheme: invalidate,
@@ -794,10 +901,13 @@ export function mountWaveform(
       annotationLayer.dispose();
       unsubscribe?.();
       unsubscribeTime?.();
+      root.removeEventListener("click", blockPinchClick, true);
       root.removeEventListener("click", click);
       root.removeEventListener("dblclick", doubleClick);
       root.removeEventListener("keydown", key);
       touch = null;
+      touchPoints.clear();
+      resetPinchZoom();
       lastRegionTap = null;
       root.removeEventListener("pointerdown", touchDown);
       root.removeEventListener("pointermove", touchMove);

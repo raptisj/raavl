@@ -1196,7 +1196,7 @@ it("seeks on repeated background taps and ignores their compatibility clicks", a
   mouseClick(test.waveform, 800);
   expect(test.player.getCurrentTime()).toBeCloseTo(4.1);
   expect(mock.play).not.toHaveBeenCalled();
-  expect(test.waveform.style.touchAction).toBe("manipulation");
+  expect(test.waveform.style.touchAction).toBe("pan-x pan-y");
   test.cleanup();
 });
 
@@ -1216,7 +1216,7 @@ it("excludes long presses from tap seeking", async () => {
 
 it("allows touch scrubbing but does not treat drags or vertical scrolling as taps", async () => {
   const test = await touchView("seek");
-  expect(test.waveform.style.touchAction).toBe("pan-y pinch-zoom");
+  expect(test.waveform.style.touchAction).toBe("pan-y");
   touchEvent(test.waveform, "pointerdown", 100);
   expect(test.player.getCurrentTime()).toBe(0);
   touchEvent(test.waveform, "pointermove", 500);
@@ -1233,7 +1233,7 @@ it("allows touch scrubbing but does not treat drags or vertical scrolling as tap
   test.cleanup();
 });
 
-it("rejects multi-touch and clears cancelled or lost touch gestures", async () => {
+it("ignores taps during multi-touch and clears cancelled or lost touch gestures", async () => {
   const test = await touchView();
   tap(test.waveform, 300);
   touchEvent(test.waveform, "pointerdown", 400);
@@ -1247,6 +1247,28 @@ it("rejects multi-touch and clears cancelled or lost touch gestures", async () =
     touchEvent(test.waveform, "pointerup", 400);
     expect(test.player.getCurrentTime()).toBe(3);
   }
+  test.cleanup();
+});
+
+it("cancels a region drag when a second finger lands and resumes editing after release", async () => {
+  const test = await annotationView();
+  const body = host.querySelector(".raavl-region-body")!;
+  touchEvent(body, "pointerdown", 250);
+  touchEvent(test.viewport, "pointermove", 300);
+  touchEvent(test.viewport, "pointerdown", 500, 50, 2, false);
+  touchEvent(test.viewport, "pointermove", 650, 50, 2, false);
+  touchEvent(test.viewport, "pointerup", 650, 50, 2, false);
+  touchEvent(test.viewport, "pointerup", 300);
+  flushFrame();
+  expect(test.view.getViewport().pixelsPerSecond).toBe(175);
+  expect(test.store.getSnapshot().document.regions[0].start).toBe(2);
+  expect(test.onCommit).not.toHaveBeenCalled();
+  expect(test.player.getCurrentTime()).toBe(0);
+
+  touchEvent(body, "pointerdown", 250);
+  touchEvent(test.viewport, "pointerup", 285);
+  expect(test.store.getSnapshot().document.regions[0].start).toBeCloseTo(2.2);
+  expect(test.onCommit).toHaveBeenCalledOnce();
   test.cleanup();
 });
 

@@ -298,9 +298,10 @@ The player view exposes slider semantics, annotation views use a group with
 individual controls, and data-only visuals use image semantics. Decorative Canvas
 and timeline content are hidden from accessibility APIs. The minimap exposes one
 viewport slider. Focus indicators and meaningful control labels are provided.
-Touch background gestures preserve vertical page scrolling and pinch zoom;
-annotation editing handles reserve gestures for editing. Comprehensive mobile and
-screen-reader certification remains pending.
+One-finger touches on the waveform background preserve vertical page scrolling.
+Pinching with two fingers zooms the waveform around their midpoint. Annotation
+editing handles support one-finger editing. Comprehensive mobile and screen-reader
+certification remains pending.
 
 Rendering uses light DOM with ordinary `.raavl-*` classes and an optional
 low-specificity stylesheet at `raavl/styles.css`. Public hooks cover waveform,

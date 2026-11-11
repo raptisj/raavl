@@ -208,6 +208,9 @@ export const Waveform = forwardRef<Player | null, WaveformProps>(
     }, [player]);
 
     useEffect(() => {
+      view.current?.update({ viewport: { zoom: viewport?.zoom } });
+    }, [player, viewport?.zoom]);
+    useEffect(() => {
       view.current?.update({
         theme,
         appearance: {
@@ -223,7 +226,7 @@ export const Waveform = forwardRef<Player | null, WaveformProps>(
           cursorWidth: appearance?.cursorWidth,
           borderRadius: appearance?.borderRadius,
         },
-        viewport: { zoom: viewport?.zoom, follow: viewport?.follow },
+        viewport: { follow: viewport?.follow },
         interaction: { seek: interaction?.seek, drag: interaction?.drag },
         label: html["aria-label"] ?? "Audio waveform",
       });
@@ -241,7 +244,6 @@ export const Waveform = forwardRef<Player | null, WaveformProps>(
       appearance?.amplitude,
       appearance?.cursorWidth,
       appearance?.borderRadius,
-      viewport?.zoom,
       viewport?.follow,
       interaction?.seek,
       interaction?.drag,
