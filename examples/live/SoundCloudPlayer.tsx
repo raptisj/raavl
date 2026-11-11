@@ -3,6 +3,7 @@ import { createPlayer, mountWaveform, type Player, type RaavlError } from 'raavl
 import { Waveform, usePlayerState, usePlayerTime } from 'raavl/react'
 import type { Mode } from './routes'
 import { soundcloudSource, soundcloudStyles, soundcloudTheme, soundcloudTime } from './soundcloud'
+import { Preview } from './Preview'
 
 const selectState = (state: ReturnType<Player['getSnapshot']> | null) => state
 
@@ -45,28 +46,30 @@ export function SoundCloudPlayer({ mode }: { mode: Mode }) {
   }
   return <>
     <style>{soundcloudStyles}</style>
-    <div className="sc-demo">
-      <div className="sc-waveform" onClick={togglePlayback}
-        onKeyDown={event => {
-          if (event.key !== ' ' && event.key !== 'Enter') return
-          event.preventDefault()
-          togglePlayback()
-        }}
-        onPointerMove={event => {
-          if (!hover.current) return
-          const bounds = event.currentTarget.getBoundingClientRect()
-          hover.current.style.width = `${Math.max(0, Math.min(bounds.width, event.clientX - bounds.left))}px`
-        }}>
-        {mode === 'react' ? <Waveform source={soundcloudSource} theme={soundcloudTheme}
-          onPlayer={setPlayer} onError={setError}
-          interaction={{ seek: 'click', drag: 'none' }}
-          aria-label="SoundCloud-style waveform. Arrow keys seek; Space plays or pauses." />
-          : <VanillaCanvas onPlayer={setPlayer} onError={setError} />}
-        <span className="sc-time" aria-hidden="true">{soundcloudTime(time)}</span>
-        <span className="sc-duration" aria-hidden="true">{soundcloudTime(state?.duration ?? 0)}</span>
-        <div className="sc-hover" ref={hover} aria-hidden="true" />
+    <Preview>
+      <div className="sc-demo">
+        <div className="sc-waveform" onClick={togglePlayback}
+          onKeyDown={event => {
+            if (event.key !== ' ' && event.key !== 'Enter') return
+            event.preventDefault()
+            togglePlayback()
+          }}
+          onPointerMove={event => {
+            if (!hover.current) return
+            const bounds = event.currentTarget.getBoundingClientRect()
+            hover.current.style.width = `${Math.max(0, Math.min(bounds.width, event.clientX - bounds.left))}px`
+          }}>
+          {mode === 'react' ? <Waveform source={soundcloudSource} theme={soundcloudTheme}
+            onPlayer={setPlayer} onError={setError}
+            interaction={{ seek: 'click', drag: 'none' }}
+            aria-label="SoundCloud-style waveform. Arrow keys seek; Space plays or pauses." />
+            : <VanillaCanvas onPlayer={setPlayer} onError={setError} />}
+          <span className="sc-time" aria-hidden="true">{soundcloudTime(time)}</span>
+          <span className="sc-duration" aria-hidden="true">{soundcloudTime(state?.duration ?? 0)}</span>
+          <div className="sc-hover" ref={hover} aria-hidden="true" />
+        </div>
       </div>
-    </div>
+    </Preview>
     <p className="helper">Click the waveform to seek and play or pause. Arrow keys seek; Space plays or pauses. Audio: Bach · classical.</p>
     {error && <p role="alert">{error.message}</p>}
   </>

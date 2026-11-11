@@ -17,22 +17,12 @@ import {
 } from "raavl";
 import { Waveform, usePlayerState, usePlayerTime } from "raavl/react";
 import { usePageTheme } from './usePageTheme';
+import { Preview } from "./Preview";
+import { DemoSettings } from "./DemoSettings";
+import { annotationDocument, annotationStyles } from "./annotation-example";
+import type { ExampleCodeOptions } from "./snippets";
 
-const initial: AnnotationDocument = {
-  version: 1,
-  sourceId: "demo-a",
-  regions: [
-    {
-      id: "intro",
-      start: 0.5,
-      end: 2.5,
-      label: "Introduction",
-      metadata: { speaker: "A" },
-    },
-    { id: "quote", start: 4, end: 6.5, label: "Key phrase" },
-  ],
-  markers: [{ id: "cue", time: 8, label: "Cue" }],
-};
+const initial = annotationDocument;
 const first: Source = { kind: "url", id: "demo-a", url: "/demo-a.wav" };
 const second: Source = { kind: "url", id: "demo-b", url: "/demo-b.wav" };
 const labelSlot = (region: Region) => {
@@ -88,7 +78,7 @@ function VanillaEditor(props: CanvasProps) {
     view.current?.update({
       annotations: props.annotations,
       annotationRules: { snap: props.snap, minLength: 0.1 },
-      viewport: { zoom: props.zoom, follow: "off" },
+      viewport: { zoom: props.zoom },
       renderRegionLabel: labelSlot,
       onSelectionChange: props.onSelection,
       onAnnotationSelect: props.onSelect,
@@ -108,7 +98,10 @@ function Time({ player }: { player: Player | null }) {
   return <span className="clock">{usePlayerTime(player).toFixed(2)}s</span>;
 }
 
-export function AnnotationEditor({ mode }: { mode: "vanilla" | "react" }) {
+export function AnnotationEditor({ mode, onOptionsChange }: {
+  mode: "vanilla" | "react";
+  onOptionsChange?: (options: ExampleCodeOptions) => void;
+}) {
   const pageTheme = usePageTheme();
   const [document, setDocument] = useState<AnnotationDocument>(initial),
     [revision, setRevision] = useState(0);
@@ -126,6 +119,7 @@ export function AnnotationEditor({ mode }: { mode: "vanilla" | "react" }) {
   const [source, setSource] = useState(first),
     [zoom, setZoom] = useState<number | "fit">("fit"),
     [snap, setSnap] = useState(0.1);
+  useEffect(() => { onOptionsChange?.({ annotations: { zoom, snap } }); }, [zoom, snap, onOptionsChange]);
   const [json, setJson] = useState(stringifyAnnotations(initial)),
     [label, setLabel] = useState("New annotation");
   const [start, setStart] = useState("0"),
@@ -235,327 +229,328 @@ export function AnnotationEditor({ mode }: { mode: "vanilla" | "react" }) {
     });
   return (
     <article className="player-card annotation-editor">
-      <div className="card-heading">
-        <h3>Annotation studio</h3>
-        <span className="badge">LIVE PREVIEW</span>
-      </div>
+      <h3>Annotation studio</h3>
       <p className="helper">
-        Drag empty space to select. Drag labels to move. Drag handles to resize.
-        Select an annotation, then use arrows or Delete. Escape cancels.
+        Click or tap to move the playhead. Double-click or double-tap inside a
+        region to play it from start to end.
+        Drag empty space to select, drag labels to move, and drag handles to
+        resize. Use Add marker at playhead to mark a single point.
       </p>
-      <div className="audio-settings editor-settings">
-        <label>
-          Ownership
-          <select
-            value={ownership}
-            onChange={(event) =>
-              setOwnership(event.target.value as typeof ownership)
-            }
-          >
-            <option value="controlled">Application controlled</option>
-            <option value="store">Library store</option>
-          </select>
-        </label>
-        <label>
-          Snap
-          <select
-            value={snap}
-            onChange={(event) => setSnap(Number(event.target.value))}
-          >
-            <option value="0">Off</option>
-            <option value="0.1">0.1 seconds</option>
-            <option value="0.5">0.5 seconds</option>
-            <option value="1">1 second</option>
-          </select>
-        </label>
-        <label>
-          Zoom
-          <select
-            value={zoom}
-            onChange={(event) =>
-              setZoom(
-                event.target.value === "fit"
-                  ? "fit"
-                  : Number(event.target.value),
-              )
-            }
-          >
-            <option value="fit">Fit</option>
-            <option value="150">150 px/s</option>
-            <option value="300">300 px/s</option>
-          </select>
-        </label>
-        {ownership === "controlled" && (
-          <label className="checkbox">
-            <input
-              type="checkbox"
-              checked={accept}
-              onChange={(event) => setAccept(event.target.checked)}
+      <Preview>
+        <style>{annotationStyles}</style>
+        <div className="annotation-app">
+          {mode === "react" ? (
+            <Waveform
+              source={source}
+              themeVersion={pageTheme}
+              onPlayer={setPlayer}
+              onError={report}
+              appearance={{ style: "bars", height: 200 }}
+              viewport={{ zoom }}
+              interaction={{ drag: "select" }}
+              annotationRules={{ snap, minLength: 0.1 }}
+              {...(ownership === "controlled"
+                ? {
+                    annotations: document,
+                    annotationsRevision: revision,
+                    onAnnotationsCommit: commit,
+                  }
+                : { annotationStore: store ?? undefined })}
+              onSelectionChange={setSelection}
+              onAnnotationSelect={setSelectedId}
+              renderRegionLabel={(region) => (
+                <strong>◆ {region.label || region.id}</strong>
+              )}
+              aria-label="Editable recording"
             />
-            Accept edits
-          </label>
-        )}
-      </div>
-      {mode === "react" ? (
-        <Waveform
-          source={source}
-          themeVersion={pageTheme}
-          onPlayer={setPlayer}
-          onError={report}
-          appearance={{ style: "bars", height: 200 }}
-          viewport={{ zoom, follow: "off" }}
-          interaction={{ drag: "select" }}
-          annotationRules={{ snap, minLength: 0.1 }}
-          {...(ownership === "controlled"
-            ? {
-                annotations: document,
-                annotationsRevision: revision,
-                onAnnotationsCommit: commit,
-              }
-            : { annotationStore: store ?? undefined })}
-          onSelectionChange={setSelection}
-          onAnnotationSelect={setSelectedId}
-          renderRegionLabel={(region) => (
-            <strong>◆ {region.label || region.id}</strong>
+          ) : (
+            <VanillaEditor
+              source={source}
+              annotations={ownership === "controlled" ? controlled : store}
+              zoom={zoom}
+              snap={snap}
+              onPlayer={setPlayer}
+              onSelection={setSelection}
+              onSelect={setSelectedId}
+              onError={report}
+            />
           )}
-          aria-label="Editable recording"
-        />
-      ) : (
-        <VanillaEditor
-          source={source}
-          annotations={ownership === "controlled" ? controlled : store}
-          zoom={zoom}
-          snap={snap}
-          onPlayer={setPlayer}
-          onSelection={setSelection}
-          onSelect={setSelectedId}
-          onError={report}
-        />
-      )}
-      <div className="transport">
-        <button
-          className="primary"
-          disabled={status !== "ready"}
-          onClick={() => {
-            if (playing) player!.pause();
-            else void player!.play().catch(report);
-          }}
-        >
-          {playing ? "Pause" : "Play"}
-        </button>
-        <button
-          disabled={!enabled || !selected || !("start" in selected)}
-          onClick={() => {
-            if (selected && "start" in selected)
-              void player!.playRange(selected).catch(report);
-          }}
-        >
-          Play region
-        </button>
-        <button
-          disabled={!enabled || !selected || !("start" in selected)}
-          onClick={() => {
-            if (selected && "start" in selected)
-              void player!.playRange({ ...selected, loop: true }).catch(report);
-          }}
-        >
-          Loop region
-        </button>
-        <Time player={player} />
-      </div>
-      <div className="callout">
-        <strong>
-          {selection
-            ? `Selection: ${selection.start.toFixed(2)}–${selection.end.toFixed(2)}s`
-            : "Select a range to create a region."}
-        </strong>
-        <div className="editor-actions">
-          <button
-            disabled={!enabled || !selection}
-            onClick={() =>
-              edit((target) =>
-                target.addRegion({
-                  id: crypto.randomUUID(),
-                  ...selection!,
-                  label,
-                }),
-              )
-            }
-          >
-            Create region from selection
-          </button>
-          <button
-            disabled={!enabled}
-            onClick={() =>
-              edit((target) =>
-                target.addMarker({
-                  id: crypto.randomUUID(),
-                  time: player!.getCurrentTime(),
-                  label,
-                }),
-              )
-            }
-          >
-            Add marker at playhead
-          </button>
-        </div>
-      </div>
-      <fieldset disabled={!enabled} className="annotation-fields">
-        <legend>
-          {selected ? `Edit ${selected.id}` : "New annotation label"}
-        </legend>
-        <label>
-          Label
-          <input
-            value={label}
-            onChange={(event) => setLabel(event.target.value)}
-          />
-        </label>
-        {selected && (
-          <>
+          <div className="transport">
+            <button
+              className="primary"
+              disabled={status !== "ready"}
+              onClick={() => {
+                if (playing) player!.pause();
+                else void player!.play().catch(report);
+              }}
+            >
+              {playing ? "Pause" : "Play"}
+            </button>
+            <button
+              disabled={!enabled || !selected || !("start" in selected)}
+              onClick={() => {
+                if (selected && "start" in selected)
+                  void player!.playRange(selected).catch(report);
+              }}
+            >
+              Play region
+            </button>
+            <button
+              disabled={!enabled || !selected || !("start" in selected)}
+              onClick={() => {
+                if (selected && "start" in selected)
+                  void player!.playRange({ ...selected, loop: true }).catch(report);
+              }}
+            >
+              Loop region
+            </button>
+            <Time player={player} />
+          </div>
+          <fieldset disabled={!enabled} className="annotation-fields">
+            <legend>Annotations</legend>
+            <p className="helper">
+              {selection
+                ? `Selection: ${selection.start.toFixed(2)}–${selection.end.toFixed(2)}s`
+                : selected
+                  ? `Selected: ${selected.label || selected.id}`
+                  : "Drag to select a range, or choose an annotation to edit or delete."}
+            </p>
             <label>
-              {"start" in selected ? "Start (seconds)" : "Time (seconds)"}
+              {selected ? "Label" : "New annotation label"}
               <input
-                type="number"
-                min="0"
-                step="0.1"
-                value={start}
-                onChange={(event) => setStart(event.target.value)}
+                value={label}
+                onChange={(event) => setLabel(event.target.value)}
               />
             </label>
-            {"end" in selected && (
-              <label>
-                End (seconds)
-                <input
-                  type="number"
-                  min="0"
-                  step="0.1"
-                  value={end}
-                  onChange={(event) => setEnd(event.target.value)}
-                />
-              </label>
+            {selected && (
+              <>
+                <label>
+                  {"start" in selected ? "Start (seconds)" : "Time (seconds)"}
+                  <input
+                    type="number"
+                    min="0"
+                    step="0.1"
+                    value={start}
+                    onChange={(event) => setStart(event.target.value)}
+                  />
+                </label>
+                {"end" in selected && (
+                  <label>
+                    End (seconds)
+                    <input
+                      type="number"
+                      min="0"
+                      step="0.1"
+                      value={end}
+                      onChange={(event) => setEnd(event.target.value)}
+                    />
+                  </label>
+                )}
+              </>
             )}
-            <button
-              onClick={() =>
-                edit((target) => {
-                  if ("start" in selected)
-                    target.updateRegion(selected.id, {
+            <div className="editor-actions">
+              <button
+                disabled={!selection}
+                onClick={() => {
+                  if (!selection) return;
+                  edit((target) =>
+                    target.addRegion({
+                      id: crypto.randomUUID(),
+                      ...selection,
                       label,
-                      start: Number(start),
-                      end: Number(end),
-                    });
-                  else
-                    target.updateMarker(selected.id, {
+                    }),
+                  );
+                }}
+              >
+                Create region from selection
+              </button>
+              <button
+                onClick={() =>
+                  edit((target) =>
+                    target.addMarker({
+                      id: crypto.randomUUID(),
+                      time: player!.getCurrentTime(),
                       label,
-                      time: Number(start),
-                    });
-                })
-              }
-            >
-              Apply edit
-            </button>
-            <button
-              onClick={() =>
-                edit((target) => {
-                  if ("start" in selected)
-                    target.updateRegion(selected.id, {
-                      locked: !selected.locked,
-                    });
-                  else
-                    target.updateMarker(selected.id, {
-                      locked: !selected.locked,
-                    });
-                })
-              }
-            >
-              {selected.locked ? "Unlock" : "Lock"}
-            </button>
-            <button
-              disabled={selected.locked}
-              onClick={() => edit((target) => target.remove(selected.id))}
-            >
-              Delete annotation
-            </button>
-          </>
-        )}
-      </fieldset>
-      <div className="editor-actions">
-        <button onClick={() => setSource(source === first ? second : first)}>
-          {source === first
-            ? "Switch to other audio"
-            : "Return to annotated audio"}
-        </button>
-        <button
-          onClick={() =>
-            edit((target) =>
-              target.replaceDocument({
-                ...document,
-                regions: document.regions.map((region, index) =>
-                  index === 0
-                    ? { ...region, label: `${region.label} *` }
-                    : region,
-                ),
-              }),
-            )
-          }
-        >
-          Simulate external edit
-        </button>
-        <span>
-          {commits} edit proposals · revision {revision}
-        </span>
-      </div>
-      <details className="persistence">
-        <summary>Save, load & export annotations</summary>
-        <p>JSON contains annotation data only. Audio stays separate.</p>
-        <div className="editor-actions">
-          <button
-            onClick={() =>
-              attempt(() => {
-                localStorage.setItem(
-                  "raavl-annotations-demo",
-                  stringifyAnnotations(document),
-                );
-                setNotice("Saved to this browser.");
-              })
-            }
-          >
-            Save in browser
-          </button>
-          <button
-            onClick={() =>
-              attempt(() => {
-                const saved = localStorage.getItem("raavl-annotations-demo");
-                if (!saved) throw new Error("No saved annotations");
-                load(saved);
-              })
-            }
-          >
-            Load saved
-          </button>
-          <button onClick={() => setJson(stringifyAnnotations(document))}>
-            Refresh JSON
-          </button>
-          <button onClick={downloadable}>Download JSON</button>
+                    }),
+                  )
+                }
+              >
+                Add marker at playhead
+              </button>
+              <button
+                disabled={!selected}
+                onClick={() => {
+                  if (!selected) return;
+                  edit((target) => {
+                    if ("start" in selected)
+                      target.updateRegion(selected.id, {
+                        label,
+                        start: Number(start),
+                        end: Number(end),
+                      });
+                    else
+                      target.updateMarker(selected.id, {
+                        label,
+                        time: Number(start),
+                      });
+                  });
+                }}
+              >
+                Apply edit
+              </button>
+              <button
+                disabled={!selected}
+                onClick={() => {
+                  if (!selected) return;
+                  edit((target) => {
+                    const patch = { locked: !selected.locked };
+                    if ("start" in selected) target.updateRegion(selected.id, patch);
+                    else target.updateMarker(selected.id, patch);
+                  });
+                }}
+              >
+                {selected?.locked ? "Unlock" : "Lock"}
+              </button>
+              <button
+                disabled={!selected || selected.locked}
+                onClick={() => {
+                  if (selected) edit((target) => target.remove(selected.id));
+                }}
+              >
+                Delete annotation
+              </button>
+            </div>
+          </fieldset>
+          {error && <p role="alert" className="error">{error}</p>}
         </div>
-        <label>
-          Annotation JSON
-          <textarea
-            rows={10}
-            value={json}
-            onChange={(event) => setJson(event.target.value)}
-          />
-        </label>
-        <button onClick={() => load(json)}>Import JSON</button>
-      </details>
+      </Preview>
+      <DemoSettings summary="Annotation options">
+        <details className="persistence">
+          <summary>Save, load & export annotations</summary>
+          <p>JSON contains annotation data only. Audio stays separate.</p>
+          <div className="editor-actions">
+            <button
+              onClick={() =>
+                attempt(() => {
+                  localStorage.setItem(
+                    "raavl-annotations-demo",
+                    stringifyAnnotations(document),
+                  );
+                  setNotice("Saved to this browser.");
+                })
+              }
+            >
+              Save in browser
+            </button>
+            <button
+              onClick={() =>
+                attempt(() => {
+                  const saved = localStorage.getItem("raavl-annotations-demo");
+                  if (!saved) throw new Error("No saved annotations");
+                  load(saved);
+                })
+              }
+            >
+              Load saved
+            </button>
+            <button onClick={() => setJson(stringifyAnnotations(document))}>
+              Refresh JSON
+            </button>
+            <button onClick={downloadable}>Download JSON</button>
+          </div>
+          <label>
+            Annotation JSON
+            <textarea
+              rows={10}
+              value={json}
+              onChange={(event) => setJson(event.target.value)}
+            />
+          </label>
+          <button onClick={() => load(json)}>Import JSON</button>
+        </details>
+        <div className="audio-settings editor-settings">
+          <label>
+            Ownership
+            <select
+              value={ownership}
+              onChange={(event) =>
+                setOwnership(event.target.value as typeof ownership)
+              }
+            >
+              <option value="controlled">Application controlled</option>
+              <option value="store">Library store</option>
+            </select>
+          </label>
+          <label>
+            Snap
+            <select
+              value={snap}
+              onChange={(event) => setSnap(Number(event.target.value))}
+            >
+              <option value="0">Off</option>
+              <option value="0.1">0.1 seconds</option>
+              <option value="0.5">0.5 seconds</option>
+              <option value="1">1 second</option>
+            </select>
+          </label>
+          <label>
+            Zoom
+            <select
+              value={zoom}
+              onChange={(event) =>
+                setZoom(
+                  event.target.value === "fit"
+                    ? "fit"
+                    : Number(event.target.value),
+                )
+              }
+            >
+              <option value="fit">Fit</option>
+              <option value="150">150 px/s</option>
+              <option value="300">300 px/s</option>
+            </select>
+          </label>
+          {ownership === "controlled" && (
+            <label className="checkbox">
+              <input
+                type="checkbox"
+                checked={accept}
+                onChange={(event) => setAccept(event.target.checked)}
+              />
+              Accept edits
+            </label>
+          )}
+        </div>
+        <div className="editor-actions">
+          <button onClick={() => setSource(source === first ? second : first)}>
+            {source === first
+              ? "Switch to other audio"
+              : "Return to annotated audio"}
+          </button>
+          <button
+            onClick={() =>
+              edit((target) =>
+                target.replaceDocument({
+                  ...document,
+                  regions: document.regions.map((region, index) =>
+                    index === 0
+                      ? { ...region, label: `${region.label} *` }
+                      : region,
+                  ),
+                }),
+              )
+            }
+          >
+            Simulate external edit
+          </button>
+          <span>
+            {commits} edit proposals · revision {revision}
+          </span>
+        </div>
+      </DemoSettings>
       <p role="status" className="helper">
         {notice}
       </p>
-      {error && (
-        <p role="alert" className="error">
-          {error}
-        </p>
-      )}
     </article>
   );
 }

@@ -1,5 +1,5 @@
 import { mountAnnotations, type AnnotationViewOptions } from "./annotations.js";
-import type { Selection } from "../regions/index.js";
+import type { Region, Selection } from "../regions/index.js";
 export type {
   AnnotationViewOptions,
   AnnotationSnapper,
@@ -185,7 +185,13 @@ export function mountWaveform(
   });
   const surface = document.createElement("div");
   surface.className = "raavl-surface";
-  Object.assign(surface.style, { position: "relative", height: "100%" });
+  Object.assign(surface.style, {
+    position: "relative",
+    height: "100%",
+    // The surface width defines the scroll range even when a canvas still has
+    // its old offset during a zoom change.
+    overflow: "clip",
+  });
   const wave = document.createElement("canvas"),
     progress = document.createElement("canvas");
   wave.className = "raavl-wave";
@@ -389,8 +395,12 @@ export function mountWaveform(
     const time = player?.getMediaElement()?.currentTime ?? 0;
     const x = duration ? (time / duration) * totalWidth : 0;
     progress.style.clipPath = `inset(0 ${Math.max(0, width - (x - root.scrollLeft))}px 0 0)`;
-    cursor.style.left = `${x}px`;
-    cursor.hidden = !player || !duration;
+    const cursorLeft = Math.min(
+      x,
+      Math.max(0, totalWidth - appearance.cursorWidth),
+    );
+    cursor.style.left = `${cursorLeft}px`;
+    cursor.hidden = !player || !duration || appearance.cursorWidth === 0;
     if (player && !annotationOptions.annotations) {
       // Readiness can change without invalidating already supplied peak pixels.
       root.setAttribute("aria-valuemax", String(duration));
@@ -433,22 +443,37 @@ export function mountWaveform(
     y: number;
     time: number;
     moved: boolean;
+    region: Region | null;
   } | null = null;
-  let lastTap: { x: number; y: number; time: number } | null = null;
+  let lastTap: {
+    x: number;
+    y: number;
+    time: number;
+    regionId?: string;
+  } | null = null;
   let lastTouchTime = -Infinity;
-  const startPlayback = () => {
+  let lastClickTarget: Region | null | undefined = null;
+  let doubleClickBlocked = false;
+  const startPlayback = (clientX: number, region: Region | null) => {
     if (!player || player.getSnapshot().source !== "ready") return;
+    if (region) {
+      void player
+        .playRange({ start: region.start, end: region.end })
+        .catch(() => {});
+      return;
+    }
+    if (interaction.seek === "click") seekAt(clientX);
     // play() publishes failures to the player snapshot for subscribers to report.
     void player.play().catch(() => {});
   };
   const touchDown = (event: PointerEvent) => {
     if (event.pointerType !== "touch") return;
     lastTouchTime = performance.now();
+    const region = annotationLayer.getPlaybackTarget(event.target);
     if (
       !event.isPrimary ||
       event.button !== 0 ||
-      (event.target instanceof Element &&
-        event.target.closest("[data-raavl-annotation]")) ||
+      region === undefined ||
       !player ||
       player.getSnapshot().source !== "ready"
     ) {
@@ -463,6 +488,7 @@ export function mountWaveform(
       y: event.clientY,
       time: performance.now(),
       moved: false,
+      region,
     };
   };
   const touchMove = (event: PointerEvent) => {
@@ -474,7 +500,12 @@ export function mountWaveform(
       lastTap = null;
     }
     // Leave vertical scrolling and pinch zoom to the browser.
-    if (touch.moved && dx > dy && interaction.drag === "seek") {
+    if (
+      !touch.region &&
+      touch.moved &&
+      dx > dy &&
+      interaction.drag === "seek"
+    ) {
       pointer = event.pointerId;
       seekAt(event.clientX);
     }
@@ -487,6 +518,7 @@ export function mountWaveform(
     touch = null;
     const now = performance.now();
     if (
+      annotationLayer.isPlaybackBlocked() ||
       gesture.moved ||
       now - gesture.time > 350 ||
       Math.hypot(event.clientX - gesture.x, event.clientY - gesture.y) > 10
@@ -494,16 +526,19 @@ export function mountWaveform(
       lastTap = null;
       return;
     }
-    if (interaction.seek === "click" && interaction.drag !== "select")
-      seekAt(event.clientX);
+    const regionId = gesture.region?.id;
     if (
       lastTap &&
+      lastTap.regionId === regionId &&
       now - lastTap.time <= 350 &&
       Math.hypot(event.clientX - lastTap.x, event.clientY - lastTap.y) <= 24
     ) {
       lastTap = null;
-      startPlayback();
-    } else lastTap = { x: event.clientX, y: event.clientY, time: now };
+      startPlayback(event.clientX, gesture.region);
+    } else {
+      if (interaction.seek === "click") seekAt(event.clientX);
+      lastTap = { x: event.clientX, y: event.clientY, time: now, regionId };
+    }
   };
   const touchCancel = (event: PointerEvent) => {
     if (touch?.id !== event.pointerId) return;
@@ -513,38 +548,29 @@ export function mountWaveform(
   };
   const click = (event: MouseEvent) => {
     if (performance.now() - lastTouchTime < 700) return;
-    if (
-      event.target instanceof Element &&
-      event.target.closest("[data-raavl-annotation]")
-    )
+    // A keyboard activation selects the focused annotation without a pointer position.
+    if (event.detail === 0 && annotationLayer.isAnnotationTarget(event.target))
       return;
-    if (interaction.seek === "click" && interaction.drag !== "select")
+    const target = annotationLayer.getPlaybackTarget(event.target, true);
+    if (event.detail > 0) {
+      // Capture can give two clicks on different targets the same DOM target.
+      doubleClickBlocked =
+        event.detail > 1 &&
+        (lastClickTarget === undefined || lastClickTarget?.id !== target?.id);
+      lastClickTarget = target;
+    }
+    if (target !== undefined && interaction.seek === "click")
       seekAt(event.clientX);
   };
   const doubleClick = (event: MouseEvent) => {
     if (performance.now() - lastTouchTime < 700) return;
-    if (
-      event.target instanceof Element &&
-      event.target.closest("[data-raavl-annotation]")
-    )
-      return;
-    if (
-      event.button !== 0 ||
-      !player ||
-      player.getSnapshot().source !== "ready"
-    )
-      return;
-    if (interaction.seek === "click" && interaction.drag !== "select")
-      seekAt(event.clientX);
-    startPlayback();
+    if (event.button !== 0 || (event.detail > 1 && doubleClickBlocked)) return;
+    const target = annotationLayer.getPlaybackTarget(event.target, true);
+    if (target !== undefined) startPlayback(event.clientX, target);
   };
   const down = (event: PointerEvent) => {
     if (event.pointerType === "touch") return;
-    if (
-      event.target instanceof Element &&
-      event.target.closest("[data-raavl-annotation]")
-    )
-      return;
+    if (annotationLayer.isAnnotationTarget(event.target)) return;
     if (
       !player ||
       event.button !== 0 ||
@@ -566,11 +592,7 @@ export function mountWaveform(
     pointer = null;
   };
   const key = (event: KeyboardEvent) => {
-    if (
-      event.target instanceof Element &&
-      event.target.closest("[data-raavl-annotation]")
-    )
-      return;
+    if (annotationLayer.isAnnotationTarget(event.target)) return;
     if (
       !player ||
       interaction.seek === "off" ||
@@ -623,6 +645,8 @@ export function mountWaveform(
     ) {
       touch = null;
       lastTap = null;
+      lastClickTarget = null;
+      doubleClickBlocked = false;
       tapSourceId = player.getSnapshot().sourceId;
     }
     const next = player.getSnapshot().data;

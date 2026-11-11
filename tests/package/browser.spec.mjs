@@ -52,3 +52,50 @@ test("the packed library decodes, renders, plays, seeks, and disposes in a produ
   expect(await page.evaluate(() => window.packageTest.errors)).toEqual([]);
   expect(errors).toEqual([]);
 });
+
+test("keeps zoom scrolling inside AudioPlayer and clears it on Fit", async ({
+  page,
+}) => {
+  await page.goto("/");
+  await expect
+    .poll(() =>
+      page.evaluate(
+        () => window.packageTest?.reactView?.getViewport().duration,
+      ),
+    )
+    .toBeGreaterThan(0);
+  const waveform = page.locator("#react .raavl-waveform");
+  const fitWidth = await waveform.evaluate((element) => element.clientWidth);
+  await page.evaluate(() => {
+    window.packageTest.reactView.update({ viewport: { zoom: 1200 } });
+  });
+  await expect
+    .poll(() => waveform.evaluate((element) => element.scrollWidth))
+    .toBeGreaterThan(fitWidth);
+  expect(await waveform.evaluate((element) => element.clientWidth)).toBe(
+    fitWidth,
+  );
+  expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBe(
+    await page.evaluate(() => document.documentElement.clientWidth),
+  );
+
+  await waveform.evaluate((element) => {
+    element.scrollLeft = element.scrollWidth;
+  });
+  await expect
+    .poll(() =>
+      waveform
+        .locator("canvas")
+        .first()
+        .evaluate((canvas) => parseFloat(canvas.style.left)),
+    )
+    .toBeGreaterThan(0);
+  await page.evaluate(() => {
+    window.packageTest.reactView.update({ viewport: { zoom: "fit" } });
+  });
+  await expect
+    .poll(() =>
+      waveform.evaluate((element) => [element.scrollLeft, element.scrollWidth]),
+    )
+    .toEqual([0, fitWidth]);
+});

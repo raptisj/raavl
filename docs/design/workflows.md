@@ -258,7 +258,6 @@ Theme CSS is optional. Canvas colors are read from theme tokens when the view re
 container.classList.add("podcast-wave");
 view.update({
   appearance: { style: "bars", barWidth: 3, barGap: 2 },
-  viewport: { follow: "off" },
 });
 // After changing a parent theme class:
 view.refreshTheme();
@@ -281,7 +280,6 @@ function StyledAudio() {
       source={episodeSource}
       className="podcast-wave"
       appearance={{ style: "bars", barWidth: 3, barGap: 2 }}
-      viewport={{ follow: "off" }}
       themeVersion="light"
     />
   );

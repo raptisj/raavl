@@ -91,11 +91,11 @@ const button = (label: string) =>
   host.querySelector<HTMLButtonElement>(`button[aria-label="${label}"]`)!;
 const input = (label: string) =>
   host.querySelector<HTMLInputElement>(`input[aria-label="${label}"]`)!;
-function change(element: HTMLInputElement | HTMLSelectElement, value: string) {
-  const prototype =
-    element instanceof HTMLInputElement
-      ? HTMLInputElement.prototype
-      : HTMLSelectElement.prototype;
+function change(
+  element: HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement,
+  value: string,
+) {
+  const prototype = Object.getPrototypeOf(element);
   Object.getOwnPropertyDescriptor(prototype, "value")!.set!.call(
     element,
     value,
@@ -475,6 +475,68 @@ it("uses AudioPlayer in the gallery and preserves playback across code tab chang
     expect(create).toHaveBeenCalledTimes(instances);
     expect(active.getMediaElement()).toBe(media);
     expect(active.getSnapshot().playback).toBe("playing");
+  } finally {
+    window.history.replaceState({}, "", "/");
+  }
+});
+
+it("keeps the demo theme JSON editor and download in sync with customization", async () => {
+  vi.spyOn(window, "scrollTo").mockImplementation(() => {});
+  vi.stubGlobal(
+    "fetch",
+    vi.fn(async () => ({ ok: true, json: async () => ({}) })),
+  );
+  window.history.replaceState({}, "", "#demos/file/react");
+  try {
+    root = createRoot(host);
+    await act(async () => root!.render(<Examples />));
+    const editor = host.querySelector<HTMLTextAreaElement>(
+      'textarea[aria-label="Theme JSON"]',
+    )!;
+    const download = host.querySelector<HTMLAnchorElement>(
+      'a[download="waveform-theme.json"]',
+    )!;
+    const height = input("Waveform height");
+    const apply = [...host.querySelectorAll("button")].find(
+      (button) => button.textContent === "Apply JSON",
+    )!;
+
+    await act(async () => change(height, "250"));
+    const customized = JSON.parse(editor.value);
+    expect(customized.appearance.height).toBe(250);
+    expect(host.querySelector("#example-code")?.textContent).toContain('"height": 250');
+    expect(decodeURIComponent(download.href.split(",")[1])).toBe(editor.value);
+    expect(host.textContent).not.toContain("Use current settings");
+
+    customized.appearance.height = 300;
+    await act(async () => change(editor, JSON.stringify(customized)));
+    expect(height.value).toBe("250");
+    await act(async () => apply.click());
+    expect(height.value).toBe("300");
+    expect(JSON.parse(editor.value).appearance.height).toBe(300);
+  } finally {
+    window.history.replaceState({}, "", "/");
+  }
+});
+
+it.each(["react", "vanilla"])("shows the annotation app actions in Preview and the %s code", async (mode) => {
+  vi.spyOn(window, "scrollTo").mockImplementation(() => {});
+  window.history.replaceState({}, "", `#demos/annotations/${mode}`);
+  try {
+    root = createRoot(host);
+    await act(async () => root!.render(<Examples />));
+    const preview = host.querySelector<HTMLElement>('[aria-label="Preview"]')!;
+    expect(preview.querySelector("h4")?.textContent).toBe("Preview");
+    const settings = host.querySelector(".demo-settings")!;
+    const code = host.querySelector("#example-code")?.textContent ?? "";
+    const actions = ["Play region", "Loop region", "Create region from selection", "Add marker at playhead", "Apply edit", "Lock", "Delete annotation"];
+    const buttons = [...preview.querySelectorAll("button")].map(button => button.textContent);
+    for (const action of actions) {
+      expect(buttons).toContain(action);
+      expect(code).toContain(action);
+    }
+    expect(settings.textContent).toContain("Simulate external edit");
+    expect(code).not.toContain("Simulate external edit");
   } finally {
     window.history.replaceState({}, "", "/");
   }

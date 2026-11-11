@@ -118,13 +118,11 @@
 .dark .examples-app .intro > p:last-child,
 .dark .examples-app nav a,
 .dark .examples-app .demo-heading p,
-.dark .examples-app .helper,
+.dark .examples-app .helper:not(:where(.library-preview *)),
 .dark .examples-app .clock span,
-.dark .examples-app label,
+.dark .examples-app label:not(:where(.library-preview *)),
 .dark .examples-app .status,
 .dark .examples-app .theme-json p,
-.dark .examples-app .source-form p,
-.dark .examples-app .file-drop span,
 .dark .examples-app .test-actions span,
 .dark .examples-app .editor-actions span,
 .dark .examples-app footer,
@@ -137,49 +135,42 @@
 .dark .examples-app .theme-json a,
 .dark .examples-app footer a,
 .dark .examples-app .docs-callout a { color: var(--color-fd-primary); }
-.dark .examples-app .badge,
 .dark .examples-app .frameworks,
-.dark .examples-app .customize,
+.dark .examples-app .demo-settings,
 .dark .examples-app .callout,
-.dark .examples-app .file-drop,
-.dark .examples-app .empty-wave,
 .dark .examples-app .code-example pre,
 .dark .examples-app .docs-callout { background: var(--color-fd-secondary); }
 
 .dark .examples-app .player-card,
 .dark .examples-app .demo-tile,
 .dark .examples-app .code-example,
-.dark .examples-app button,
-.dark .examples-app select,
-.dark .examples-app input,
+.dark .examples-app button:not(:where(.library-preview *)),
+.dark .examples-app select:not(:where(.library-preview *)),
+.dark .examples-app input:not(:where(.library-preview *)),
 .dark .examples-app textarea { color: var(--color-fd-foreground); background: var(--color-fd-card); border-color: var(--color-fd-border); }
 .dark .examples-app .player-card,
 .dark .examples-app .demo-tile,
+.dark .examples-app .demo-settings,
 .dark .examples-app .theme-json,
 .dark .examples-app .status,
-.dark .examples-app .annotation-fields,
 .dark .examples-app footer,
 .dark .examples-app .code-example,
 .dark .examples-app .code-heading { border-color: var(--color-fd-border); }
 .dark .examples-app .status b { color: var(--color-fd-foreground); }
-.dark .examples-app .empty-wave { color: var(--color-fd-muted-foreground); }
-.dark .examples-app .demo-tile:hover,
-.dark .examples-app .file-drop { border-color: var(--color-fd-primary); }
-.dark .examples-app button:hover:not(:disabled) { background: var(--color-fd-accent); }
+.dark .examples-app .demo-tile:hover { border-color: var(--color-fd-primary); }
+.dark .examples-app button:hover:not(:disabled, :where(.library-preview *)) { background: var(--color-fd-accent); }
 .dark .examples-app .frameworks a[aria-current],
 .dark .examples-app .frameworks button[aria-pressed="true"] { background: var(--color-fd-accent); color: var(--color-fd-primary); box-shadow: none; }
-.dark .examples-app button.primary,
+.dark .examples-app button.primary:not(:where(.library-preview *)),
 .dark .examples-app nav a[aria-current="page"] { background: var(--color-fd-primary); color: var(--color-fd-primary-foreground); border-color: var(--color-fd-primary); }
-.dark .examples-app button.primary:hover:not(:disabled) { background: #b8e1c1; }
-.dark .examples-app input[type="range"],
-.dark .examples-app input[type="checkbox"] { accent-color: var(--color-fd-primary); }
-.dark .examples-app .error { background: #35271f; color: #f1bf98; }
-.dark .examples-app :focus-visible { outline-color: var(--color-fd-ring); }
+.dark .examples-app button.primary:hover:not(:disabled, :where(.library-preview *)) { background: #b8e1c1; }
+.dark .examples-app input[type="range"]:not(:where(.library-preview *)),
+.dark .examples-app input[type="checkbox"]:not(:where(.library-preview *)) { accent-color: var(--color-fd-primary); }
+.dark .examples-app .error:not(:where(.library-preview *)) { background: #35271f; color: #f1bf98; }
+.dark .examples-app :focus-visible:not(:where(.library-preview *)) { outline-color: var(--color-fd-ring); }
 
-/* These colors apply to CSS-owned waveforms. Inline JSON theme colors take precedence. */
-.dark .playground-wave .raavl-waveform,
-.dark .examples-app .raavl-waveform,
-.dark .examples-app .player-card .raavl-waveform {
+/* The homepage waveform follows the site theme. */
+.dark .playground-wave .raavl-waveform {
   --raavl-wave-color: var(--site-wave-muted);
   --raavl-progress-color: var(--color-fd-primary);
   --raavl-cursor-color: var(--color-fd-ring);
@@ -191,6 +182,3 @@
   --raavl-selection-color: #8cb6e944;
   --raavl-label-color: #ddc8f7;
 }
-.dark .examples-app .raavl-timeline { --raavl-timeline-color: var(--color-fd-muted-foreground); }
-.dark .examples-app .raavl-minimap-control { --raavl-focus-color: var(--color-fd-ring); --raavl-minimap-window-color: #8cb6e926; }
-.dark .examples-app .annotation-editor .raavl-region-body { color: var(--raavl-label-color); }

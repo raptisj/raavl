@@ -13,7 +13,7 @@ export const soundcloudTheme = parseTheme({
     cursorWidth: 0, borderRadius: 0, normalize: true,
   },
   colors: {
-    background: '#ffffff', focus: '#ff5500',
+    background: 'transparent', focus: '#ff5500',
     wave: {
       type: 'linear-gradient',
       stops: [
@@ -40,7 +40,7 @@ export const soundcloudTheme = parseTheme({
 })
 
 export const soundcloudStyles = `
-.sc-demo { padding: 28px 20px; border: 1px solid #dedede; border-radius: 4px; background: #fff; color: #333; }
+.sc-demo { padding: 28px 20px; border: 1px solid var(--raavl-control-border, #d6dfd2); border-radius: 4px; background: transparent; color: inherit; }
 .sc-waveform { position: relative; cursor: pointer; isolation: isolate; }
 .sc-hover { position: absolute; inset: 0 auto 0 0; z-index: 10; height: 100%; width: 0; pointer-events: none; mix-blend-mode: overlay; background: rgba(255,255,255,.5); opacity: 0; transition: opacity .2s ease; }
 .sc-waveform:hover .sc-hover { opacity: 1; }

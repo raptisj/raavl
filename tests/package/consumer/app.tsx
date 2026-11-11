@@ -1,6 +1,6 @@
 import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
-import { createPlayer, mountWaveform } from "raavl";
+import { createPlayer, mountWaveform, type WaveformView } from "raavl";
 import { AudioPlayer } from "raavl/react";
 import { waveformThemes } from "raavl/themes";
 import "raavl/styles.css";
@@ -17,11 +17,13 @@ void player
   .catch((error) => errors.push(error.message));
 const root = createRoot(document.getElementById("react")!);
 let reactPlayer: ReturnType<typeof createPlayer> | null = null;
+let reactView: WaveformView | null = null;
 root.render(
   <StrictMode>
     <AudioPlayer
       source={{ kind: "url", id: "react", url: "/tone.wav" }}
       theme={waveformThemes.sage}
+      waveform={{ onView: (instance) => { reactView = instance; } }}
       onError={(error) => errors.push(error.message)}
       onPlayer={(instance) => {
         reactPlayer = instance;
@@ -35,6 +37,9 @@ Object.assign(window, {
     player,
     get reactPlayer() {
       return reactPlayer;
+    },
+    get reactView() {
+      return reactView;
     },
     errors,
     dispose() {

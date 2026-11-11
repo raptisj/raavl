@@ -152,8 +152,13 @@ alongside React for the React entry point; vanilla entry points import neither.
 - Vanilla views expose `getSelection()`, `clearSelection()`, and
   `createRegionFromSelection(id, label?)`. React applications use the selection
   callback to add a region to their controlled document/store.
-- Clicking an annotation selects it, without starting audio. Its body moves it;
-  its handles resize it. Markers can be moved.
+- Click or tap inside a region to select it and seek when click seeking is
+  enabled. Double-click or double-tap inside it to play the region once from
+  start to end. Drag the region body to move it or a handle to resize it. Drag
+  a marker to move it.
+- To add a marker at a single point, seek there and call
+  `store.addMarker({ id, time: player.getCurrentTime(), label })`. The examples
+  expose this as **Add marker at playhead**.
 - Arrow keys move the focused annotation or handle. The default keyboard step is
   0.1 seconds; Shift makes it 1 second. A configured snap interval replaces the
   base step, with Shift using ten intervals. Delete/Backspace removes an unlocked

@@ -174,7 +174,6 @@ view.update({ annotations: { value: document, revision, onCommit } })`,
     vanilla: `container.classList.add('podcast-wave')
 view.update({
   appearance: { style: 'bars', barWidth: 3, barGap: 2 },
-  viewport: { follow: 'off' },
 })
 // After changing a parent theme class:
 view.refreshTheme()
@@ -190,7 +189,6 @@ view.refreshTheme()
   return <Waveform source={episodeSource}
     className="podcast-wave"
     appearance={{ style: 'bars', barWidth: 3, barGap: 2 }}
-    viewport={{ follow: 'off' }}
     themeVersion="light"
   />
 }

@@ -40,9 +40,11 @@ const view = mountWaveform(container, {
 | Group | Option | Default | Behavior |
 | --- | --- | --- | --- |
 | `viewport` | `zoom` | `'fit'` | Fit recording, or 0.01–10,000 CSS pixels per second |
-| `viewport` | `follow` | `'visible'` | `'off'`, `'visible'`, or `'center'` |
+| `viewport` | `follow` | `'visible'` | Scroll to keep the playhead visible during playback. Use `'center'` to center it when possible or `'off'` to scroll manually. |
 | `interaction` | `seek` | `'click'` | `'click'` or `'off'` |
 | `interaction` | `drag` | `'none'` | `'none'`, `'seek'`, or `'select'` |
+
+Automatic scrolling pauses during an active waveform drag or annotation edit and resumes when the gesture ends.
 
 `label` sets the accessible waveform name, defaulting to `Audio waveform`. `onDraw` observes completed drawing. `theme` accepts a [WaveformTheme](/docs/styling).
 

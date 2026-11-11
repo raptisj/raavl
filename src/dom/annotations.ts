@@ -66,6 +66,8 @@ export function mountAnnotations(
   let unsubscribe: (() => void) | undefined,
     disposed = false,
     gesture: Gesture | null = null;
+  let playbackBlocked = false;
+  let clickedRegionId: string | undefined;
   let selection: Selection = null,
     selected: string | null = null,
     lastSource: string | null = null;
@@ -153,6 +155,25 @@ export function mountAnnotations(
     target instanceof Element
       ? target.closest<HTMLElement>("[data-raavl-annotation]")
       : null;
+  const getPlaybackTarget = (
+    target: EventTarget | null,
+    afterPointerUp = false,
+  ): Region | null | undefined => {
+    // Null is waveform background. Undefined is a consumed gesture or control.
+    if (afterPointerUp && playbackBlocked) return undefined;
+    const control = annotationTarget(target);
+    if (
+      control &&
+      !control.matches(".raavl-region, .raavl-region > .raavl-region-body")
+    )
+      return undefined;
+    const id =
+      control?.dataset.raavlAnnotation ??
+      (afterPointerUp && target === root ? clickedRegionId : undefined);
+    if (id === undefined) return null;
+    const item = nodes.get(id)?.item;
+    return item && "start" in item ? item : undefined;
+  };
   const timeAt = (x: number) =>
     Math.max(
       0,
@@ -201,7 +222,10 @@ export function mountAnnotations(
   };
   const position = (element: HTMLElement, item: Region | Marker) => {
     const { duration, channels, splitChannels } = geometry();
-    element.style.left = `${(("start" in item ? item.start : item.time) / duration) * 100}%`;
+    element.style.left =
+      "start" in item
+        ? `${(item.start / duration) * 100}%`
+        : `clamp(0px, ${(item.time / duration) * 100}%, 100% - 2px)`;
     element.style.width =
       "start" in item
         ? `${((item.end - item.start) / duration) * 100}%`
@@ -220,6 +244,7 @@ export function mountAnnotations(
       const { duration, sourceId, channels } = geometry();
       if (lastSource !== sourceId) {
         cancel();
+        clickedRegionId = undefined;
         setSelection(null);
         select(null);
         lastSource = sourceId;
@@ -310,7 +335,7 @@ export function mountAnnotations(
             background:
               "start" in item
                 ? "var(--raavl-region-color, #a67ce333)"
-                : "var(--raavl-marker-color, #b65d29)",
+                : "repeating-linear-gradient(to bottom, var(--raavl-marker-color, #b65d29) 0 6px, transparent 6px 10px)",
           });
           const body = document.createElement("button");
           body.type = "button";
@@ -456,8 +481,11 @@ export function mountAnnotations(
     }
   };
   const down = (event: PointerEvent) => {
-    if (event.button !== 0 || !active()) return;
+    if (event.button !== 0) return;
     if (gesture && event.pointerId !== gesture.pointer) return;
+    playbackBlocked = false;
+    clickedRegionId = undefined;
+    if (!active()) return;
     const target = annotationTarget(event.target);
     const id = target?.dataset.raavlAnnotation;
     const item = id
@@ -492,6 +520,8 @@ export function mountAnnotations(
       revision: store!.getSnapshot().revision,
       moved: false,
     };
+    // Capture can retarget the browser's click to the waveform, even for a drag.
+    playbackBlocked = true;
     trackGesture(true);
     try {
       root.setPointerCapture(event.pointerId);
@@ -549,6 +579,9 @@ export function mountAnnotations(
     // Apply the final coordinates through the same threshold, bounds and snapping.
     move(event);
     if (gesture !== g) return;
+    playbackBlocked =
+      g.moved || !!g.side || (!!g.item && !("start" in g.item));
+    clickedRegionId = playbackBlocked ? undefined : g.id;
     gesture = null;
     trackGesture(false);
     if (root.hasPointerCapture(g.pointer))
@@ -727,6 +760,9 @@ export function mountAnnotations(
       setSelection(null);
     },
     isEditing: () => gesture !== null,
+    isAnnotationTarget: (target: EventTarget | null) => !!annotationTarget(target),
+    getPlaybackTarget,
+    isPlaybackBlocked: () => playbackBlocked,
     dispose() {
       if (disposed) return;
       cancel();

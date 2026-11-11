@@ -1,8 +1,7 @@
 "use client";
 
-import { useEffect, useMemo, useState, type ComponentType } from "react";
+import { useCallback, useEffect, useMemo, useState, type ComponentType, type ReactNode } from "react";
 import type {
-  Player,
   RaavlError,
   Source,
   WaveformData,
@@ -11,17 +10,19 @@ import type {
 } from "raavl";
 import { parseTheme, waveformThemes } from "raavl";
 import { defaultAppearance } from "raavl/themes";
-import { AudioPlayer, PlayerRoot, PlayPauseButton, TimeDisplay, VolumeSlider, PlaybackRateSelect, LoopButton, PlayerStatus } from "raavl/react";
+import { AudioPlayer } from "raavl/react";
 import { ModulesEditor } from "./ModulesEditor";
 import { ScaleLab } from "./ScaleLab";
 import { AnnotationEditor } from "./AnnotationEditor";
 import { SoundCloudPlayer } from "./SoundCloudPlayer";
-import { VanillaWaveform } from "./VanillaWaveform";
 import "./style.css";
-import { exampleCode } from "./snippets";
+import { exampleCode, type ExampleCodeOptions } from "./snippets";
 import { CopyButton } from "./CopyButton";
 import { PlainCodeSnippet, type CodeSnippetProps } from "./CodeSnippet";
 import { usePageTheme } from "./usePageTheme";
+import { Preview } from "./Preview";
+import { DemoSettings } from "./DemoSettings";
+import { playbackStyles, previewTheme } from "./playback-example";
 
 import {
   scenes,
@@ -33,38 +34,25 @@ import {
 
 const sourceA: Source = { kind: "url", id: "demo-a", url: "/demo-a.wav" };
 const sourceB: Source = { kind: "url", id: "demo-b", url: "/demo-b.wav" };
-function Transport({ player, report }: { player: Player | null; report: (error: RaavlError) => void }) {
-  return <PlayerRoot player={player} onError={report}>
-    <div className="transport">
-      <PlayPauseButton />
-      <TimeDisplay />
-    </div>
-    <div className="audio-settings">
-      <label>Volume <VolumeSlider /></label>
-      <label>Speed <PlaybackRateSelect /></label>
-      <LoopButton />
-    </div>
-    <PlayerStatus />
-  </PlayerRoot>;
-}
 function PlayerCard({
   source,
-  mode,
   title,
   detached = false,
+  children,
+  onOptionsChange,
+  secondary = false,
 }: {
   source: Source | null;
-  mode: Mode;
   title: string;
   detached?: boolean;
+  children?: ReactNode;
+  onOptionsChange?: (options: ExampleCodeOptions) => void;
+  secondary?: boolean;
 }) {
   const pageTheme = usePageTheme();
-  const [player, setPlayer] = useState<Player | null>(null),
-    [error, setError] = useState<RaavlError | null>(null);
+  const [error, setError] = useState<RaavlError | null>(null);
   const [theme, setTheme] = useState<WaveformTheme>(waveformThemes.sage);
-  const [themeText, setThemeText] = useState(
-    JSON.stringify(waveformThemes.sage, null, 2),
-  );
+  const [themeDraft, setThemeDraft] = useState<string | null>(null);
   const [themeError, setThemeError] = useState("");
   const [overrides, setOverrides] = useState<Appearance>({});
   const [zoom, setZoom] = useState("fit");
@@ -79,64 +67,66 @@ function PlayerCard({
     [theme, overrides],
   );
   const activeTheme = useMemo(
-    () =>
-      color
-        ? { ...theme, colors: { ...theme.colors, progress: color } }
-        : theme,
-    [theme, color],
+    () => {
+      const themed = previewTheme(theme, pageTheme === "dark");
+      return color ? { ...themed, colors: { ...themed.colors, progress: color } } : themed;
+    },
+    [theme, color, pageTheme],
   );
   const applyTheme = (next: WaveformTheme) => {
     setTheme(next);
     setOverrides({});
     setColor(null);
     setThemeError("");
-    setThemeText(JSON.stringify(next, null, 2));
+    setThemeDraft(null);
   };
-  const exportedTheme = useMemo(
-    () => ({ ...activeTheme, appearance }),
+  const themeJson = useMemo(
+    () => JSON.stringify({ ...activeTheme, appearance }, null, 2),
     [activeTheme, appearance],
   );
+  const themeText = themeDraft ?? themeJson;
+  useEffect(() => {
+    setThemeDraft(null);
+    setThemeError("");
+  }, [themeJson]);
   const viewport = useMemo(
     () => ({ zoom: zoom === "fit" ? ("fit" as const) : Number(zoom), follow }),
     [zoom, follow],
   );
+  useEffect(() => {
+    const options = { appearance, theme: activeTheme, viewport };
+    onOptionsChange?.(secondary ? { secondaryPlayback: options } : { playback: options });
+  }, [appearance, activeTheme, viewport, onOptionsChange, secondary]);
   return (
     <article className="player-card">
-      <div className="card-heading">
-        <h3>{title}</h3>
-        <span className="badge">LIVE PREVIEW</span>
-      </div>
+      <h3>{title}</h3>
       <p className="helper">
         Click, tap, or drag to seek · Double-click or double-tap to play · Tab
         to focus · ← → seek 1s · Shift seeks 10s
       </p>
-      {detached ? (
-        <div className="empty-wave">
-          Waveform detached. Native audio remains yours.
+      <Preview>
+        <style>{playbackStyles}</style>
+        <div className="playback-app">
+          {children}
+          {!detached && (
+            <AudioPlayer
+              source={source}
+              waveform={{
+                appearance,
+                theme: activeTheme,
+                themeVersion: pageTheme,
+                viewport,
+                interaction: { drag: "seek" },
+                "aria-label": `${title} waveform`,
+              }}
+              controls={{ playbackRate: true, loop: true }}
+              onError={setError}
+              aria-label={title}
+            />
+          )}
         </div>
-      ) : mode === "react" ? (
-        <AudioPlayer
-          source={source}
-          waveform={{ appearance, theme: activeTheme, themeVersion: pageTheme,
-            viewport, interaction: { drag: "seek" }, "aria-label": `${title} waveform` }}
-          controls={{ playbackRate: true, loop: true }}
-          onPlayer={setPlayer}
-          onError={setError}
-          aria-label={title}
-        />
-      ) : (
-        <VanillaWaveform
-          source={source}
-          appearance={appearance}
-          theme={activeTheme}
-          viewport={viewport}
-          onPlayer={setPlayer}
-          onError={setError}
-        />
-      )}
-      {(mode === "vanilla" || detached) && <Transport player={player} report={setError} />}
-      <details className="customize" open>
-        <summary>Customize this waveform</summary>
+      </Preview>
+      <DemoSettings summary="Customize this waveform">
         <div className="view-settings">
           <label>
             Theme
@@ -222,7 +212,7 @@ function PlayerCard({
             <input
               aria-label="Waveform color"
               type="color"
-              value={color ?? (typeof theme.colors?.progress === "string" ? theme.colors.progress : "#285d50")}
+              value={typeof activeTheme.colors?.progress === "string" ? activeTheme.colors.progress : "#285d50"}
               onChange={(e) => setColor(e.target.value)}
             />
           </label>
@@ -290,8 +280,8 @@ function PlayerCard({
         <details className="theme-json">
           <summary>Edit or export theme JSON</summary>
           <p>
-            Presets come from one JSON file. Apply your own values here; audio
-            keeps playing. Export includes your control adjustments.
+            The JSON updates as you change the waveform’s theme or appearance.
+            You can also edit it and apply your changes to the preview.
           </p>
           <label>
             Theme JSON
@@ -300,7 +290,7 @@ function PlayerCard({
               rows={12}
               spellCheck={false}
               value={themeText}
-              onChange={(event) => setThemeText(event.target.value)}
+              onChange={(event) => setThemeDraft(event.target.value)}
             />
           </label>
           <div className="editor-actions">
@@ -315,24 +305,17 @@ function PlayerCard({
             >
               Apply JSON
             </button>
-            <button
-              onClick={() =>
-                setThemeText(JSON.stringify(exportedTheme, null, 2))
-              }
-            >
-              Use current settings
-            </button>
-            <CopyButton code={JSON.stringify(exportedTheme, null, 2)} />
+            <CopyButton code={themeJson} />
             <a
               download="waveform-theme.json"
-              href={`data:application/json;charset=utf-8,${encodeURIComponent(JSON.stringify(exportedTheme, null, 2))}`}
+              href={`data:application/json;charset=utf-8,${encodeURIComponent(themeJson)}`}
             >
               Download JSON
             </a>
           </div>
           {themeError && <p role="alert">{themeError}</p>}
         </details>
-      </details>
+      </DemoSettings>
       {error && (
         <div className="error" role="alert">
           <strong>
@@ -345,7 +328,10 @@ function PlayerCard({
     </article>
   );
 }
-function PlaybackExample({ scene, mode }: { scene: Scene; mode: Mode }) {
+function PlaybackExample({ scene, onOptionsChange }: {
+  scene: Scene;
+  onOptionsChange: (options: ExampleCodeOptions) => void;
+}) {
   const [source, setSource] = useState<Source | null>(
       scene === "file" ? null : sourceA,
     ),
@@ -355,6 +341,10 @@ function PlaybackExample({ scene, mode }: { scene: Scene; mode: Mode }) {
   const [badPeaks, setBadPeaks] = useState(false),
     [detached, setDetached] = useState(false),
     [assetError, setAssetError] = useState("");
+  useEffect(() => {
+    if (scene === "external") onOptionsChange({ detached });
+    if (scene === "peaks") onOptionsChange({ badPeaks });
+  }, [scene, detached, badPeaks, onOptionsChange]);
   useEffect(() => {
     const abort = new AbortController();
     fetch("/demo-a.json", { signal: abort.signal })
@@ -390,7 +380,7 @@ function PlaybackExample({ scene, mode }: { scene: Scene; mode: Mode }) {
         : null;
     return source;
   }, [scene, peaks, media, source, badPeaks]);
-  return (
+  const sourceControls = (
     <>
       {scene === "url" && (
         <form
@@ -435,6 +425,11 @@ function PlaybackExample({ scene, mode }: { scene: Scene; mode: Mode }) {
           </span>
         </label>
       )}
+      {scene === "external" && <audio ref={setMedia} src="/demo-a.wav" controls loop />}
+    </>
+  );
+  return (
+    <>
       {scene === "peaks" && (
         <div className="callout">
           <p>
@@ -457,7 +452,6 @@ function PlaybackExample({ scene, mode }: { scene: Scene; mode: Mode }) {
             <strong>Application-owned audio</strong>
             <p>Start playback, then detach. Audio should keep playing.</p>
           </div>
-          <audio ref={setMedia} src="/demo-a.wav" controls loop />
           <button onClick={() => setDetached((v) => !v)}>
             {detached ? "Attach waveform" : "Detach waveform"}
           </button>
@@ -466,17 +460,20 @@ function PlaybackExample({ scene, mode }: { scene: Scene; mode: Mode }) {
       {assetError && <p role="alert">{assetError}</p>}
       <PlayerCard
         source={prepared}
-        mode={mode}
         title={
           scene === "file" ? "Your recording" : "Sequence A · warm arpeggio"
         }
         detached={detached}
-      />
+        onOptionsChange={onOptionsChange}
+      >
+        {sourceControls}
+      </PlayerCard>
       {scene === "dual" && (
         <PlayerCard
           source={sourceB}
-          mode={mode}
           title="Sequence B · bright arpeggio"
+          secondary
+          onOptionsChange={onOptionsChange}
         />
       )}
       {(scene === "styling" || scene === "url") && (
@@ -494,18 +491,28 @@ function PlaybackExample({ scene, mode }: { scene: Scene; mode: Mode }) {
     </>
   );
 }
-function Example({ scene, mode }: { scene: Scene; mode: Mode }) {
+function Example({ scene, mode, onOptionsChange }: {
+  scene: Scene;
+  mode: Mode;
+  onOptionsChange: (options: ExampleCodeOptions) => void;
+}) {
   if (scene === "soundcloud") return <SoundCloudPlayer mode={mode} />;
-  if (scene === "modules") return <ModulesEditor mode={mode} />;
-  if (scene === "scale") return <ScaleLab />;
+  if (scene === "modules") return <ModulesEditor mode={mode} onOptionsChange={onOptionsChange} />;
+  if (scene === "scale") return <ScaleLab onOptionsChange={onOptionsChange} />;
   return scene === "annotations" ? (
-    <AnnotationEditor mode={mode} />
+    <AnnotationEditor mode={mode} onOptionsChange={onOptionsChange} />
   ) : (
-    <PlaybackExample scene={scene} mode={mode} />
+    <PlaybackExample scene={scene} onOptionsChange={onOptionsChange} />
   );
 }
-function CodeExample({ scene, mode, Code }: { scene: Scene; mode: Mode; Code: ComponentType<CodeSnippetProps> }) {
-  const code = exampleCode(scene, mode);
+function CodeExample({ scene, mode, Code, options }: {
+  scene: Scene;
+  mode: Mode;
+  Code: ComponentType<CodeSnippetProps>;
+  options?: ExampleCodeOptions;
+}) {
+  const dark = usePageTheme() === "dark";
+  const code = exampleCode(scene, mode, { ...options, dark });
   return (
     <section className="code-example" aria-label="Example code">
       <div className="code-heading">
@@ -536,6 +543,13 @@ function CodeExample({ scene, mode, Code }: { scene: Scene; mode: Mode; Code: Co
 }
 export function Examples({ Code = PlainCodeSnippet }: { Code?: ComponentType<CodeSnippetProps> } = {}) {
   const [route, setRoute] = useState(() => parseRoute(""));
+  const [codeOptions, setCodeOptions] = useState<{ scene: Scene | null; options: ExampleCodeOptions } | null>(null);
+  const onOptionsChange = useCallback((options: ExampleCodeOptions) => {
+    setCodeOptions(current => ({
+      scene: route.scene,
+      options: { ...(current?.scene === route.scene ? current.options : {}), ...options },
+    }));
+  }, [route.scene]);
   useEffect(() => {
     const change = () => {
       const documentation = legacyDocumentationPath(location.hash);
@@ -609,6 +623,7 @@ export function Examples({ Code = PlainCodeSnippet }: { Code?: ComponentType<Cod
                     : scene[0]
                 }
                 scene={scene[0]}
+                onOptionsChange={onOptionsChange}
                 // Playback previews share AudioPlayer across code tabs so audio keeps playing.
                 mode={scene[0] === "modules" || scene[0] === "soundcloud"
                   ? route.mode
@@ -619,6 +634,7 @@ export function Examples({ Code = PlainCodeSnippet }: { Code?: ComponentType<Cod
                 key={`${scene[0]}/${route.mode}`}
                 scene={scene[0]}
                 mode={route.mode}
+                options={codeOptions?.scene === route.scene ? codeOptions.options : undefined}
               />
             </section>
           </div>
