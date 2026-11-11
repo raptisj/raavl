@@ -83,11 +83,12 @@ This reads `artifacts/release.json` and verifies the exact recorded release:
    Reuse the package metadata, vanilla imports without React, React SSR,
    NodeNext/bundler TypeScript, CSS, JSON, and production Vite checks.
 
-Registry propagation, temporary server errors, and network failures are retried
-up to 12 times, with 5 seconds between attempts and a 10-second timeout per
-request. Integrity mismatches and access errors fail immediately. A successful
-run prints `Verified published raavl@X.Y.Z from public npm` and exits zero;
-failures exit nonzero with the reason.
+The first registry check runs immediately. For registry propagation, temporary
+server errors, and network failures, the verifier makes up to 12 attempts total.
+It waits 5, 10, and 20 seconds before successive retries, then 30 seconds per
+retry. Each request has a 10-second timeout. Integrity mismatches and access
+errors fail immediately. A successful run prints `Verified published
+raavl@X.Y.Z from public npm` and exits zero. Failures exit nonzero with the reason.
 
 Verification does not publish, change distribution tags, rebuild, repack, or
 invalidate your release receipt. It cleans up its temporary download, cache,

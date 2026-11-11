@@ -95,8 +95,18 @@ test("times out requests and stops after the configured attempt count", async ()
   assert.equal(sleeps, 2);
 });
 
-test("fails clearly when a version never appears", async () => {
-  await assert.rejects(verifyRelease(receipt, options({ fetchImpl: async () => json({}, 404) })), /after 3 attempts.*HTTP 404/);
+test("checks immediately and backs off between attempts when a version never appears", async () => {
+  const events = [];
+  await assert.rejects(verifyRelease(receipt, {
+    fetchImpl: async () => { events.push("request"); return json({}, 404); },
+    sleep: async (ms) => events.push(ms),
+    log: () => {},
+  }), /after 12 attempts.*HTTP 404/);
+  assert.deepEqual(events, [
+    "request", 5_000, "request", 10_000, "request", 20_000,
+    ...Array.from({ length: 8 }, () => ["request", 30_000]).flat(),
+    "request",
+  ]);
 });
 
 test("fails clearly when the intended distribution tag never points to this version", async () => {

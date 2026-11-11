@@ -79,6 +79,8 @@ export async function verifyRelease(receipt, {
   const expectedHash = receipt.sha512.toLowerCase();
   const expectedIntegrity = `sha512-${Buffer.from(expectedHash, "hex").toString("base64")}`;
   const metadataURL = new URL(encodeURIComponent(receipt.name), registry).href;
+  const maxRetryDelayMs = 30_000;
+  let delayMs = Math.min(retryDelayMs, maxRetryDelayMs);
   let bytes;
   for (let attempt = 1; attempt <= attempts; attempt++) {
     try {
@@ -116,8 +118,9 @@ export async function verifyRelease(receipt, {
       if (attempt === attempts) {
         throw new Error(`Could not verify ${receipt.name}@${receipt.version} after ${attempts} attempts: ${error.message}`, { cause: error });
       }
-      log(`Waiting for npm (${attempt}/${attempts}): ${error.message}`);
-      await sleep(retryDelayMs);
+      log(`Waiting for npm (${attempt}/${attempts}): ${error.message} Retrying in ${delayMs / 1000}s.`);
+      await sleep(delayMs);
+      delayMs = Math.min(delayMs * 2, maxRetryDelayMs);
     }
   }
 
