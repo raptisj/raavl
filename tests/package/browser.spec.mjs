@@ -100,6 +100,39 @@ test("keeps zoom scrolling inside AudioPlayer and clears it on Fit", async ({
     .toEqual([0, fitWidth]);
 });
 
+test("mute and full-track loop change icons and support keyboard activation in React and JavaScript", async ({ page }) => {
+  await page.goto("/?toggles");
+  for (const id of ["vanilla", "react"]) {
+    const controls = page.locator(`#${id}`);
+    const mute = controls.getByRole("button", { name: "Mute audio", exact: true });
+    const unmute = controls.getByRole("button", { name: "Unmute audio", exact: true });
+    const loop = controls.getByRole("button", { name: "Loop audio", exact: true });
+    for (const toggle of [mute, loop]) {
+      await expect(toggle).toBeEnabled();
+      await expect(toggle).toHaveText("");
+      await expect(toggle).toHaveAttribute("aria-pressed", "false");
+      await expect(toggle.locator("svg")).toHaveAttribute("aria-hidden", "true");
+    }
+    const unmutedPath = await mute.locator("path").getAttribute("d");
+    const loopOffPath = await loop.locator("path").getAttribute("d");
+
+    await mute.press("Space");
+    await expect(unmute).toBeFocused();
+    await expect(unmute).toHaveAttribute("aria-pressed", "true");
+    await expect(unmute.locator("path")).not.toHaveAttribute("d", unmutedPath);
+    await unmute.press("Enter");
+    await expect(mute).toHaveAttribute("aria-pressed", "false");
+    await expect(mute.locator("path")).toHaveAttribute("d", unmutedPath);
+
+    await loop.press("Enter");
+    await expect(loop).toHaveAttribute("aria-pressed", "true");
+    await expect(loop.locator("path")).not.toHaveAttribute("d", loopOffPath);
+    await loop.press("Space");
+    await expect(loop).toHaveAttribute("aria-pressed", "false");
+    await expect(loop.locator("path")).toHaveAttribute("d", loopOffPath);
+  }
+});
+
 test.describe("touch waveform", () => {
   test.use({
     hasTouch: true,

@@ -29,3 +29,4 @@ export {
 export type * from "./regions/index.js";
 
 export { mountActionsToolbar, type ActionsToolbarOptions } from "./dom/actions-toolbar.js";
+export { mountMuteButton, mountLoopButton, type PlaybackToggleOptions } from "./dom/playback-toggle.js";

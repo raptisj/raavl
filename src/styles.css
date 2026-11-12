@@ -390,6 +390,9 @@
   cursor: pointer;
   min-height: 40px;
 }
+:where(.raavl-toggle-icon) {
+  vertical-align: middle;
+}
 :where(
   .raavl-button[aria-pressed="true"],
   .raavl-play-pause[data-playing="true"]

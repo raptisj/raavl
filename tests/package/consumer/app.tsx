@@ -1,6 +1,12 @@
 import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
-import { createPlayer, mountWaveform, type WaveformView } from "raavl";
+import {
+  createPlayer,
+  mountLoopButton,
+  mountMuteButton,
+  mountWaveform,
+  type WaveformView,
+} from "raavl";
 import { AudioPlayer } from "raavl/react";
 import { waveformThemes } from "raavl/themes";
 import "raavl/styles.css";
@@ -17,6 +23,11 @@ void player
   .catch((error) => errors.push(error.message));
 const root = createRoot(document.getElementById("react")!);
 const params = new URLSearchParams(window.location.search);
+const showToggles = params.has("toggles");
+const vanilla = document.getElementById("vanilla")!;
+const toggles = showToggles
+  ? [mountMuteButton(vanilla, { player }), mountLoopButton(vanilla, { player })]
+  : [];
 const overlapCount = Number(params.get("overlaps"));
 const editAnnotations = params.has("annotations") || overlapCount > 0;
 const regions = overlapCount > 0 ? [
@@ -37,6 +48,7 @@ root.render(
     <AudioPlayer
       source={{ kind: "url", id: "react", url: "/tone.wav" }}
       theme={waveformThemes.sage}
+      controls={{ loop: showToggles }}
       waveform={{
         onView: (instance) => { reactView = instance; },
         ...(editAnnotations && {
@@ -70,6 +82,7 @@ Object.assign(window, {
     errors,
     dispose() {
       root.unmount();
+      for (const toggle of toggles) toggle.dispose();
       view.dispose();
       player.dispose();
     },

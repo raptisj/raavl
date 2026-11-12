@@ -646,3 +646,4 @@ export function mountWaveform(
 }
 
 export { mountActionsToolbar, type ActionsToolbarOptions } from "./actions-toolbar.js";
+export { mountMuteButton, mountLoopButton, type PlaybackToggleOptions } from "./playback-toggle.js";

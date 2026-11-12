@@ -49,6 +49,23 @@ const offTime = player.subscribeTime(() => {
 // On teardown: off(); offTime(); player.dispose();
 ```
 
+## Mute and loop buttons
+
+Use `mountMuteButton` and `mountLoopButton` from `raavl` or `raavl/dom` to add
+connected buttons to a JavaScript layout. They use icons by default and expose
+accessible names and pressed states. The loop icon gains a check when full-track
+looping is on. Both functions accept an optional `label`, `children` (a string
+or DOM node), and `onError` callback.
+
+```js
+import { mountMuteButton, mountLoopButton } from "raavl";
+import "raavl/styles.css";
+
+const mute = mountMuteButton(controls, { player });
+const loop = mountLoopButton(controls, { player });
+// On teardown: mute.dispose(); loop.dispose();
+```
+
 ## Ownership
 
 The player owns audio it creates for URL/file sources and revokes its own Blob URLs. Borrowed media remains application-owned. A view always borrows its player; disposing a view never disposes that controller.

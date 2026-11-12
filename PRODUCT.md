@@ -72,6 +72,10 @@ before visualization necessarily finishes or playback is buffered.
 | `getCurrentTime()` / `subscribeTime()`     | Read and observe a separate cached playback clock                                  |
 | `dispose()`                                | Release owned resources and subscriptions; repeated disposal is safe               |
 
+The React `MuteButton` and `LoopButton` and JavaScript `mountMuteButton` and
+`mountLoopButton` default to icons that change with their pressed state. Both
+integrations support custom button content.
+
 Range playback uses best-effort HTML media timing. It disables full-recording
 looping. Pause, explicit seek, source replacement, or disposal clears range
 scheduling. Browser scheduling can cause overshoot or gaps.

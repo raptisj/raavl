@@ -151,7 +151,7 @@ it("reconfigures visibility, control behavior and slots without replacing the pl
       volume: false,
       time: { mode: "remaining" },
       playbackRate: { options: [1, 2] },
-      loop: true,
+      loop: { children: ({ pressed }) => pressed ? "Looping" : "Loop recording" },
     },
     slots: { mute: <MuteButton>Custom mute</MuteButton> },
   });
@@ -164,7 +164,9 @@ it("reconfigures visibility, control behavior and slots without replacing the pl
   expect(input("Seek audio")).toBeNull();
   expect(host.querySelector("output")!.textContent).toBe("−1:40");
   expect(button("Mute audio").textContent).toBe("Custom mute");
-  expect(button("Loop audio")).toBeTruthy();
+  expect(button("Loop audio").textContent).toBe("Loop recording");
+  await act(async () => button("Loop audio").click());
+  expect(button("Loop audio").textContent).toBe("Looping");
   await render({ controls: false, status: false });
   expect(host.querySelector(".raavl-controls")).toBeNull();
   expect(host.querySelector(".raavl-status")).toBeNull();

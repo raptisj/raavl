@@ -96,7 +96,7 @@ ${scene === "dual" ? `    <AudioPlayer source={{ kind: 'url', id: 'demo-b', url:
 }`;
   }
 
-  return `import { createPlayer, mountWaveform } from 'raavl'
+  return `import { createPlayer, mountWaveform, mountMuteButton, mountLoopButton } from 'raavl'
 import 'raavl/styles.css'
 
 // HTML: <div id="audio-example"></div>
@@ -135,13 +135,13 @@ function mountPlayer(label, options = waveform) {
           <svg class="raavl-play-pause-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="${playbackIcons.play}"></path></svg>
         </button>
         <output class="raavl-time" aria-label="Playback time" aria-live="off">0:00 / 0:00</output>
-        <button class="raavl-button raavl-mute" aria-label="Mute audio" disabled>Mute</button>
+        <span data-mute></span>
         <input class="raavl-volume" type="range" min="0" max="1" step="0.01" value="1" aria-label="Volume" disabled>
         <select class="raavl-playback-rate" aria-label="Playback speed" disabled>
           <option value="0.75">0.75×</option><option value="1" selected>1×</option>
           <option value="1.25">1.25×</option><option value="1.5">1.5×</option><option value="2">2×</option>
         </select>
-        <button class="raavl-button raavl-loop" aria-label="Loop audio" disabled>Loop</button>
+        <span data-loop></span>
       </div>
     </div>
     <div class="raavl-status" role="status"></div>
@@ -155,12 +155,12 @@ function mountPlayer(label, options = waveform) {
   const seek = find('.raavl-seek')
   const play = find('.raavl-play-pause')
   const playIcon = play.querySelector('path')
-  const mute = find('.raavl-mute')
   const volume = find('.raavl-volume')
   const rate = find('.raavl-playback-rate')
-  const loop = find('.raavl-loop')
   const status = find('.raavl-status')
   const report = error => { status.textContent = error.message; status.setAttribute('role', 'alert') }
+  const mute = mountMuteButton(find('[data-mute]'), { player, onError: report })
+  const loop = mountLoopButton(find('[data-loop]'), { player, onError: report })
   function command(operation) {
     try { Promise.resolve(operation()).catch(report) }
     catch (error) { report(error) }
@@ -177,7 +177,7 @@ function mountPlayer(label, options = waveform) {
     const ready = state.source === 'ready'
     const playing = state.playback === 'playing' || state.playback === 'buffering'
     const pending = state.playback === 'starting'
-    for (const control of [play, mute, volume, rate, loop]) control.disabled = !ready
+    for (const control of [play, volume, rate]) control.disabled = !ready
     play.disabled ||= pending
     playIcon.setAttribute('d', playing ? '${playbackIcons.pause}' : '${playbackIcons.play}')
     play.setAttribute('aria-label', playing ? 'Pause audio' : 'Play audio')
@@ -186,10 +186,6 @@ function mountPlayer(label, options = waveform) {
     play.setAttribute('aria-busy', String(pending || state.playback === 'buffering'))
     seek.disabled = !ready || state.duration <= 0
     seek.max = state.duration || 1
-    mute.textContent = state.muted ? 'Unmute' : 'Mute'
-    mute.setAttribute('aria-label', state.muted ? 'Unmute audio' : 'Mute audio')
-    mute.setAttribute('aria-pressed', String(state.muted))
-    loop.setAttribute('aria-pressed', String(state.loop))
     volume.value = state.volume
     volume.setAttribute('aria-valuetext', Math.round(state.volume * 100) + '%')
     rate.value = state.playbackRate
@@ -208,14 +204,23 @@ function mountPlayer(label, options = waveform) {
     return state.playback === 'playing' || state.playback === 'buffering' ? player.pause() : player.play()
   })
   seek.oninput = () => command(() => player.seek(Number(seek.value)))
-  mute.onclick = () => command(() => player.setMuted(!player.getSnapshot().muted))
   volume.oninput = () => command(() => player.setVolume(Number(volume.value)))
   rate.onchange = () => command(() => player.setPlaybackRate(Number(rate.value)))
-  loop.onclick = () => command(() => player.setLoop(!player.getSnapshot().loop))
   const off = player.subscribe(render)
   const offTime = player.subscribeTime(renderTime)
   render()
-  return { player, dispose() { offTime(); off(); view.dispose(); player.dispose(); root.remove() } }
+  return {
+    player,
+    dispose() {
+      offTime()
+      off()
+      mute.dispose()
+      loop.dispose()
+      view.dispose()
+      player.dispose()
+      root.remove()
+    },
+  }
 }
 const primary = mountPlayer('${scene === "file" ? "Your recording" : "Sequence A · warm arpeggio"}')
 ${peaks ? `const response = await fetch('/demo-a.json')

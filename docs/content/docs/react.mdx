@@ -146,10 +146,10 @@ export function CustomPlayer() {
 | `PlayPauseButton`    | Plays/pauses; disabled before metadata and during a pending play. Buffering remains pausable. `children` may receive `{ playing, pending, buffering, disabled }`    |
 | `SeekSlider`         | Native range in seconds, `step` defaults to `0.1`; `formatTime` customizes accessible time text                                                                     |
 | `TimeDisplay`        | `mode`: `elapsed`, `duration`, `remaining`, or default `elapsed-duration`; optional `formatTime(seconds)` and children receiving `{ elapsed, duration, remaining }` |
-| `MuteButton`         | Independent mute toggle; children may receive `{ pressed, disabled }`                                                                                               |
+| `MuteButton`         | Independent mute toggle with speaker icons for muted and unmuted audio. Children may receive `{ pressed, disabled }`                                               |
 | `VolumeSlider`       | Native range from 0 to 1, `step` defaults to `0.01`; changing volume does not implicitly unmute                                                                     |
 | `PlaybackRateSelect` | `options` defaults to `[0.75, 1, 1.25, 1.5, 2]`; values must be between 0.25 and 4; the current speed is included even if absent from options                       |
-| `LoopButton`         | Toggles full-recording looping; children may receive `{ pressed, disabled }`                                                                                        |
+| `LoopButton`         | Toggles full-recording looping. The repeat icon gains a check when enabled. Children may receive `{ pressed, disabled }`                                            |
 | `PlayerStatus`       | Displays loading/buffering/errors; waveform failures do not disable playback. Children may receive `{ source, playback, waveform, error, waveformError }`           |
 
 All parts require a root, forward their native element ref, and accept ordinary

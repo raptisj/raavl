@@ -14,7 +14,7 @@ import {
 } from "react";
 import type { Player, PlayerSnapshot, RaavlError } from "../core/types.js";
 import { playbackState as getPlaybackState } from "../core/playback-state.js";
-import { playbackIcons } from "../dom/playback-icons.js";
+import { playbackIcons, playbackToggleIcons } from "../dom/playback-icons.js";
 import { usePlayerState, usePlayerTime } from "./hooks.js";
 import { usePlayerRoot } from "./player-root.js";
 
@@ -97,6 +97,26 @@ type ToggleButtonProps = Omit<
     | ReactNode
     | ((state: { pressed: boolean; disabled: boolean }) => ReactNode);
 };
+
+function PlaybackToggleIcon({ path }: { path: string }) {
+  return (
+    <svg
+      className="raavl-toggle-icon"
+      width="18"
+      height="18"
+      viewBox="0 0 24 24"
+      aria-hidden="true"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.8"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    >
+      <path d={path} />
+    </svg>
+  );
+}
+
 export type MuteButtonProps = ToggleButtonProps;
 export const MuteButton = forwardRef<HTMLButtonElement, MuteButtonProps>(
   function MuteButton(
@@ -125,7 +145,11 @@ export const MuteButton = forwardRef<HTMLButtonElement, MuteButtonProps>(
       >
         {typeof children === "function"
           ? children({ pressed: muted, disabled: unavailable })
-          : (children ?? (muted ? "Unmute" : "Mute"))}
+          : (children ?? (
+              <PlaybackToggleIcon
+                path={playbackToggleIcons.mute[muted ? "on" : "off"]}
+              />
+            ))}
       </button>
     );
   },
@@ -156,7 +180,11 @@ export const LoopButton = forwardRef<HTMLButtonElement, LoopButtonProps>(
       >
         {typeof children === "function"
           ? children({ pressed: loop, disabled: unavailable })
-          : (children ?? "Loop")}
+          : (children ?? (
+              <PlaybackToggleIcon
+                path={playbackToggleIcons.loop[loop ? "on" : "off"]}
+              />
+            ))}
       </button>
     );
   },
