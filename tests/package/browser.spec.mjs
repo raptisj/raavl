@@ -468,10 +468,7 @@ test.describe("touch waveform", () => {
     });
   }
 
-  test("creates and adjusts a region using touch controls", async ({
-    page,
-    context,
-  }) => {
+  async function openDraftAtPlayhead(page) {
     await page.goto("/?annotations");
     const waveform = page.locator("#react .raavl-waveform");
     const viewport = () =>
@@ -496,7 +493,11 @@ test.describe("touch waveform", () => {
     const playhead = await time();
     await create.tap();
     await expect.poll(async () => (await selection())?.start).toBe(playhead);
+    return { waveform, selection, playhead, pixelsPerSecond };
+  }
 
+  test("creates and saves a region using touch buttons", async ({ page }) => {
+    const { selection, playhead } = await openDraftAtPlayhead(page);
     const draft = page.getByRole("group", { name: "New region" });
     const previousEnd = (await selection()).end;
     await draft
@@ -514,7 +515,19 @@ test.describe("touch waveform", () => {
     await expect(
       draft.getByRole("spinbutton", { name: "End (seconds)" }),
     ).not.toBeFocused();
+    await draft
+      .getByRole("button", { name: "Create region from selection" })
+      .tap();
+    await expect(
+      page.getByRole("button", { name: /New annotation.*seconds/ }).first(),
+    ).toBeVisible();
+    expect(await selection()).toBeNull();
+  });
 
+  test("resizes a region draft using a touch handle", async ({ page, context }) => {
+    const { waveform, selection, playhead, pixelsPerSecond } =
+      await openDraftAtPlayhead(page);
+    const previousEnd = (await selection()).end;
     const handle = await waveform
       .locator(".raavl-selection-handle-start")
       .boundingBox();
@@ -535,14 +548,7 @@ test.describe("touch waveform", () => {
     });
     await expect
       .poll(async () => (await selection())?.start)
-      .toBeCloseTo(playhead);
-
-    await page
-      .getByRole("button", { name: "Create region from selection" })
-      .tap();
-    await expect(
-      page.getByRole("button", { name: /New annotation.*seconds/ }).first(),
-    ).toBeVisible();
-    expect(await selection()).toBeNull();
+      .toBeCloseTo(playhead - 0.1);
+    expect((await selection()).end).toBe(previousEnd);
   });
 });
