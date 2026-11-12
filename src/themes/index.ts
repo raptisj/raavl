@@ -18,16 +18,16 @@ export type Appearance = {
 };
 
 export const defaultAppearance: Readonly<Required<Appearance>> = Object.freeze({
-  style: "line",
-  height: 160,
+  style: "bars",
+  height: 150,
   lineWidth: 1,
-  barWidth: 2,
-  barGap: 1,
-  barRadius: 0,
+  barWidth: 3,
+  barGap: 3,
+  barRadius: 2,
   amplitude: 0.9,
   cursorWidth: 2,
-  borderRadius: 8,
-  normalize: false,
+  borderRadius: 0,
+  normalize: true,
   splitChannels: false,
 });
 

@@ -8,7 +8,8 @@
       "lineWidth": 1,
       "amplitude": 0.9,
       "cursorWidth": 2,
-      "borderRadius": 8
+      "borderRadius": 8,
+      "normalize": false
     },
     "colors": {
       "wave": "#9aafa7",
@@ -34,7 +35,8 @@
       "barRadius": 0,
       "amplitude": 0.84,
       "cursorWidth": 1,
-      "borderRadius": 4
+      "borderRadius": 4,
+      "normalize": false
     },
     "colors": {
       "wave": "#52657b",
@@ -60,7 +62,8 @@
       "barRadius": 3,
       "amplitude": 0.78,
       "cursorWidth": 3,
-      "borderRadius": 16
+      "borderRadius": 16,
+      "normalize": false
     },
     "colors": {
       "wave": "#514270",
@@ -84,7 +87,8 @@
       "lineWidth": 2.5,
       "amplitude": 0.68,
       "cursorWidth": 1,
-      "borderRadius": 0
+      "borderRadius": 0,
+      "normalize": false
     },
     "colors": {
       "wave": "#c9bfae",

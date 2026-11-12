@@ -91,7 +91,7 @@ it("switches themes without retaining old fields and resolves explicit overrides
   flushFrame();
   expect(element.style.height).toBe("240px");
   expect(element.style.getPropertyValue("--raavl-background")).toBe("");
-  expect(element.style.getPropertyValue("--raavl-border-radius")).toBe("8px");
+  expect(element.style.getPropertyValue("--raavl-border-radius")).toBe("0px");
   expect(cursor.style.width).toBe("0px");
   view.update({
     theme: waveformThemes.paper,
@@ -105,7 +105,7 @@ it("switches themes without retaining old fields and resolves explicit overrides
   expect(element.style.getPropertyValue("--raavl-background")).toBe("#faf6ec");
   view.update({ theme: null });
   flushFrame();
-  expect(element.style.height).toBe("160px");
+  expect(element.style.height).toBe("150px");
   expect(element.style.getPropertyValue("--raavl-progress-color")).toBe("");
   view.dispose();
 });
@@ -163,6 +163,8 @@ it("renders waveform and progress gradients in their respective pixel spaces and
     moveTo() {},
     lineTo() {},
     stroke() {},
+    roundRect() {},
+    fill() {},
     createLinearGradient: vi.fn(() => waveGradient),
     fillStyle: "" as unknown,
   };
@@ -221,10 +223,10 @@ it("renders waveform and progress gradients in their respective pixel spaces and
   expect(played.fillStyle).toBe(progressGradient);
   view.update({ theme: waveformThemes.studio });
   flushFrame();
-  expect(drawing.fillStyle).toBe("#52657b");
+  expect(drawing.fillStyle).toBe("rgb(82, 101, 123)");
   view.update({ theme: null });
   flushFrame();
-  expect(drawing.fillStyle).toBe("#9aafa7");
+  expect(drawing.fillStyle).toBe("rgb(172, 191, 165)");
   view.dispose();
 });
 
@@ -254,7 +256,7 @@ it.each(["line", "bars"] as const)(
     const original = JSON.stringify(data);
     const view = mountWaveform(host, {
       data,
-      appearance: { style, height: 100, amplitude: 1, barWidth: 1, barGap: 0 },
+      appearance: { style, height: 100, amplitude: 1, barWidth: 1, barGap: 0, barRadius: 0, normalize: false },
     });
     const expectStroke = (top: number, bottom: number) => {
       if (style === "line") {
@@ -329,7 +331,7 @@ it("updates React split-channel appearance without reloading audio and resets wh
       root!.render(
         <Waveform
           player={player}
-          appearance={{ height: 100, amplitude: 1, splitChannels }}
+          appearance={{ style: "line", height: 100, amplitude: 1, splitChannels }}
         />,
       ),
     );
@@ -429,7 +431,7 @@ it("applies and removes React themes and drawing overrides without reloading or 
     );
   });
   flushFrame();
-  expect(waveform.style.height).toBe("160px");
+  expect(waveform.style.height).toBe("150px");
   expect(waveform.style.getPropertyValue("--raavl-background")).toBe("");
   expect(player.getMediaElement()).toBe(element);
   expect(player.getCurrentTime()).toBe(3);

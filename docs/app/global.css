@@ -430,6 +430,9 @@ body {
 .playground-wave .raavl-region-label {
   font-size: 10px;
 }
+.playground-wave .raavl-annotation-dialog {
+  --raavl-background: var(--color-fd-card);
+}
 .live-dot {
   width: 5px;
   height: 5px;
@@ -437,7 +440,6 @@ body {
   border-radius: 50%;
 }
 .listening-card {
-  --raavl-background: var(--color-fd-card);
   --raavl-control-background: var(--color-fd-secondary);
   --raavl-control-border: var(--color-fd-border);
   --raavl-control-hover-background: var(--color-fd-accent);
@@ -515,16 +517,6 @@ body {
   gap: 8px;
   font-size: 10px;
   color: #62786a;
-}
-.playground-wave {
-  min-height: 150px;
-}
-.playground-wave .raavl-waveform {
-  --raavl-wave-color: #acbfa5;
-  --raavl-progress-color: #285d50;
-  --raavl-cursor-color: #bd722e;
-  --raavl-background: transparent;
-  --raavl-focus-color: #bd722e;
 }
 .wave-ruler {
   display: flex;

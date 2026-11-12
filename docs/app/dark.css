@@ -17,7 +17,6 @@
   --color-fd-accent: #283f30;
   --color-fd-accent-foreground: #d6e5d8;
   --color-fd-ring: #e5b574;
-  --site-wave-muted: #567963;
 }
 
 .dark ::selection { background: #355a41; color: #e1eadf; }
@@ -161,13 +160,8 @@
 .dark .examples-app .error:not(:where(.library-preview *)) { background: #35271f; color: #f1bf98; }
 .dark .examples-app :focus-visible:not(:where(.library-preview *)) { outline-color: var(--color-fd-ring); }
 
-/* The homepage waveform follows the site theme. */
+/* Annotation accents for the homepage playground. */
 .dark .playground-wave .raavl-waveform {
-  --raavl-wave-color: var(--site-wave-muted);
-  --raavl-progress-color: var(--color-fd-primary);
-  --raavl-cursor-color: var(--color-fd-ring);
-  --raavl-background: var(--color-fd-card);
-  --raavl-focus-color: var(--color-fd-ring);
   --raavl-region-color: #b197db33;
   --raavl-marker-color: #e5b574;
   --raavl-handle-color: #c3a5eb;

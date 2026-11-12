@@ -42,7 +42,6 @@ const report = (error: unknown) => {
 const player = createPlayer();
 const view = mountWaveform(container, {
   player,
-  appearance: { style: "bars", height: 160 },
   interaction: { drag: "seek" },
   label: "Episode waveform",
 });
@@ -89,7 +88,6 @@ export function EpisodePlayer() {
   return (
     <AudioPlayer
       source={{ kind: "url", id: "episode-1", url: "/episode.mp3" }}
-      waveform={{ appearance: { style: "bars", height: 160 } }}
       controls={{ playbackRate: true, loop: true }}
       aria-label="Episode player"
     />

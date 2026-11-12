@@ -47,7 +47,6 @@ root.render(
   <StrictMode>
     <AudioPlayer
       source={{ kind: "url", id: "react", url: "/tone.wav" }}
-      theme={waveformThemes.sage}
       controls={{ loop: showToggles }}
       waveform={{
         onView: (instance) => { reactView = instance; },

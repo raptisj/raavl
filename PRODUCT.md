@@ -124,10 +124,13 @@ viewport and device pixel ratio, capped at 3, rather than recording length.
 | Configuration      | Options and defaults                                                                                                                                                                |
 | ------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `theme`            | Versioned JSON theme or null; presets `sage`, `studio`, `neon`, `paper` from `raavl/themes`                                                                                         |
-| `appearance`       | `style: 'line'` (or `'bars'`), `height: 160`, `lineWidth: 1`, `barWidth: 2`, `barGap: 1`, `barRadius: 0`, `amplitude: 0.9`, `cursorWidth: 2`, `borderRadius: 8`, `normalize: false` |
+| `appearance`       | `style: 'bars'` (or `'line'`), `height: 150`, `lineWidth: 1`, `barWidth: 3`, `barGap: 3`, `barRadius: 2`, `amplitude: 0.9`, `cursorWidth: 2`, `borderRadius: 0`, `normalize: true` |
 | `viewport`         | `zoom: 'fit'` (or pixels per second), `follow: 'visible'` (or `'off'`, `'center'`)                                                                                                  |
 | `interaction`      | `seek: 'click'` (or `'off'`), `drag: 'none'` (or `'seek'`, `'select'`)                                                                                                              |
 | Other view options | Accessible `label`, `onDraw`, annotation options and callbacks                                                                                                                      |
+
+The default waveform uses sage bars, an amber playhead, and a transparent
+surface. The stylesheet adapts the palette to the host's CSS `color-scheme`.
 
 `view.update()` changes configuration without replacing the player. Vanilla
 updates merge fields within groups; explicit `undefined` resets a field to its

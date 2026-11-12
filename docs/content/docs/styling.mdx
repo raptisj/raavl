@@ -146,16 +146,16 @@ pixel density. The amplitude setting applies within each displayed waveform row.
 
 | `appearance` field | Default  | Allowed values / meaning                                                 |
 | ------------------ | -------- | ------------------------------------------------------------------------ |
-| `style`            | `"line"` | `"line"` (dense envelope of vertical peak strokes) or `"bars"`           |
-| `height`           | `160`    | 24–2000px                                                                |
+| `style`            | `"bars"` | `"line"` (dense envelope of vertical peak strokes) or `"bars"`           |
+| `height`           | `150`    | 24–2000px                                                                |
 | `lineWidth`        | `1`      | 0.5–20px; thickness of envelope strokes, including the idle baseline     |
-| `barWidth`         | `2`      | 0.5–100px                                                                |
-| `barGap`           | `1`      | 0–100px                                                                  |
-| `barRadius`        | `0`      | 0–100px; rounded bar corners, clamped to half each bar's width/height    |
+| `barWidth`         | `3`      | 0.5–100px                                                                |
+| `barGap`           | `3`      | 0–100px                                                                  |
+| `barRadius`        | `2`      | 0–100px; rounded bar corners, clamped to half each bar's width/height    |
 | `amplitude`        | `0.9`    | 0.1–1; fraction of channel height available to amplitudes of ±1          |
 | `cursorWidth`      | `2`      | 0–20px; 0 hides the playhead                                             |
-| `borderRadius`     | `8`      | 0–100px; surface corners, using `raavl/styles.css`                       |
-| `normalize`        | `false`  | Boolean; normalize against the largest absolute peak across all channels |
+| `borderRadius`     | `0`      | 0–100px; surface corners, using `raavl/styles.css`                       |
+| `normalize`        | `true`   | Boolean; normalize against the largest absolute peak across all channels |
 | `splitChannels`    | `false`  | Boolean; separate channel rows instead of one combined waveform          |
 
 Line mode remains a min/max amplitude envelope, not a sample-by-sample signal
@@ -211,6 +211,10 @@ JSON editing, copying and downloading. “Use current settings” puts all curre
 control adjustments into the JSON editor before you make further edits.
 
 ## Application CSS
+
+The default waveform uses a transparent surface, sage bars, and an amber
+playhead. With `raavl/styles.css`, the colors follow the page's CSS
+`color-scheme`. Set `--raavl-background` to give the waveform its own surface color.
 
 ```css
 .my-player .raavl-waveform {

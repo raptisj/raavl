@@ -100,6 +100,58 @@ test("keeps zoom scrolling inside AudioPlayer and clears it on Fit", async ({
     .toEqual([0, fitWidth]);
 });
 
+test("a fresh AudioPlayer renders the playground's default waveform", async ({ page }) => {
+  await page.goto("/");
+  const waveform = page.locator("#react .raavl-waveform");
+  const appearance = () => waveform.evaluate((element) => {
+    const style = getComputedStyle(element);
+    const wave = element.querySelector(".raavl-wave").getContext("2d");
+    const progress = element.querySelector(".raavl-progress").getContext("2d");
+    const pixel = (context, x, y) => Array.from(context.getImageData(x, y, 1, 1).data);
+    return {
+      height: style.height,
+      radius: style.borderRadius,
+      surface: style.backgroundColor,
+      card: getComputedStyle(element.closest(".raavl-player")).backgroundColor,
+      cursor: getComputedStyle(element.querySelector(".raavl-cursor")).backgroundColor,
+      wave: pixel(wave, 2, 75),
+      played: pixel(progress, 2, 75),
+      gap: [3, 4, 5].map((x) => pixel(wave, x, 75)[3]),
+      nextBar: pixel(wave, 6, 75)[3],
+      normalized: pixel(wave, 1, 10)[3] === 255,
+      rounded: pixel(wave, 0, 8)[3] < pixel(wave, 1, 8)[3],
+    };
+  });
+  const geometry = {
+    height: "150px",
+    radius: "0px",
+    surface: "rgba(0, 0, 0, 0)",
+    gap: [0, 0, 0],
+    nextBar: 255,
+    normalized: true,
+    rounded: true,
+  };
+  await expect.poll(appearance).toEqual({
+    ...geometry,
+    card: "rgb(255, 254, 250)",
+    cursor: "rgb(189, 114, 46)",
+    wave: [172, 191, 165, 255],
+    played: [40, 93, 80, 255],
+  });
+
+  await page.evaluate(() => {
+    document.documentElement.style.colorScheme = "dark";
+    window.packageTest.reactView.refreshTheme();
+  });
+  await expect.poll(appearance).toEqual({
+    ...geometry,
+    card: "rgb(23, 39, 31)",
+    cursor: "rgb(229, 181, 116)",
+    wave: [86, 121, 99, 255],
+    played: [160, 211, 174, 255],
+  });
+});
+
 test("mute and full-track loop change icons and support keyboard activation in React and JavaScript", async ({ page }) => {
   await page.goto("/?toggles");
   for (const id of ["vanilla", "react"]) {

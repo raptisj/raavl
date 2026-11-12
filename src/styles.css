@@ -1,10 +1,18 @@
 :where(.raavl-waveform) {
-  --raavl-wave-color: #9aafa7;
+  --raavl-wave-color: #acbfa5;
   --raavl-progress-color: #285d50;
   --raavl-focus-color: #bd722e;
-  border-radius: var(--raavl-border-radius, 8px);
-  background: var(--raavl-background, #f3f6f2);
+  border-radius: var(--raavl-border-radius, 0px);
+  background: var(--raavl-background, transparent);
   scrollbar-width: thin;
+}
+@supports (color: light-dark(black, white)) {
+  :where(.raavl-waveform) {
+    --raavl-wave-color: light-dark(#acbfa5, #567963);
+    --raavl-progress-color: light-dark(#285d50, #a0d3ae);
+    --raavl-default-cursor-color: light-dark(#bd722e, #e5b574);
+    --raavl-focus-color: light-dark(#bd722e, #e5b574);
+  }
 }
 :where(.raavl-waveform:focus-visible) {
   outline: 3px solid var(--raavl-focus-color);
@@ -362,11 +370,19 @@
   padding: 16px;
   border: 1px solid var(--raavl-control-border);
   border-radius: var(--raavl-border-radius, 12px);
-  background: var(--raavl-background, #f3f6f2);
+  background: var(--raavl-background, #fffefa);
   color: var(--raavl-control-color);
   font:
     14px/1.5 system-ui,
     sans-serif;
+}
+@supports (color: light-dark(black, white)) {
+  :where(.raavl-player) {
+    --raavl-control-background: light-dark(#fff, #1b2d23);
+    --raavl-control-color: light-dark(#203b30, #e1eadf);
+    --raavl-control-border: light-dark(#cbd8ce, #344e3d);
+    background: var(--raavl-background, light-dark(#fffefa, #17271f));
+  }
 }
 :where(.raavl-controls) {
   display: grid;

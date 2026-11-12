@@ -16,6 +16,7 @@ import {
   usePlayerTime,
 } from "raavl/react";
 import { mountTimeline } from "raavl/timeline";
+import { defaultAppearance } from "raavl/themes";
 import {
   waveformThemes,
   type Player,
@@ -62,10 +63,10 @@ export function AudioPlayground() {
   const id = useId();
   const { mode, setMode } = usePlaygroundMode();
   const pageTheme = usePageTheme();
-  const [themeId, setThemeId] = useState<"site" | keyof typeof waveformThemes>(
-    "site",
+  const [themeId, setThemeId] = useState<"default" | keyof typeof waveformThemes>(
+    "default",
   );
-  const theme = themeId === "site" ? null : waveformThemes[themeId];
+  const theme = themeId === "default" ? undefined : waveformThemes[themeId];
   const [player, setPlayer] = useState<Player | null>(null);
   const [demo, setDemo] = useState(demoSounds[0]);
   const [source, setSource] = useState<Source>(() => demoSource(demoSounds[0]));
@@ -268,7 +269,7 @@ export function AudioPlayground() {
                   setThemeId(event.target.value as typeof themeId)
                 }
               >
-                <option value="site">Match website</option>
+                <option value="default">Default</option>
                 {Object.entries(waveformThemes).map(([id, preset]) => (
                   <option key={id} value={id}>
                     {preset.name}
@@ -283,24 +284,17 @@ export function AudioPlayground() {
             Drag to draft a region. Select a region or its badge to edit it.
           </p>
         )}
-        <div className="playground-wave">
+        <div className="playground-wave" style={{ minHeight: defaultAppearance.height }}>
           <Waveform
             source={source}
             onPlayer={setPlayer}
             onView={setView}
-            theme={theme}
             themeVersion={pageTheme}
             onError={reportError}
-            appearance={{
-              style: "bars",
-              barWidth: 3,
-              barGap: 3,
-              barRadius: 2,
-              borderRadius: 0,
-              ...theme?.appearance,
-              height: 150,
-              normalize: true,
-            }}
+            {...(theme && {
+              theme,
+              appearance: { height: defaultAppearance.height, normalize: defaultAppearance.normalize },
+            })}
             interaction={{
               seek: "click",
               drag: mode === "regions" ? "select" : "seek",

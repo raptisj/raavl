@@ -204,6 +204,8 @@ export function mountWaveform(
     progress = document.createElement("canvas");
   wave.className = "raavl-wave";
   progress.className = "raavl-progress";
+  wave.style.color = "var(--raavl-wave-color, #acbfa5)";
+  progress.style.color = "var(--raavl-progress-color, #285d50)";
   for (const canvas of [wave, progress]) {
     canvas.setAttribute("aria-hidden", "true");
     Object.assign(canvas.style, {
@@ -221,7 +223,7 @@ export function mountWaveform(
     bottom: "0",
     width: "2px",
     background:
-      "var(--raavl-cursor-color, var(--raavl-progress-color, #285d50))",
+      "var(--raavl-cursor-color, var(--raavl-default-cursor-color, #bd722e))",
     pointerEvents: "none",
   });
   surface.append(cursor);
@@ -265,11 +267,11 @@ export function mountWaveform(
       canvas.style.left = `${root.scrollLeft}px`;
     }
     ctx.setTransform(ratio, 0, 0, ratio, 0, 0);
-    const style = getComputedStyle(root);
+    // Resolve CSS colors against the canvas elements' current color scheme.
     ctx.fillStyle = canvasPaint(
       ctx,
       theme?.colors?.wave,
-      style.getPropertyValue("--raavl-wave-color").trim() || "#9aafa7",
+      getComputedStyle(wave).color,
       width,
       appearance.height,
     );
@@ -380,7 +382,7 @@ export function mountWaveform(
     playedCtx.fillStyle = canvasPaint(
       playedCtx,
       theme?.colors?.progress,
-      style.getPropertyValue("--raavl-progress-color").trim() || "#285d50",
+      getComputedStyle(progress).color,
       progress.width,
       progress.height,
     );

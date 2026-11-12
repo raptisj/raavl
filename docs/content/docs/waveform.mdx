@@ -23,16 +23,16 @@ const view = mountWaveform(container, {
 
 | Option | Default | Range / values |
 | --- | --- | --- |
-| `style` | `'line'` | `'line'` or `'bars'` |
-| `height` | `160` | 24–2000 CSS pixels |
+| `style` | `'bars'` | `'line'` or `'bars'` |
+| `height` | `150` | 24–2000 CSS pixels |
 | `lineWidth` | `1` | 0.5–20 CSS pixels |
-| `barWidth` | `2` | 0.5–100 CSS pixels |
-| `barGap` | `1` | 0–100 CSS pixels |
-| `barRadius` | `0` | 0–100 CSS pixels |
+| `barWidth` | `3` | 0.5–100 CSS pixels |
+| `barGap` | `3` | 0–100 CSS pixels |
+| `barRadius` | `2` | 0–100 CSS pixels |
 | `amplitude` | `0.9` | 0.1–1 of channel height |
 | `cursorWidth` | `2` | 0–20 CSS pixels |
-| `borderRadius` | `8` | 0–100 CSS pixels |
-| `normalize` | `false` | Scale amplitudes to fill available height |
+| `borderRadius` | `0` | 0–100 CSS pixels |
+| `normalize` | `true` | Scale amplitudes to fill available height |
 | `splitChannels` | `false` | Draw every channel in a separate row |
 
 ## Viewport and interaction
