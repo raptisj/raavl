@@ -314,23 +314,34 @@ test.describe("touch waveform", () => {
     const regionBounds = await region.boundingBox();
     const y = Math.round(bounds.y + bounds.height / 2);
     const cdp = await context.newCDPSession(page);
-    const swipe = (x, distance) =>
-      cdp.send("Input.synthesizeScrollGesture", {
-        x: Math.round(x),
-        y,
-        gestureSourceType: "touch",
-        ...distance,
+    const touch = (type, point) =>
+      cdp.send("Input.dispatchTouchEvent", {
+        type,
+        touchPoints: point ? [point] : [],
       });
+    // Exercise native panning with the same touch events used for pinch and resize.
+    const swipe = async (startX, deltaX, deltaY) => {
+      const x = Math.round(startX);
+      await touch("touchStart", { x, y });
+      for (let step = 1; step <= 5; step++) {
+        const progress = step / 5;
+        await touch("touchMove", {
+          x: x + deltaX * progress,
+          y: y + deltaY * progress,
+        });
+      }
+      await touch("touchEnd");
+    };
 
     const regionX = regionBounds.x + regionBounds.width / 2;
-    await swipe(regionX, { yDistance: -60 });
+    await swipe(regionX, 0, -60);
     await expect.poll(() => page.evaluate(() => window.scrollY)).toBeGreaterThan(0);
     await page.evaluate(() => window.scrollTo(0, 0));
 
-    await swipe(regionX, { xDistance: -100 });
+    await swipe(regionX, -100, 0);
     await expect.poll(async () => (await viewport()).start).toBeGreaterThan(0);
     const start = (await viewport()).start;
-    await swipe(bounds.x + bounds.width - 25, { xDistance: -100 });
+    await swipe(bounds.x + bounds.width - 25, -100, 0);
     await expect.poll(async () => (await viewport()).start).toBeGreaterThan(start);
 
     const selection = () =>
@@ -351,12 +362,8 @@ test.describe("touch waveform", () => {
     const handle = await waveform.locator(".raavl-selection-handle-start").boundingBox();
     const x = Math.round(handle.x + handle.width / 2);
     const handleY = Math.round(handle.y + handle.height / 2);
-    const touch = (type, ...xs) => cdp.send("Input.dispatchTouchEvent", {
-      type,
-      touchPoints: xs.map((x) => ({ x, y: handleY })),
-    });
-    await touch("touchStart", x);
-    await touch("touchMove", x - 48);
+    await touch("touchStart", { x, y: handleY });
+    await touch("touchMove", { x: x - 48, y: handleY });
     await touch("touchEnd");
     await expect.poll(async () => (await selection())?.start).toBeCloseTo(playhead - 0.1);
 
