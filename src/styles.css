@@ -449,13 +449,18 @@
 :where(.raavl-actions-toolbar) {
   margin-top: 12px;
 }
-:where(.raavl-actions-toolbar .raavl-button) {
+:where(.raavl-region-actions) {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+:where(.raavl-actions-toolbar .raavl-button, .raavl-region-actions .raavl-button) {
   display: inline-flex;
   align-items: center;
   justify-content: center;
   gap: 6px;
 }
-:where(.raavl-actions-toolbar svg) {
+:where(.raavl-actions-toolbar svg, .raavl-region-actions svg) {
   width: 18px;
   height: 18px;
   fill: none;

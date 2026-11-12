@@ -29,7 +29,7 @@ import {
   type PlayerStatusProps,
 } from "./controls.js";
 
-import { ActionsToolbar, type ActionsToolbarProps } from "./actions-toolbar.js";
+import { PlaybackActions, type ActionsToolbarProps } from "./actions-toolbar.js";
 import { useAnnotations } from "./hooks.js";
 import type { AnnotationDocument, CommitHandler } from "../regions/index.js";
 
@@ -108,6 +108,7 @@ export const AudioPlayer = forwardRef<HTMLDivElement, AudioPlayerProps>(
     const selected = document?.regions.find(
       (region) => region.id === selectedId,
     );
+    const showControls = controls !== false;
     const showActions =
       actions !== false && (actions !== undefined || !!wave.annotationEditor);
     const handleView = (instance: WaveformView | null) => {
@@ -150,38 +151,53 @@ export const AudioPlayer = forwardRef<HTMLDivElement, AudioPlayerProps>(
         {part(
           "seek",
           <SeekSlider {...options(config.seek)} />,
-          config.seek !== false,
+          showControls && config.seek !== false,
         )}
         <div className="raavl-toolbar">
-          {part(
-            "playPause",
-            <PlayPauseButton {...options(config.playPause)} />,
-            config.playPause !== false,
+          {showControls && (
+            <>
+              {part(
+                "playPause",
+                <PlayPauseButton {...options(config.playPause)} />,
+                config.playPause !== false,
+              )}
+              {part(
+                "time",
+                <TimeDisplay {...options(config.time)} />,
+                config.time !== false,
+              )}
+              {part(
+                "mute",
+                <MuteButton {...options(config.mute)} />,
+                config.mute !== false,
+              )}
+              {part(
+                "volume",
+                <VolumeSlider {...options(config.volume)} />,
+                config.volume !== false,
+              )}
+              {part(
+                "playbackRate",
+                <PlaybackRateSelect {...options(config.playbackRate)} />,
+                config.playbackRate !== undefined && config.playbackRate !== false,
+              )}
+              {part(
+                "loop",
+                <LoopButton {...options(config.loop)} />,
+                config.loop !== undefined && config.loop !== false,
+              )}
+            </>
           )}
           {part(
-            "time",
-            <TimeDisplay {...options(config.time)} />,
-            config.time !== false,
-          )}
-          {part(
-            "mute",
-            <MuteButton {...options(config.mute)} />,
-            config.mute !== false,
-          )}
-          {part(
-            "volume",
-            <VolumeSlider {...options(config.volume)} />,
-            config.volume !== false,
-          )}
-          {part(
-            "playbackRate",
-            <PlaybackRateSelect {...options(config.playbackRate)} />,
-            config.playbackRate !== undefined && config.playbackRate !== false,
-          )}
-          {part(
-            "loop",
-            <LoopButton {...options(config.loop)} />,
-            config.loop !== undefined && config.loop !== false,
+            "actions",
+            <PlaybackActions
+              onCreateRegion={createRegion}
+              range={selected ?? null}
+              sourceId={document?.sourceId ?? null}
+              {...options(actions)}
+              regionOnly
+            />,
+            showActions,
           )}
         </div>
       </div>
@@ -207,21 +223,7 @@ export const AudioPlayer = forwardRef<HTMLDivElement, AudioPlayerProps>(
             />,
             waveform !== false,
           )}
-          {part(
-            "actions",
-            <ActionsToolbar
-              onCreateRegion={createRegion}
-              range={selected ?? null}
-              sourceId={document?.sourceId ?? null}
-              {...options(actions)}
-            />,
-            showActions,
-          )}
-          {part(
-            "controls",
-            transport,
-            controls !== false && (!showActions || controls !== true),
-          )}
+          {showControls ? part("controls", transport) : showActions && transport}
           {part(
             "status",
             <PlayerStatus {...options(status)} />,

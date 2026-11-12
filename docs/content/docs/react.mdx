@@ -57,7 +57,8 @@ outer div, and ordinary div attributes pass through.
 | Prop                  | Default           | Behavior                                                                                      |
 | --------------------- | ----------------- | --------------------------------------------------------------------------------------------- |
 | `waveform`            | `true`            | `false` hides the view; an object accepts waveform props except ownership and error callbacks |
-| `controls`            | `true`            | `false` hides the transport; an object configures individual controls                         |
+| `controls`            | `true`            | `false` hides standard playback controls; an object configures individual controls            |
+| `actions`             | Editor enabled    | `false` hides region actions; an object configures the region buttons in the playback toolbar |
 | `status`              | `true`            | `false` hides feedback; an object accepts `PlayerStatus` props                                |
 | `appearance`, `theme` | Waveform defaults | Shortcuts for waveform appearance/theme; nested waveform options take precedence              |
 | `slots`               | Default parts     | Replace or wrap a documented part                                                             |
@@ -67,6 +68,8 @@ and `loop`. Each accepts `true`, `false`, or an object of that component's props
 Omitted keys retain their defaults; speed and loop default to hidden, and the
 other controls default to visible. Configuration changes preserve the controller,
 media, and playback. Hiding the waveform also preserves playback.
+Set `controls.seek` to `false` to use the waveform for seeking. Region actions
+can stay visible when `controls={false}`.
 
 `waveform={false}` hides visualization; set the source's
 `waveform: { kind: 'none' }` as well when waveform preparation is unnecessary.
@@ -93,10 +96,11 @@ the player root and can use individual controls or `usePlayerContext()`.
 />
 ```
 
-Slot names are `waveform`, `controls`, `status`, and the seven control keys.
+Slot names are `waveform`, `controls`, `actions`, `status`, and the seven control keys.
 A part explicitly disabled in configuration stays hidden even if it has a slot.
-Replacing `controls` replaces the complete transport subtree. For arbitrary
-ordering and layout, compose the individual parts instead.
+The `controls` slot receives the seek slider and the playback toolbar, including
+enabled region actions. The `actions` slot receives the region buttons. For
+arbitrary ordering and layout, compose the individual parts instead.
 
 ## Individual components
 

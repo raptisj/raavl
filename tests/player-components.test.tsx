@@ -2,6 +2,7 @@ import { act, StrictMode } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { beforeEach, afterEach, expect, it, vi } from "vitest";
 import {
+  ActionsToolbar,
   AudioPlayer,
   PlayerRoot,
   Waveform,
@@ -586,34 +587,122 @@ it.each(["react", "vanilla"])("shows the annotation app actions in Preview and t
   }
 });
 
-it("connects the complete annotation player's actions to its selected region", async () => {
-  const active = await render({ waveform: {
+it("combines playback, extra controls, and selected-region actions in one annotation toolbar", async () => {
+  const waveform = {
     annotationEditor: true,
-    defaultAnnotations: { version: 1, sourceId: source.id!, regions: [{ id: 'intro', start: 2, end: 5, label: 'Intro' }], markers: [] },
-  } });
-  expect(button('Play').disabled).toBe(true);
-  expect(button('Play region').disabled).toBe(true);
+    defaultAnnotations: {
+      version: 1,
+      sourceId: source.id!,
+      regions: [{ id: 'intro', start: 2, end: 5, label: 'Intro' }],
+      markers: [],
+    },
+  } satisfies AudioPlayerProps['waveform'];
+  const active = await render({
+    waveform,
+    controls: {
+      seek: false,
+      time: { mode: 'elapsed' },
+      playbackRate: true,
+      loop: true,
+    },
+  });
+  const toolbar = host.querySelector('.raavl-toolbar')!;
+  const mainButton = (label: 'Play' | 'Pause') =>
+    host.querySelectorAll(`button[aria-label="${label} audio"], button[aria-label="${label}"]`);
+  expect(host.querySelectorAll('.raavl-toolbar')).toHaveLength(1);
+  expect(mainButton('Play')).toHaveLength(1);
+  expect(host.querySelectorAll('output[aria-label="Playback time"]')).toHaveLength(1);
+  expect(toolbar.querySelector('output')?.textContent).toBe('0:00');
+  expect(toolbar.contains(button('Play audio'))).toBe(true);
+  expect(toolbar.contains(button('Play region'))).toBe(true);
+  expect(toolbar.contains(button('Loop region'))).toBe(true);
+  expect(toolbar.contains(button('Create region at playhead'))).toBe(true);
+  expect(toolbar.contains(input('Volume'))).toBe(true);
+  expect(toolbar.contains(host.querySelector('select[aria-label="Playback speed"]'))).toBe(true);
+  expect(toolbar.contains(button('Loop audio'))).toBe(true);
+  expect(input('Seek audio')).toBeNull();
+  expect(button('Play audio').disabled).toBe(true);
   await ready(active);
-  expect(button('Play').disabled).toBe(false);
-  expect(button('Play').classList.contains('raavl-play-pause-icon-button')).toBe(true);
-  const badge = host.querySelector<HTMLButtonElement>('.raavl-annotation-list button[data-row-id="intro"]')!;
-  expect(badge).not.toBeNull();
+  expect(button('Play audio').disabled).toBe(false);
+  expect(button('Play region').disabled).toBe(true);
+  expect(button('Loop region').disabled).toBe(true);
+  const badge = host.querySelector<HTMLButtonElement>(
+    '.raavl-annotation-list button[data-row-id="intro"]',
+  )!;
   await act(async () => badge.click());
   expect(button('Play region').disabled).toBe(false);
-  const playRange = vi.spyOn(active, 'playRange');
+  expect(button('Loop region').disabled).toBe(false);
+  const media = active.getMediaElement()!;
+  const reachRegionEnd = () => {
+    media.currentTime = 5;
+    media.dispatchEvent(new Event('timeupdate'));
+  };
+  await act(async () => button('Play region').click());
+  expect(active.getCurrentTime()).toBe(2);
+  expect(active.getSnapshot().playback).toBe('playing');
+  await act(reachRegionEnd);
+  expect(active.getCurrentTime()).toBe(5);
+  expect(active.getSnapshot().playback).toBe('paused');
   await act(async () => button('Loop region').click());
-  expect(playRange).toHaveBeenCalledWith(expect.objectContaining({ start: 2, end: 5, loop: true }));
-  expect(button('Pause')).not.toBeNull();
-  await act(async () => button('Pause').click());
+  await act(reachRegionEnd);
+  expect(active.getCurrentTime()).toBe(2);
+  expect(active.getSnapshot().playback).toBe('playing');
+  expect(mainButton('Pause')).toHaveLength(1);
+  await act(async () => button('Pause audio').click());
   expect(active.getSnapshot().playback).toBe('paused');
 });
 
-it("updates toolbar variants and disables ranges belonging to other audio", async () => {
-  const active = await render({ waveform: false, actions: { range: { start: 1, end: 3 }, sourceId: source.id, variant: 'icons' } });
+it("honors control visibility and slots when region actions are enabled", async () => {
+  const actions = {
+    range: { start: 1, end: 3 },
+    sourceId: source.id,
+    variant: 'text',
+  } satisfies AudioPlayerProps['actions'];
+  const slots: AudioPlayerProps['slots'] = {
+    controls: (part) => <section data-controls>{part}</section>,
+    actions: (part) => <div data-actions>{part}</div>,
+    playPause: <PlayPauseButton>Listen</PlayPauseButton>,
+    time: (part) => <strong>{part}</strong>,
+  };
+  const active = await render({ waveform: false, actions, slots });
   await ready(active);
+  expect(host.querySelector('[data-controls] [data-actions] button')).toBe(button('Play region'));
+  expect(button('Play audio').textContent).toBe('Listen');
+  expect(host.querySelector('strong output')?.textContent).toBe('0:00 / 1:40');
+  expect(button('Play region').querySelector('span')!.hidden).toBe(false);
+  expect(input('Seek audio')).not.toBeNull();
+  await render({
+    waveform: false,
+    actions,
+    slots,
+    controls: { playPause: false, time: false },
+  });
+  expect(button('Play audio')).toBeNull();
+  expect(host.querySelector('output[aria-label="Playback time"]')).toBeNull();
+  expect(button('Play region').disabled).toBe(false);
+  await render({ waveform: false, actions, slots, controls: false });
+  expect(host.querySelector('[data-controls]')).toBeNull();
+  expect(input('Seek audio')).toBeNull();
+  expect(button('Play region').disabled).toBe(false);
+});
+
+it("keeps standalone React toolbar transport, variants, and range validation", async () => {
+  root = createRoot(host);
+  const renderToolbar = (sourceId: string | undefined, variant: 'icons' | 'text') =>
+    act(async () =>
+      root!.render(
+        <PlayerRoot source={source} onPlayer={onPlayer}>
+          <ActionsToolbar range={{ start: 1, end: 3 }} sourceId={sourceId} variant={variant} />
+        </PlayerRoot>,
+      ),
+    );
+  await renderToolbar(source.id, 'icons');
+  await ready(player!);
+  expect(host.querySelector('[aria-label="Playback time"]')?.textContent).toBe('0.00s');
+  expect(button('Play').classList.contains('raavl-play-pause-icon-button')).toBe(true);
   expect(button('Play region').disabled).toBe(false);
   expect(button('Play region').querySelector('span')!.hidden).toBe(true);
-  await render({ waveform: false, actions: { range: { start: 1, end: 3 }, sourceId: 'other', variant: 'text' } });
+  await renderToolbar('other', 'text');
   expect(button('Play region').disabled).toBe(true);
   expect(button('Loop region').disabled).toBe(true);
   expect(button('Play').disabled).toBe(false);
@@ -650,7 +739,7 @@ it("opens a region draft at the playhead and commits only on confirmation", asyn
   } });
   expect(button('Create region at playhead').disabled).toBe(true);
   await ready(active);
-  expect(button('Play').querySelector('span')!.hidden).toBe(true);
+  expect(button('Play audio').classList.contains('raavl-play-pause-icon-button')).toBe(true);
   expect(button('Create region at playhead').querySelector('span')!.hidden).toBe(true);
   await act(async () => active.seek(12));
   await act(async () => button('Create region at playhead').click());

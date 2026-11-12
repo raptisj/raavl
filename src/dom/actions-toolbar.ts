@@ -21,13 +21,25 @@ export function mountActionsToolbar(
   container: HTMLElement,
   initial: ActionsToolbarOptions,
 ) {
+  return mountPlaybackActions(container, initial);
+}
+
+export function mountPlaybackActions(
+  container: HTMLElement,
+  initial: ActionsToolbarOptions,
+  regionOnly = false,
+) {
   let options = initial;
   let disposed = false;
   const document = container.ownerDocument;
   const element = document.createElement("div");
-  element.className = "raavl-toolbar raavl-actions-toolbar";
-  element.setAttribute("role", "group");
-  element.setAttribute("aria-label", "Playback actions");
+  element.className = regionOnly
+    ? "raavl-region-actions"
+    : "raavl-toolbar raavl-actions-toolbar";
+  if (!regionOnly) {
+    element.setAttribute("role", "group");
+    element.setAttribute("aria-label", "Playback actions");
+  }
   const paths = {
     ...playbackIcons,
     create: "M4 5v14M20 5v14M8 12h8M12 8v8",
@@ -48,16 +60,18 @@ export function mountActionsToolbar(
     element.append(button);
     return { button, svg, path, text };
   }
-  const play = button(),
+  const play = regionOnly ? null : button(),
     region = button(),
     loop = button(),
     create = button();
-  play.svg.classList.add("raavl-play-pause-icon");
-  const time = document.createElement("output");
-  time.className = "raavl-time";
-  time.setAttribute("aria-label", "Playback time");
-  time.setAttribute("aria-live", "off");
-  element.append(time);
+  play?.svg.classList.add("raavl-play-pause-icon");
+  const time = regionOnly ? null : document.createElement("output");
+  if (time) {
+    time.className = "raavl-time";
+    time.setAttribute("aria-label", "Playback time");
+    time.setAttribute("aria-live", "off");
+    element.append(time);
+  }
   container.append(element);
   function paint(
     control: ReturnType<typeof button>,
@@ -74,7 +88,7 @@ export function mountActionsToolbar(
   function renderTime() {
     const current = options.player?.getCurrentTime() ?? 0;
     const state = options.player?.getSnapshot();
-    time.textContent = `${current.toFixed(2)}s`;
+    if (time) time.textContent = `${current.toFixed(2)}s`;
     create.button.disabled =
       !!options.disabled ||
       !options.onCreateRegion ||
@@ -89,19 +103,21 @@ export function mountActionsToolbar(
       state?.source === "ready",
       options.disabled,
     );
-    const { playing } = transport;
-    paint(play, playing ? "Pause" : "Play", playing ? "pause" : "play");
-    play.button.classList.toggle(
-      "raavl-play-pause-icon-button",
-      !options.variant || options.variant === "icons",
-    );
+    if (play) {
+      const { playing } = transport;
+      paint(play, playing ? "Pause" : "Play", playing ? "pause" : "play");
+      play.button.classList.toggle(
+        "raavl-play-pause-icon-button",
+        !options.variant || options.variant === "icons",
+      );
+      play.button.disabled = transport.disabled;
+    }
     paint(region, "Play region", "region");
     paint(loop, "Loop region", "loop");
     paint(create, "Create region at playhead", "create");
-    play.button.disabled = transport.disabled;
     const range = options.range;
     region.button.disabled = loop.button.disabled =
-      play.button.disabled ||
+      transport.disabled ||
       !range ||
       !Number.isFinite(range.start) ||
       !Number.isFinite(range.end) ||
@@ -124,11 +140,13 @@ export function mountActionsToolbar(
       report?.(error as Error);
     }
   }
-  play.button.onclick = () =>
-    run((player) => {
-      const { playing } = playbackState(player.getSnapshot().playback, true);
-      return playing ? player.pause() : player.play();
-    });
+  if (play) {
+    play.button.onclick = () =>
+      run((player) => {
+        const { playing } = playbackState(player.getSnapshot().playback, true);
+        return playing ? player.pause() : player.play();
+      });
+  }
   region.button.onclick = () =>
     run((player) => {
       if (options.range) return player.playRange(options.range);

@@ -193,8 +193,8 @@ test.describe("touch waveform", () => {
     await expect(playRegion).toBeEnabled();
     const apply = editor.getByRole("button", { name: "Apply edit" });
     const primary = player
-      .getByRole("group", { name: "Playback actions" })
-      .getByRole("button", { name: "Play", exact: true });
+      .getByRole("group", { name: "Playback controls" })
+      .getByRole("button", { name: "Play audio", exact: true });
     const primaryColor = await primary.evaluate(
       (button) => getComputedStyle(button).backgroundColor,
     );
@@ -231,8 +231,8 @@ test.describe("touch waveform", () => {
     await page.goto("/?annotations&modal");
     const player = page.locator("#react");
     const primary = player
-      .getByRole("group", { name: "Playback actions" })
-      .getByRole("button", { name: "Play", exact: true });
+      .getByRole("group", { name: "Playback controls" })
+      .getByRole("button", { name: "Play audio", exact: true });
     const primaryColor = await primary.evaluate(
       (button) => getComputedStyle(button).backgroundColor,
     );

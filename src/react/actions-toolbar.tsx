@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, type HTMLAttributes } from "react";
 import {
-  mountActionsToolbar,
+  mountPlaybackActions,
   type ActionsToolbarOptions,
 } from "../dom/actions-toolbar.js";
 import { usePlayerRoot } from "./player-root.js";
@@ -15,25 +15,34 @@ export type ActionsToolbarProps = Omit<
   Omit<ActionsToolbarOptions, "player">;
 
 /** Playback and region actions sharing the nearest PlayerRoot or AudioPlayer. */
-export function ActionsToolbar({
+export function ActionsToolbar(props: ActionsToolbarProps) {
+  return <PlaybackActions {...props} />;
+}
+
+export function PlaybackActions({
   range,
   sourceId,
   variant = "icons",
   disabled,
   onError,
   onCreateRegion,
+  regionOnly = false,
   ...html
-}: ActionsToolbarProps) {
+}: ActionsToolbarProps & { regionOnly?: boolean }) {
   const { player, reportError } = usePlayerRoot();
   const host = useRef<HTMLDivElement>(null);
-  const toolbar = useRef<ReturnType<typeof mountActionsToolbar> | null>(null);
+  const toolbar = useRef<ReturnType<typeof mountPlaybackActions> | null>(null);
   useEffect(() => {
-    toolbar.current = mountActionsToolbar(host.current!, { player: null });
+    toolbar.current = mountPlaybackActions(
+      host.current!,
+      { player: null },
+      regionOnly,
+    );
     return () => {
       toolbar.current?.dispose();
       toolbar.current = null;
     };
-  }, []);
+  }, [regionOnly]);
   useEffect(() => {
     toolbar.current?.update({
       player,
@@ -44,6 +53,16 @@ export function ActionsToolbar({
       onCreateRegion,
       onError: onError ?? ((error) => reportError(error as RaavlError)),
     });
-  }, [player, range, sourceId, variant, disabled, onError, onCreateRegion, reportError]);
+  }, [
+    player,
+    range,
+    sourceId,
+    variant,
+    disabled,
+    onError,
+    onCreateRegion,
+    reportError,
+    regionOnly,
+  ]);
   return <div {...html} ref={host} />;
 }

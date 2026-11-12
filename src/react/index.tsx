@@ -11,4 +11,4 @@ export {
 export * from "./controls.js";
 export * from "./audio-player.js";
 
-export * from "./actions-toolbar.js";
+export { ActionsToolbar, type ActionsToolbarProps } from "./actions-toolbar.js";

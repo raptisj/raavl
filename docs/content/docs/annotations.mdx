@@ -287,11 +287,12 @@ configured length rules and clips the end to the recording duration. The annotat
 is only created when you confirm; cancelling discards the draft. Creation is
 disabled at the end of the recording or when the audio source does not match.
 
-The complete `AudioPlayer` includes this toolbar when `waveform.annotationEditor`
-is enabled, follows its selected region, and wires up creation automatically. Customize it with `actions={{ variant:
-'icons' }}`, replace it with `slots.actions`, or hide it with `actions={false}`.
-The annotation toolbar replaces the default transport; an explicit `controls`
-configuration can show additional controls alongside it.
+When `waveform.annotationEditor` is enabled, `AudioPlayer` adds **Play region**,
+**Loop region**, and **Create region at playhead** to its playback toolbar. Region
+playback follows the selected region, and creation opens the region editor.
+Use `actions` to configure the region buttons, `slots.actions` to replace or wrap
+them, and `actions={false}` to hide them. Use `controls` to configure the main
+Play/Pause button, clock, seek slider, and other playback controls.
 
 For vanilla JavaScript, import `mountActionsToolbar` from `raavl` or `raavl/dom`:
 
