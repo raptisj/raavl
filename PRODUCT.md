@@ -292,7 +292,7 @@ entry points do not import React.
 | Waveform keyboard   | Left/Right seek 1 second, Shift seeks 10 seconds, Home/End seek bounds                                                                                                      |
 | Annotation keyboard | Arrows move items/handles by 0.1 seconds or the configured snap interval; Shift multiplies by 10; Delete/Backspace removes unlocked items; Escape cancels gesture/selection |
 | Minimap keyboard    | Left/Right pan 10% of a window; Shift pans a full window; Home/End reach viewport bounds                                                                                    |
-| Annotation list     | 100 items per page; selecting an item scrolls to and focuses its overlay; invalid annotations remain listed for correction                                                  |
+| Annotation list     | One badge row or a count button with the selected badge. The scrollable picker shows 100 items per page and can filter to an overlap. Invalid annotations remain listed for correction. |
 
 The player view exposes slider semantics, annotation views use a group with
 individual controls, and data-only visuals use image semantics. Decorative Canvas
@@ -330,7 +330,7 @@ CSS tokens include `--raavl-wave-color`, `--raavl-progress-color`,
 does not supply a backend, upload audio, or automatically save documents.
 
 The example app supplies application-level controls for playback, annotation
-label/time editing, locking, markers, region play/loop, localStorage save/load,
+label/time editing, markers, region play/loop, localStorage save/load,
 and annotation JSON editing/import/download. Saved JSON contains annotations,
 not audio. Its annotation storage key is `raavl-annotations-demo`.
 

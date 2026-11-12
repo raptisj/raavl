@@ -13,7 +13,7 @@ import { defaultAppearance } from "raavl/themes";
 import { AudioPlayer } from "raavl/react";
 import { ModulesEditor } from "./ModulesEditor";
 import { ScaleLab } from "./ScaleLab";
-import { AnnotationEditor } from "./AnnotationEditor";
+import { AnnotationEditor, OverlappingRegions } from "./AnnotationEditor";
 import { SoundCloudPlayer } from "./SoundCloudPlayer";
 import "./style.css";
 import { exampleCode, type ExampleCodeOptions } from "./snippets";
@@ -500,7 +500,10 @@ function Example({ scene, mode, onOptionsChange }: {
   if (scene === "modules") return <ModulesEditor mode={mode} onOptionsChange={onOptionsChange} />;
   if (scene === "scale") return <ScaleLab onOptionsChange={onOptionsChange} />;
   return scene === "annotations" ? (
-    <AnnotationEditor mode={mode} onOptionsChange={onOptionsChange} />
+    <>
+      <AnnotationEditor mode={mode} onOptionsChange={onOptionsChange} />
+      <OverlappingRegions />
+    </>
   ) : (
     <PlaybackExample scene={scene} onOptionsChange={onOptionsChange} />
   );

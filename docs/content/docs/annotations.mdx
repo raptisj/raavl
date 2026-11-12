@@ -171,10 +171,24 @@ const view = mountWaveform(container, {
 Click a region on the waveform or choose a badge below it to open the inline editor.
 Regions have label, start, and end fields. Markers have label and time fields.
 Label and time edits preview on the waveform as you type.
+With a player attached, **Play region** plays the current range in the editor,
+including unsaved changes to its start or end.
 Apply or press Enter in a field to save. Cancel or press Escape to discard the draft.
-Locked annotations can be relabeled. Unlock them to change their times or delete them.
+Locked annotations can be relabeled. Unlock them through the store to change
+their times or delete them.
 In controlled mode, apply and delete propose a change and the editor stays open
 until the new document is published or the draft is cancelled.
+
+Up to four annotation badges appear directly when they fit on one line. Larger
+sets and narrower views show a count button and the selected annotation's badge
+when available. The count opens a scrollable picker ordered by start time.
+Search by label or ID, or enter seconds such as `12.5` or a timestamp such as
+`0:12.5` to find regions and markers at that time.
+An overlap chip on the waveform opens the same picker filtered to regions at
+that spot. **Show all** searches the full recording with the same query.
+Choosing a region brings it into view and raises it above overlapping regions.
+With the editor enabled, choosing a region opens its editor and dims the other
+regions until editing ends.
 
 Drag out a temporary range to open the inline editor. Drag the range to move it
 or drag either edge to resize it. You can also type a start or end time or use
@@ -207,9 +221,8 @@ and `.raavl-annotation-actions`.
   0.1 seconds; Shift makes it 1 second. A configured snap interval replaces the
   base step, with Shift using ten intervals. Delete/Backspace removes an unlocked
   annotation. Escape cancels the current gesture/selection.
-- Locked items can be selected but cannot be moved, resized, or removed. Unlock
-  through the store or inline editor. By default the accessible badge list selects
-  annotations and focuses their overlay controls.
+- Locked items support selection and relabeling. By default the accessible badge
+  list selects annotations and focuses their overlay controls.
 
 ```ts
 await player.playRange({ start: 2, end: 5 })

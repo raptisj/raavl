@@ -16,7 +16,20 @@ void player
   .setSource({ kind: "url", id: "vanilla", url: "/tone.wav" })
   .catch((error) => errors.push(error.message));
 const root = createRoot(document.getElementById("react")!);
-const editAnnotations = new URLSearchParams(window.location.search).has("annotations");
+const params = new URLSearchParams(window.location.search);
+const overlapCount = Number(params.get("overlaps"));
+const editAnnotations = params.has("annotations") || overlapCount > 0;
+const regions = overlapCount > 0 ? [
+  { id: "vocal", start: 0.4, end: 0.65, label: "Vocal harmony" },
+  { id: "intro", start: 0.3, end: 0.6, label: "Introduction and opening phrase with extended instrumentation" },
+  { id: "guitar", start: 0.35, end: 0.7, label: "Guitar melody" },
+  ...Array.from({ length: overlapCount - 3 }, (_, i) => ({
+    id: `r${i}`,
+    start: 0.8 + i * 0.04,
+    end: 0.825 + i * 0.04,
+    label: `Region ${i + 4}`,
+  })),
+] : [{ id: "intro", start: 0.3, end: 0.65, label: "Intro" }];
 let reactPlayer: ReturnType<typeof createPlayer> | null = null;
 let reactView: WaveformView | null = null;
 root.render(
@@ -28,11 +41,11 @@ root.render(
         onView: (instance) => { reactView = instance; },
         ...(editAnnotations && {
           interaction: { drag: "select" },
-          annotationEditor: true,
+          annotationEditor: params.has("modal") ? "modal" : true,
           defaultAnnotations: {
             version: 1,
             sourceId: "react",
-            regions: [{ id: "intro", start: 0.3, end: 0.65, label: "Intro" }],
+            regions,
             markers: [],
           },
         }),

@@ -72,6 +72,7 @@ export function createAnnotationEditor(
     side: Boundary,
   ) => NonNullable<Selection>,
   renderPreview: () => void,
+  onRegionEdit: (editing: boolean) => void,
   canOpenModal: () => boolean = () => true,
 ) {
   const document = badges.ownerDocument;
@@ -130,25 +131,27 @@ export function createAnnotationEditor(
   const addRegion = button(document, "Create region from selection", "apply");
   addRegion.disabled = true;
   const cancelRegion = button(document, "Cancel selection", "cancel");
-  const cancelRegionText = button(document, "Cancel");
-  cancelRegionText.className = "raavl-annotation-dialog-cancel";
   const preview = button(document, "Play region");
+  const editPreview = button(document, "Play region");
   const apply = button(document, "Apply edit", "apply");
   const remove = button(document, "Delete annotation", "delete");
   const cancel = button(document, "Cancel edit", "cancel");
-  const cancelEditText = button(document, "Cancel");
-  cancelEditText.className = "raavl-annotation-dialog-cancel";
-  const lock = button(document, "Lock");
+  function saveActions(play: HTMLButtonElement, save: HTMLButtonElement) {
+    const group = document.createElement("div");
+    group.className = "raavl-annotation-save-actions";
+    if (playSelection) group.append(play);
+    group.append(save);
+    return group;
+  }
   const actions = document.createElement("div");
   actions.className = "raavl-annotation-actions";
-  actions.append(apply, remove, cancel, lock);
+  actions.append(remove, cancel, saveActions(editPreview, apply));
   const error = document.createElement("p");
   error.className = "raavl-annotation-error";
   error.setAttribute("role", "alert");
   const creationActions = document.createElement("div");
   creationActions.className = "raavl-annotation-actions";
-  creationActions.append(addRegion, cancelRegion);
-  if (playSelection) creationActions.prepend(preview);
+  creationActions.append(cancelRegion, saveActions(preview, addRegion));
   creation.append(
     newLabel.label,
     selectionStart.element,
@@ -167,6 +170,10 @@ export function createAnnotationEditor(
   function dismissDialog() {
     if (selection) clearSelection();
     if (item) close(true);
+  }
+  function cancelEdit() {
+    if (mode === "modal") dismissDialog();
+    else close(true);
   }
   closeDialog.onclick = dismissDialog;
   dialog.addEventListener("cancel", (event) => {
@@ -213,24 +220,31 @@ export function createAnnotationEditor(
     renderPreview();
     if (restoreFocus) focusBadge(id);
   }
+  function readEditRange(region: Region): Selection {
+    const from = region.locked ? region.start : start.input.valueAsNumber;
+    const to = region.locked ? region.end : end.input.valueAsNumber;
+    const duration = snapshot?.duration ?? Infinity;
+    return from >= 0 && to > from && Number.isFinite(to) && to <= duration
+      ? { start: from, end: to }
+      : null;
+  }
   function updatePreview() {
     if (!item) return;
-    const from = start.input.valueAsNumber;
-    const to = end.input.valueAsNumber;
-    const duration = snapshot?.duration ?? Infinity;
-    const validStart = Number.isFinite(from) && from >= 0 && from <= duration;
     const [previousStart, previousEnd] = coordinates(draft ?? item);
     const nextLabel = label.input.value;
     if ("start" in item) {
-      const validRange =
-        !item.locked && validStart && to > from && to <= duration;
+      const range = readEditRange(item);
+      editPreview.disabled = range === null;
       draft = {
         ...item,
-        start: validRange ? from : previousStart,
-        end: validRange ? to : (previousEnd ?? item.end),
+        start: range?.start ?? previousStart,
+        end: range?.end ?? previousEnd ?? item.end,
         label: nextLabel,
       };
     } else {
+      const from = start.input.valueAsNumber;
+      const duration = snapshot?.duration ?? Infinity;
+      const validStart = Number.isFinite(from) && from >= 0 && from <= duration;
       draft = {
         ...item,
         time: !item.locked && validStart ? from : previousStart,
@@ -277,9 +291,13 @@ export function createAnnotationEditor(
       });
       clearSelection();
     });
-  cancelRegion.onclick = cancelRegionText.onclick = clearSelection;
+  cancelRegion.onclick = clearSelection;
   preview.onclick = () => {
     if (selection) playSelection?.(selection);
+  };
+  editPreview.onclick = () => {
+    const range = item && "start" in item ? readEditRange(item) : null;
+    if (range) playSelection?.(range);
   };
   apply.onclick = () =>
     edit((target) => {
@@ -309,19 +327,11 @@ export function createAnnotationEditor(
         );
       }
     });
-  lock.onclick = () =>
-    edit((target) => {
-      if (!item) return;
-      const patch = { locked: !item.locked };
-      if ("start" in item) target.updateRegion(item.id, patch);
-      else target.updateMarker(item.id, patch);
-    });
   remove.onclick = () =>
     edit((target) => {
       if (item) target.remove(item.id);
     });
-  cancel.onclick = () => close(true);
-  cancelEditText.onclick = dismissDialog;
+  cancel.onclick = cancelEdit;
   creation.onkeydown = (event) => {
     if (event.isComposing) return;
     if (event.key === "Escape") {
@@ -337,8 +347,7 @@ export function createAnnotationEditor(
     if (event.key === "Escape") {
       event.preventDefault();
       event.stopPropagation();
-      if (mode === "modal") dismissDialog();
-      else close(true);
+      cancelEdit();
     } else if (
       event.key === "Enter" &&
       event.target instanceof HTMLInputElement
@@ -347,16 +356,19 @@ export function createAnnotationEditor(
       apply.click();
     }
   };
-  function showLockState(annotation: Annotation) {
+  function syncEditControls(annotation: Annotation) {
     const locked = !!annotation.locked;
     for (const { input, decrease, increase } of [start, end])
       input.disabled = decrease.disabled = increase.disabled = locked;
     remove.disabled = locked;
-    lock.textContent = annotation.locked ? "Unlock" : "Lock";
+    const isRegion = "start" in annotation;
+    editPreview.hidden = !isRegion;
+    editPreview.disabled = !isRegion || readEditRange(annotation) === null;
   }
   function syncVisibility() {
     creation.hidden = !store || !selection || item !== null;
     badges.hidden = mode === "inline" && (item !== null || !creation.hidden);
+    onRegionEdit(item !== null && "start" in item);
     const show =
       mode === "modal" &&
       (!creation.hidden || !editor.hidden) &&
@@ -395,15 +407,9 @@ export function createAnnotationEditor(
       if (dialog.open) dialog.close();
       mode = next;
       if (mode === "modal") {
-        cancelRegion.replaceWith(cancelRegionText);
-        cancel.remove();
-        actions.append(cancelEditText);
         dialog.append(creation, editor, error, closeDialog);
         element.append(dialog);
       } else {
-        cancelRegionText.replaceWith(cancelRegion);
-        cancelEditText.remove();
-        lock.before(cancel);
         element.append(creation, editor, error);
         dialog.remove();
       }
@@ -440,7 +446,7 @@ export function createAnnotationEditor(
         "aria-label",
         `Edit ${annotation.label || annotation.id}`,
       );
-      showLockState(annotation);
+      syncEditControls(annotation);
       error.textContent = "";
       editor.hidden = false;
       syncVisibility();
@@ -474,7 +480,7 @@ export function createAnnotationEditor(
       }
       if (draft && current !== item) draft = previewAnnotation(current);
       item = current;
-      showLockState(current);
+      syncEditControls(current);
     },
   };
 }

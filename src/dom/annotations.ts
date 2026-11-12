@@ -13,6 +13,8 @@ import {
 } from "../regions/index.js";
 import type { RaavlError } from "../core/types.js";
 import { createAnnotationEditor } from "./annotation-editor.js";
+import { annotationTime, createAnnotationPicker } from "./annotation-picker.js";
+import { includesOverlapRegion, visibleOverlaps } from "./annotation-overlaps.js";
 
 export type LabelSlot = HTMLElement | { element: HTMLElement; dispose(): void };
 export type AnnotationSnapper = (
@@ -98,6 +100,7 @@ function createAnnotationNode(
   Object.assign(element.style, {
     position: "absolute",
     pointerEvents: "auto",
+    zIndex: selected && "start" in item ? "1" : "",
     background:
       "start" in item
         ? "var(--raavl-region-color, #a67ce333)"
@@ -172,6 +175,9 @@ export function mountAnnotations(
     pointerEvents: "none",
   });
   const shapes = document.createElement("div");
+  shapes.style.isolation = "isolate";
+  const overlapControls = document.createElement("div");
+  const overlapButtons = new Map<string, HTMLButtonElement>();
   const preview = document.createElement("div");
   preview.className = "raavl-selection";
   preview.hidden = true;
@@ -179,7 +185,7 @@ export function mountAnnotations(
     position: "absolute",
     top: "0",
     bottom: "0",
-    zIndex: "1",
+    zIndex: "3",
     background: "var(--raavl-selection-color, #538ce644)",
     border: "1px dashed currentColor",
   });
@@ -194,7 +200,7 @@ export function mountAnnotations(
     return handle;
   });
   preview.append(...previewHandles);
-  overlay.append(shapes, preview);
+  overlay.append(overlapControls, shapes, preview);
   surface.append(overlay);
   const list = document.createElement("section");
   list.className = "raavl-annotation-list";
@@ -202,35 +208,12 @@ export function mountAnnotations(
   const status = document.createElement("p");
   status.className = "raavl-annotation-status";
   status.setAttribute("role", "status");
-  const rows = document.createElement("ul");
-  const badges = document.createElement("div");
+  const picker = createAnnotationPicker(gestureDocument, chooseAnnotation);
   let editor: ReturnType<typeof createAnnotationEditor> | undefined;
-  const pagination = document.createElement("div");
-  pagination.className = "raavl-annotation-pagination";
-  const previous = document.createElement("button"),
-    next = document.createElement("button"),
-    pageLabel = document.createElement("span");
-  previous.type = next.type = "button";
-  previous.textContent = "Previous annotations";
-  next.textContent = "Next annotations";
-  pageLabel.setAttribute("role", "status");
-  let page = 0;
   let listSnapshot: ReturnType<AnnotationStore["getSnapshot"]> | null = null;
-  let listPage = -1,
-    listChannels = -1,
+  let listChannels = -1,
     listSource: string | null = null;
-  const pageSize = 100;
-  previous.onclick = () => {
-    page--;
-    render();
-  };
-  next.onclick = () => {
-    page++;
-    render();
-  };
-  pagination.append(previous, pageLabel, next);
-  badges.append(rows, pagination);
-  list.append(status, badges);
+  list.append(status, picker.element);
   container.append(list);
   list.hidden = true;
   const nodes = new Map<
@@ -264,12 +247,18 @@ export function mountAnnotations(
       : null;
   const isPreviewTarget = (target: EventTarget | null): target is HTMLElement =>
     target instanceof HTMLElement && preview.contains(target);
+  const isOverlapTarget = (target: EventTarget | null) =>
+    target instanceof Element && overlapControls.contains(target);
   const getPlaybackTarget = (
     target: EventTarget | null,
     afterPointerUp = false,
   ): Region | null | undefined => {
     // Null is waveform background. Undefined is a consumed gesture or control.
-    if (isPreviewTarget(target) || (afterPointerUp && playbackBlocked))
+    if (
+      isPreviewTarget(target) ||
+      isOverlapTarget(target) ||
+      (afterPointerUp && playbackBlocked)
+    )
       return undefined;
     const control = annotationTarget(target);
     if (
@@ -310,14 +299,46 @@ export function mountAnnotations(
   const select = (id: string | null) => {
     selected = id;
     editor?.select(id);
-    for (const [key, node] of nodes)
-      node.element.dataset.selected = String(key === id);
+    picker.select(id);
+    for (const [key, node] of nodes) {
+      const active = key === id;
+      node.element.dataset.selected = String(active);
+      if ("start" in node.item) node.element.style.zIndex = active ? "1" : "";
+    }
     options.onAnnotationSelect?.(id);
   };
+  function chooseAnnotation(item: Region | Marker) {
+    select(item.id);
+    if (active()) {
+      const { width, duration } = geometry();
+      root.scrollLeft = Math.max(
+        0,
+        Math.min(
+          width - root.clientWidth,
+          (annotationTime(item) / duration) * width - root.clientWidth / 3,
+        ),
+      );
+      render();
+      if (editor) {
+        editor.open(item.id);
+        return;
+      }
+      const body = nodes
+        .get(item.id)
+        ?.element.querySelector<HTMLElement>(".raavl-region-body");
+      if (body) {
+        body.focus({ preventScroll: true });
+        return;
+      }
+    }
+    if (!picker.focusBadge(item.id)) root.focus({ preventScroll: true });
+  }
   const setSelection = (next: Selection, notify = true) => {
-    selection = next;
     const drafting = next !== null && active();
+    if (drafting && selection === null) picker.close();
+    selection = next;
     preview.hidden = !drafting;
+    overlapControls.hidden = drafting;
     shapes.style.opacity = drafting ? "0.25" : "";
     shapes.toggleAttribute("inert", drafting);
     const draggable = drafting && geometry().selectMode;
@@ -359,6 +380,51 @@ export function mountAnnotations(
     element.style.height =
       channel === undefined ? "100%" : `${100 / channels}%`;
   };
+  function renderOverlaps(regions: Region[]) {
+    const overlaps = visibleOverlaps(regions, geometry(), {
+      left: root.scrollLeft,
+      width: root.clientWidth,
+      height: root.clientHeight,
+    });
+    const keys = new Set(overlaps.map((overlap) => overlap.key));
+    for (const [key, button] of overlapButtons) {
+      if (keys.has(key)) continue;
+      overlapButtons.delete(key);
+      if (gestureDocument.activeElement === button && !picker.focusBadge(selected))
+        root.focus({ preventScroll: true });
+      button.remove();
+    }
+    for (const { key, count, left, top, width, time, lane } of overlaps) {
+      let button = overlapButtons.get(key);
+      if (!button) {
+        button = gestureDocument.createElement("button");
+        button.type = "button";
+        button.className = "raavl-region-overlap";
+        Object.assign(button.style, {
+          position: "absolute",
+          pointerEvents: "auto",
+          zIndex: "2",
+        });
+        picker.connect(button);
+        overlapControls.append(button);
+        overlapButtons.set(key, button);
+      }
+      const label = `${count} regions`;
+      if (button.textContent !== label) button.textContent = label;
+      button.setAttribute(
+        "aria-label",
+        `${count} overlapping regions at ${time.toFixed(2)} seconds`,
+      );
+      button.style.left = `${left}px`;
+      button.style.top = `${top}px`;
+      button.style.width = `${width}px`;
+      const trigger = button;
+      button.onclick = () =>
+        picker.open(trigger, (item) =>
+          "start" in item && includesOverlapRegion(item, time, lane),
+        );
+    }
+  }
   function render() {
     if (disposed || rendering) return;
     rendering = true;
@@ -366,6 +432,7 @@ export function mountAnnotations(
       const { duration, sourceId, channels } = geometry();
       if (lastSource !== sourceId) {
         cancel();
+        picker.close();
         clickedRegionId = undefined;
         setSelection(null);
         select(null);
@@ -378,7 +445,8 @@ export function mountAnnotations(
           node.element.remove();
         }
         nodes.clear();
-        rows.replaceChildren();
+        picker.update([], new Set());
+        renderOverlaps([]);
         listSnapshot = null;
         overlay.hidden = true;
         list.hidden = true;
@@ -480,70 +548,26 @@ export function mountAnnotations(
           : element?.querySelector<HTMLElement>(".raavl-region-body");
         target?.focus({ preventScroll: true });
       }
-      // The list is the non-spatial alternative to overlays; no hidden canvas data.
-      const focusedRow = focus?.dataset.rowId;
-      page = Math.max(
-        0,
-        Math.min(page, Math.ceil(items.length / pageSize) - 1),
-      );
       const listChanged =
         listSnapshot !== snapshot ||
-        listPage !== page ||
         listChannels !== channels ||
         listSource !== sourceId;
       if (listChanged) {
         listSnapshot = snapshot;
-        listPage = page;
         listChannels = channels;
         listSource = sourceId;
-        rows.replaceChildren();
-        pagination.hidden = !matches() || items.length <= pageSize;
-        previous.disabled = page === 0;
-        next.disabled = (page + 1) * pageSize >= items.length;
-        pageLabel.textContent = ` Page ${page + 1} of ${Math.max(1, Math.ceil(items.length / pageSize))} `;
-        if (matches())
-          for (const item of items.slice(
-            page * pageSize,
-            (page + 1) * pageSize,
-          )) {
-            const row = document.createElement("li"),
-              button = document.createElement("button");
-            button.type = "button";
-            button.dataset.rowId = item.id;
-            button.textContent = `${item.label || item.id} · ${"start" in item ? `${item.start.toFixed(2)}–${item.end.toFixed(2)}` : item.time.toFixed(2)}s${item.locked ? " · locked" : ""}${invalid.has(item.id) ? " · out of bounds" : ""}`;
-            button.onclick = () => {
-              select(item.id);
-              if (active()) {
-                root.scrollLeft = Math.max(
-                  0,
-                  (("start" in item ? item.start : item.time) / duration) *
-                    geometry().width -
-                    root.clientWidth / 3,
-                );
-                render();
-                if (editor) editor.open(item.id);
-                else
-                  nodes
-                    .get(item.id)
-                    ?.element.querySelector<HTMLElement>(".raavl-region-body")
-                    ?.focus({ preventScroll: true });
-              }
-            };
-            row.append(button);
-            rows.append(row);
-            if (focusedRow === item.id) button.focus({ preventScroll: true });
-          }
+        picker.update(matches() ? items : [], invalid);
       }
+      renderOverlaps(visible.filter((item): item is Region => "start" in item));
       if (editor) {
         editor.element.hidden = !matches();
         editor.sync(active() ? store : null, selection);
-        if (
-          listChanged &&
-          selected !== null &&
-          !items.some((item) => item.id === selected)
-        )
-          select(null);
       }
+      if (
+        listChanged && selected !== null &&
+        !items.some((item) => item.id === selected)
+      )
+        select(null);
       setSelection(selection, false);
     } finally {
       rendering = false;
@@ -556,6 +580,7 @@ export function mountAnnotations(
       target?.dataset.raavlAnnotation ??
       (event.target === root ? clickedRegionId : undefined);
     if (id === undefined) return;
+    picker.close();
     if (target || selected !== id) select(id);
     if (event.button !== 0 || (event.detail > 0 && playbackBlocked)) return;
     if (target && !target.matches(".raavl-region, .raavl-region-body")) return;
@@ -571,7 +596,7 @@ export function mountAnnotations(
     if (gesture && event.pointerId !== gesture.pointer) return;
     playbackBlocked = false;
     clickedRegionId = undefined;
-    if (!active()) return;
+    if (!active() || isOverlapTarget(event.target)) return;
     const target = annotationTarget(event.target);
     const draftTarget = isPreviewTarget(event.target) ? event.target : null;
     const side = (target ?? draftTarget)?.dataset.side as Gesture["side"];
@@ -773,6 +798,10 @@ export function mountAnnotations(
   const key = (event: KeyboardEvent) => {
     const draftTarget = isPreviewTarget(event.target) ? event.target : null;
     if (event.key === "Escape") {
+      if (picker.isOpen()) {
+        picker.close(true);
+        return;
+      }
       cancel();
       setSelection(null);
       if (draftTarget) root.focus({ preventScroll: true });
@@ -861,14 +890,9 @@ export function mountAnnotations(
       rules = nextRules;
       if (next.annotationEditor && !editor) {
         editor = createAnnotationEditor(
-          badges,
+          picker.strip,
           (id) => {
-            const buttons = [...rows.querySelectorAll("button")];
-            const target =
-              buttons.find((button) => button.dataset.rowId === id) ??
-              buttons[0] ??
-              root;
-            target.focus({ preventScroll: true });
+            if (!picker.focusBadge(id)) root.focus({ preventScroll: true });
           },
           () => {
             setSelection(null);
@@ -884,6 +908,7 @@ export function mountAnnotations(
           (range, time, side) =>
             resizeRange(range, time, geometry().duration, side),
           render,
+          (editing) => overlay.toggleAttribute("data-editing-region", editing),
           () => !gesture,
         );
         list.append(editor.element);
@@ -927,7 +952,9 @@ export function mountAnnotations(
     },
     isEditing: () => gesture !== null,
     isAnnotationTarget: (target: EventTarget | null) =>
-      isPreviewTarget(target) || !!annotationTarget(target),
+      isPreviewTarget(target) ||
+      isOverlapTarget(target) ||
+      !!annotationTarget(target),
     getPlaybackTarget,
     dispose() {
       if (disposed) return;
@@ -939,6 +966,7 @@ export function mountAnnotations(
       nodes.clear();
       overlay.remove();
       editor?.dispose();
+      picker.dispose();
       list.remove();
       root.removeEventListener("pointerdown", down);
       root.removeEventListener("lostpointercapture", lost);

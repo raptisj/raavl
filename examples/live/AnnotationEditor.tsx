@@ -18,7 +18,7 @@ import { Waveform, PlayerRoot, ActionsToolbar } from "raavl/react";
 import { usePageTheme } from './usePageTheme';
 import { Preview } from "./Preview";
 import { DemoSettings } from "./DemoSettings";
-import { annotationDocument, annotationStyles } from "./annotation-example";
+import { annotationDocument, annotationStyles, overlapDocument } from "./annotation-example";
 import type { ExampleCodeOptions } from "./snippets";
 
 const initial = annotationDocument;
@@ -35,9 +35,10 @@ type CanvasProps = {
   zoom: number | "fit" | "auto";
   snap: number;
   editorLayout: "inline" | "modal";
-  onPlayer: (player: Player | null) => void;
-  onView: (view: WaveformView | null) => void;
-  onSelect: (id: string | null) => void;
+  label?: string;
+  onPlayer?: (player: Player | null) => void;
+  onView?: (view: WaveformView | null) => void;
+  onSelect?: (id: string | null) => void;
   onError: (error: Error) => void;
 };
 function VanillaEditor(props: CanvasProps) {
@@ -55,14 +56,14 @@ function VanillaEditor(props: CanvasProps) {
       interaction: { drag: "select" },
       appearance: { style: "bars", height: 200 },
     });
-    latest.current.onView(view.current);
-    latest.current.onPlayer(instance);
+    latest.current.onView?.(view.current);
+    latest.current.onPlayer?.(instance);
     return () => {
       view.current?.dispose();
       view.current = null;
-      latest.current.onView(null);
+      latest.current.onView?.(null);
       instance.dispose();
-      latest.current.onPlayer(null);
+      latest.current.onPlayer?.(null);
       player.current = null;
     };
   }, []);
@@ -78,6 +79,7 @@ function VanillaEditor(props: CanvasProps) {
   }, [props.source]);
   useEffect(() => {
     view.current?.update({
+      label: props.label,
       annotations: props.annotations,
       annotationEditor: props.editorLayout,
       annotationRules: { snap: props.snap, minLength: 0.1 },
@@ -87,6 +89,7 @@ function VanillaEditor(props: CanvasProps) {
       onAnnotationError: props.onError,
     });
   }, [
+    props.label,
     props.annotations,
     props.zoom,
     props.snap,
@@ -95,6 +98,43 @@ function VanillaEditor(props: CanvasProps) {
     props.onError,
   ]);
   return <div ref={container} />;
+}
+
+export function OverlappingRegions() {
+  const [store, setStore] = useState<AnnotationStore | null>(null);
+  const [error, setError] = useState("");
+  const report = useCallback((error: Error) => setError(error.message), []);
+  useEffect(() => {
+    const instance = createAnnotations({ document: overlapDocument });
+    setStore(instance);
+    return () => instance.dispose();
+  }, []);
+
+  return (
+    <article className="player-card annotation-editor" aria-labelledby="overlapping-regions-title">
+      <h3 id="overlapping-regions-title">Overlapping regions</h3>
+      <p className="helper">
+        Open the count below the waveform to browse all 30 regions. Choose an
+        overlap chip to edit a region at that spot. On a narrow screen, swipe
+        the waveform sideways to see more overlaps.
+      </p>
+      <Preview>
+        <style>{annotationStyles}</style>
+        <div className="annotation-app">
+          <VanillaEditor
+            source={first}
+            annotations={store}
+            zoom="auto"
+            snap={0.1}
+            editorLayout="inline"
+            label="Recording with overlapping regions"
+            onError={report}
+          />
+          {error && <p role="alert" className="error">{error}</p>}
+        </div>
+      </Preview>
+    </article>
+  );
 }
 
 export function AnnotationEditor({ mode, onOptionsChange }: {

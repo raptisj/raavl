@@ -29,8 +29,8 @@ export function exampleThemeCss(dark = false) {
 }
 
 .example-app .raavl-player { --raavl-background: ${p.background}; --raavl-control-background: ${p.control}; --raavl-control-color: ${p.text}; --raavl-control-border: ${p.border}; }
-.example-app button:where(:not(.raavl-play-pause-icon-button)), .example-app select, .example-app input:not([type="range"]):not([type="file"]) { color: ${p.text}; background: ${p.control}; border-color: ${p.border}; }
-.example-app button:hover:not(:disabled, .raavl-play-pause-icon-button) { background: ${p.hover}; }
+.example-app button:where(:not(.raavl-play-pause-icon-button, .raavl-annotation-action-apply)), .example-app select, .example-app input:not([type="range"]):not([type="file"]) { color: ${p.text}; background: ${p.control}; border-color: ${p.border}; }
+.example-app button:hover:not(:disabled, .raavl-play-pause-icon-button, .raavl-annotation-action-apply) { background: ${p.hover}; }
 .example-app button.primary { background: ${p.primary}; color: ${p.primaryText}; border-color: ${p.primary}; }
 .example-app button.primary:hover:not(:disabled) { background: ${p.primary}; }
 .example-app .raavl-play-pause[data-playing="true"]:where(:not(.raavl-play-pause-icon-button)), .example-app .raavl-button[aria-pressed="true"] { background: ${p.primary}; color: ${p.primaryText}; }

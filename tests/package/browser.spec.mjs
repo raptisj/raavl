@@ -107,6 +107,145 @@ test.describe("touch waveform", () => {
     viewport: { width: 390, height: 844 },
   });
 
+  test("uses the compact strip and the same picker for all regions and an overlap", async ({ page }) => {
+    await page.goto("/?overlaps=30");
+    const player = page.locator("#react");
+    const browse = player.getByRole("button", { name: "Regions (30)", exact: true });
+    const picker = player.locator(".raavl-annotation-picker");
+    const rows = picker.locator("[data-row-id]");
+    const search = picker.getByRole("searchbox", { name: "Search annotations by label or time" });
+    const time = () => page.evaluate(() => window.packageTest.reactPlayer.getCurrentTime());
+    await expect(browse).toBeVisible();
+    await expect(rows).toHaveCount(0);
+    await browse.tap();
+    await expect(rows).toHaveCount(30);
+    await expect(rows.first()).toHaveAttribute("data-row-id", "intro");
+    expect(await picker.locator("ul").evaluate((list) => list.scrollHeight > list.clientHeight)).toBe(true);
+    await search.fill("GUITAR");
+    await expect(rows).toHaveCount(1);
+    await expect(rows.first()).toHaveAttribute("data-row-id", "guitar");
+    await search.fill("0.45");
+    await expect(rows).toHaveCount(3);
+    await search.fill("0:00.45");
+    await expect(rows).toHaveCount(3);
+    await page.keyboard.press("Escape");
+    await expect(browse).toBeFocused();
+    await expect(picker).toBeHidden();
+    await browse.tap();
+    await expect(search).toHaveValue("");
+    const close = picker.getByRole("button", { name: "Close annotation picker" });
+    await expect(close).toHaveText("×");
+    await close.tap();
+    await expect(picker).toBeHidden();
+
+    const chip = player.getByRole("button", { name: /^3 overlapping regions/ });
+    await chip.tap();
+    await expect(rows).toHaveCount(3);
+    expect(await rows.evaluateAll((buttons) => buttons.map((button) => button.dataset.rowId)))
+      .toEqual(["intro", "guitar", "vocal"]);
+    expect(await time()).toBe(0);
+    await search.fill("Region 30");
+    await expect(rows).toHaveCount(0);
+    await expect(picker.getByText("No matches.")).toBeVisible();
+    await picker.getByRole("button", { name: "Show all 30" }).tap();
+    await expect(search).toHaveValue("Region 30");
+    await expect(rows).toHaveCount(1);
+    await expect(rows.first()).toHaveText(/^Region 30 ·/);
+    await search.clear();
+    await expect(rows).toHaveCount(30);
+    await chip.tap();
+    await expect(rows).toHaveCount(3);
+    await picker.getByRole("button", { name: /^Guitar melody/ }).tap();
+    await expect(picker).toBeHidden();
+    const guitar = player.locator('.raavl-region[data-raavl-annotation="guitar"]');
+    const intro = player.locator('.raavl-region[data-raavl-annotation="intro"]');
+    await expect(guitar).toHaveAttribute("data-selected", "true");
+    await expect(guitar).toHaveCSS("z-index", "1");
+    await expect(guitar).toHaveCSS("opacity", "1");
+    await expect(intro).toHaveCSS("opacity", "0.25");
+    const editor = player.getByRole("group", { name: /^Edit Guitar melody/ });
+    await expect(editor.getByRole("textbox", { name: "Label" })).toBeFocused();
+    const playRegion = editor.getByRole("button", { name: "Play region", exact: true });
+    await expect(playRegion).toBeEnabled();
+    const apply = editor.getByRole("button", { name: "Apply edit" });
+    const primary = player.getByRole("group", { name: "Playback actions" })
+      .getByRole("button", { name: "Play", exact: true });
+    const primaryColor = await primary.evaluate((button) => getComputedStyle(button).backgroundColor);
+    await expect(apply).toHaveCSS("background-color", primaryColor);
+    await expect(editor.getByRole("button", { name: "Delete annotation" })).not.toHaveCSS("background-color", primaryColor);
+    expect(await apply.evaluate((button) => Math.abs(
+      button.getBoundingClientRect().right - button.closest(".raavl-annotation-actions").getBoundingClientRect().right,
+    ))).toBeLessThan(1);
+    const playBounds = await playRegion.boundingBox();
+    const saveBounds = await apply.boundingBox();
+    expect(playBounds.y).toBeCloseTo(saveBounds.y);
+    expect(saveBounds.x - (playBounds.x + playBounds.width)).toBeCloseTo(6);
+    await editor.getByRole("button", { name: "Cancel edit" }).tap();
+    await expect(intro).toHaveCSS("opacity", "1");
+    const badge = player.locator(".raavl-annotation-selected-badge");
+    await expect(badge).toBeVisible();
+    await expect(badge).toBeFocused();
+    await badge.tap();
+    await expect(intro).toHaveCSS("opacity", "0.25");
+    expect(await time()).toBe(0);
+  });
+
+  test("keeps Play region immediately before Save in the modal editor", async ({ page }) => {
+    await page.goto("/?annotations&modal");
+    const player = page.locator("#react");
+    const primary = player.getByRole("group", { name: "Playback actions" })
+      .getByRole("button", { name: "Play", exact: true });
+    const primaryColor = await primary.evaluate((button) => getComputedStyle(button).backgroundColor);
+    await player.getByRole("button", { name: "Intro · 0.30–0.65s", exact: true }).tap();
+
+    const dialog = player.getByRole("dialog", { name: "Edit Intro" });
+    const playRegion = dialog.getByRole("button", { name: "Play region", exact: true });
+    const save = dialog.getByRole("button", { name: "Apply edit" });
+    await expect(save).toHaveCSS("background-color", primaryColor);
+    const playBounds = await playRegion.boundingBox();
+    const saveBounds = await save.boundingBox();
+    expect(playBounds.y).toBeCloseTo(saveBounds.y);
+    expect(saveBounds.x - playBounds.x - playBounds.width).toBeCloseTo(6);
+    expect(await save.evaluate((button) => Math.abs(
+      button.getBoundingClientRect().right - button.closest(".raavl-annotation-actions").getBoundingClientRect().right,
+    ))).toBeLessThan(1);
+
+    await playRegion.tap();
+    await expect.poll(() => page.evaluate(() => window.packageTest.reactPlayer.getCurrentTime())).toBeCloseTo(0.65);
+    await expect(dialog).toBeVisible();
+  });
+
+  test("truncates badge text at 200px and collapses the row when badges no longer fit", async ({ page }) => {
+    await page.setViewportSize({ width: 750, height: 844 });
+    await page.goto("/?overlaps=3");
+    const player = page.locator("#react");
+    const inlineRow = player.locator(".raavl-annotation-badge-row");
+    const browse = player.getByRole("button", { name: "Regions (3)", exact: true });
+    await expect(inlineRow).toBeVisible();
+    await expect(inlineRow.getByRole("button")).toHaveCount(3);
+    await expect(browse).toBeHidden();
+    const intro = /^Introduction and opening phrase with extended instrumentation/;
+    const inlineText = inlineRow.getByRole("button", { name: intro }).locator(".raavl-annotation-badge-text");
+    await expect(inlineText).toHaveCSS("width", "200px");
+    await expect(inlineText).toHaveCSS("text-overflow", "ellipsis");
+    expect(await inlineText.evaluate((text) => text.scrollWidth > text.clientWidth)).toBe(true);
+    await page.setViewportSize({ width: 320, height: 844 });
+    await expect(browse).toBeVisible();
+    await expect(inlineRow).toBeHidden();
+    await expect(browse).toHaveCSS("min-height", "44px");
+    await browse.tap();
+    await player.locator(".raavl-annotation-picker").getByRole("button", { name: intro }).tap();
+    await player.getByRole("button", { name: "Cancel edit" }).tap();
+    const selectedText = player.getByRole("button", { name: intro }).locator(".raavl-annotation-badge-text");
+    await expect(selectedText).toHaveCSS("max-inline-size", "200px");
+    await expect(selectedText).toHaveCSS("text-overflow", "ellipsis");
+    expect(await selectedText.evaluate((text) => text.scrollWidth > text.clientWidth)).toBe(true);
+    expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBe(320);
+    await page.setViewportSize({ width: 750, height: 844 });
+    await expect(browse).toBeHidden();
+    await expect(inlineRow).toBeVisible();
+  });
+
   test("pinches around the fingers without zooming the page or seeking", async ({
     page,
     context,

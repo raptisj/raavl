@@ -590,6 +590,51 @@ it("supports keyboard seeking and validates view updates before applying them", 
 });
 
 import { createAnnotations, type AnnotationDocument } from "../src/regions";
+
+it("filters overlaps by the displayed channel and excludes touching ranges", () => {
+  const store = createAnnotations({
+    document: {
+      version: 1,
+      sourceId: "split",
+      regions: [
+        { id: "left", start: 2, end: 4, channel: 0 },
+        { id: "right", start: 2.5, end: 4, channel: 1 },
+        { id: "both", start: 1, end: 4 },
+        { id: "touching", start: 4, end: 6, channel: 1 },
+      ],
+      markers: [{ id: "cue", time: 3 }],
+    },
+  });
+  const channel = { min: [-0.5], max: [0.5] };
+  const view = mountWaveform(host, {
+    annotations: store,
+    appearance: { splitChannels: true },
+    data: { version: 1, sourceId: "split", duration: 10, channels: [channel, channel] },
+  });
+  const chips = () => [...host.querySelectorAll<HTMLButtonElement>(".raavl-region-overlap")];
+  try {
+    flushFrame();
+    expect(chips().map((chip) => chip.textContent)).toEqual(["2 regions", "2 regions"]);
+    chips()[1].click();
+    const rows = host.querySelectorAll<HTMLButtonElement>(".raavl-annotation-picker [data-row-id]");
+    expect([...rows].map((row) => row.dataset.rowId)).toEqual(["both", "right"]);
+    rows[1].click();
+    expect(document.activeElement?.getAttribute("data-raavl-annotation")).toBe("right");
+    chips()[1].click();
+    const search = host.querySelector<HTMLInputElement>('input[type="search"]')!;
+    search.value = "3s";
+    search.dispatchEvent(new Event("input", { bubbles: true }));
+    [...host.querySelectorAll("button")].find((button) => button.textContent === "Show all 5")!.click();
+    expect([...host.querySelectorAll(".raavl-annotation-picker [data-row-id]")].map(
+      (row) => row.getAttribute("data-row-id"),
+    )).toEqual(["both", "left", "right", "cue"]);
+    store.remove("both");
+    expect(chips()).toHaveLength(0);
+  } finally {
+    view.dispose();
+    store.dispose();
+  }
+});
 const annotations: AnnotationDocument = {
   version: 1,
   sourceId: "demo",
@@ -1478,6 +1523,7 @@ it.each(["react", "vanilla"] as const)(
     const add = button(creation, "Create region from selection");
     const apply = button(editor, "Apply edit");
     const remove = button(editor, "Delete annotation");
+    const playEditedRegion = button(editor, "Play region");
     expect(creation.hidden).toBe(true);
     expect(add.disabled).toBe(true);
     expect(editor.hidden).toBe(true);
@@ -1581,6 +1627,15 @@ it.each(["react", "vanilla"] as const)(
     expect(region().textContent).toContain("Discarded draft");
     expect(parseFloat(region().style.left)).toBeGreaterThan(parseFloat(originalLeft));
     expect(parseFloat(region().style.width)).toBeGreaterThan(parseFloat(originalWidth));
+    await act(async () => playEditedRegion.click());
+    expect(media.paused).toBe(false);
+    expect(media.currentTime).toBeCloseTo(0.75);
+    await act(async () => {
+      media.currentTime = 3.1;
+      media.dispatchEvent(new Event("timeupdate"));
+    });
+    expect(media.paused).toBe(true);
+    expect(media.currentTime).toBeCloseTo(3);
     expect(row()!.textContent).toBe("Introduction · 0.50–2.50s");
     await act(async () => button(editor, "Cancel edit").click());
     expect(editor.hidden).toBe(true);
@@ -1594,6 +1649,8 @@ it.each(["react", "vanilla"] as const)(
     await act(async () => row()!.click());
     label.value = "Renamed intro";
     start.value = "3";
+    await act(async () => start.dispatchEvent(new Event("input", { bubbles: true })));
+    expect(playEditedRegion.disabled).toBe(true);
     await act(async () => apply.click());
     expect(editor.hidden).toBe(false);
     expect(host.querySelector(".raavl-annotation-error")?.textContent).toContain("start < end");
@@ -1619,10 +1676,9 @@ it.each(["react", "vanilla"] as const)(
     await act(async () => row("cue")!.click());
     expect(start.labels?.[0]?.textContent).toBe("Time (seconds)");
     expect(end.closest("[hidden]")).toBeTruthy();
-    await act(async () => button(editor, "Lock").click());
-    expect(start.disabled).toBe(true);
-    expect(remove.disabled).toBe(true);
-    await act(async () => button(editor, "Unlock").click());
+    expect(playEditedRegion.hidden).toBe(true);
+    expect(button(editor, "Lock")).toBeUndefined();
+    expect(button(editor, "Unlock")).toBeUndefined();
     start.value = "8.5";
     await act(async () => start.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter", bubbles: true })));
     expect(editor.hidden).toBe(true);
@@ -2138,7 +2194,7 @@ it("waits for drag completion before opening a modal and supports switching back
   expect(host.querySelector('button[aria-label="Cancel selection"] svg')).not.toBeNull();
   test.view.update({ annotationEditor: 'modal' });
   expect(dialog.open).toBe(true);
-  expect(dialog.querySelector('button[aria-label="Cancel selection"]')).toBeNull();
+  expect(dialog.querySelector('button[aria-label="Cancel selection"] svg')).not.toBeNull();
   test.cleanup();
   expect(dialog.open).toBe(false);
   expect(host.querySelector('dialog')).toBeNull();

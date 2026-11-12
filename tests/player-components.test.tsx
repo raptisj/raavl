@@ -545,6 +545,42 @@ it.each(["react", "vanilla"])("shows the annotation app actions in Preview and t
     expect(code).not.toContain("Create region from selection");
     expect(settings.textContent).toContain("Simulate external edit");
     expect(code).not.toContain("Simulate external edit");
+
+    await act(async () => {
+      for (const media of new Set(mock.load.mock.contexts as HTMLMediaElement[]))
+        mock.ready(media, 12);
+      const pending = [...frames.values()];
+      frames.clear();
+      pending.forEach((frame) => frame(0));
+    });
+    const overlap = host.querySelector<HTMLElement>(
+      'article[aria-labelledby="overlapping-regions-title"]',
+    )!;
+    const browse = overlap.querySelector<HTMLButtonElement>(".raavl-annotation-browse")!;
+    const rows = () => overlap.querySelectorAll<HTMLButtonElement>(
+      ".raavl-annotation-picker [data-row-id]",
+    );
+    expect(browse.textContent).toBe("Regions (30)");
+    await act(async () => browse.click());
+    expect(rows()).toHaveLength(30);
+    const chips = [...overlap.querySelectorAll<HTMLButtonElement>(".raavl-region-overlap")];
+    const groups = [
+      ["opening", "melody", "accent"],
+      ["motif", "doubling"],
+      ["pickup", "transition"],
+      ["bridge", "harmony", "bass", "lead"],
+      ["outro", "echo"],
+    ];
+    expect(chips.map((chip) => chip.textContent)).toEqual(groups.map((group) => `${group.length} regions`));
+    for (const [index, chip] of chips.entries()) {
+      await act(async () => chip.click());
+      expect([...rows()].map((row) => row.dataset.rowId)).toEqual(groups[index]);
+    }
+    await act(async () => chips[0].click());
+    await act(async () => rows()[1].click());
+    expect(overlap.querySelector<HTMLElement>(
+      '.raavl-annotation-editor[aria-label="Edit Melody"]',
+    )?.hidden).toBe(false);
   } finally {
     window.history.replaceState({}, "", "/");
   }
@@ -648,7 +684,7 @@ it.each(['Close', 'Cancel', 'Escape'])("dismisses modal creation and editing wit
   const commit = vi.fn();
   const active = await render({ waveform: {
     annotationEditor: 'modal',
-    defaultAnnotations: { version: 1, sourceId: source.id!, regions: [{ id: 'intro', start: 2, end: 5, label: 'Intro' }], markers: [] },
+    defaultAnnotations: { version: 1, sourceId: source.id!, regions: [{ id: 'intro', start: 2, end: 5, label: 'Intro', locked: true }], markers: [] },
     onAnnotationsCommit: commit,
   } });
   await ready(active);
@@ -664,10 +700,11 @@ it.each(['Close', 'Cancel', 'Escape'])("dismisses modal creation and editing wit
   dialog.close = vi.fn(() => { dialog.open = false; });
   const dismiss = async () => {
     const form = dialog.querySelector('[role="group"]:not([hidden])')!;
-    const cancel = [...form.querySelectorAll('button')].find(button => button.textContent === 'Cancel')!;
+    const cancel = form.querySelector<HTMLButtonElement>('button[aria-label^="Cancel "]')!;
     const close = button('Close');
     expect(close.querySelector('svg')).not.toBeNull();
-    expect(cancel).toBeDefined();
+    expect(cancel.querySelector('svg')).not.toBeNull();
+    expect(cancel.textContent).toBe('');
     await act(async () => {
       if (action === 'Escape') dialog.dispatchEvent(new Event('cancel', { cancelable: true }));
       else (action === 'Close' ? close : cancel).click();
@@ -693,6 +730,11 @@ it.each(['Close', 'Cancel', 'Escape'])("dismisses modal creation and editing wit
   await act(async () => { badge.focus(); badge.click(); });
   expect(dialog.open).toBe(true);
   expect(dialog.getAttribute('aria-label')).toBe('Edit Intro');
+  const editForm = dialog.querySelector('.raavl-annotation-editor')!;
+  const timeFields = editForm.querySelectorAll<HTMLInputElement>('input[type="number"]');
+  expect([...timeFields].map(input => input.disabled)).toEqual([true, true]);
+  expect(button('Delete annotation').disabled).toBe(true);
+  expect([...editForm.querySelectorAll('button')].some(control => /^(Lock|Unlock)$/.test(control.textContent))).toBe(false);
   await act(async () => change(dialog.querySelector('.raavl-annotation-editor input')!, 'Draft'));
   await dismiss();
   expect(dialog.open).toBe(false);

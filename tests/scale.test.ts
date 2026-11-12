@@ -23,6 +23,10 @@ it('bounds zoomed annotation DOM and releases repeated mounts', () => {
   flush()
   console.log(JSON.stringify({ mountMs: performance.now() - start, overlays: host.querySelectorAll('.raavl-region').length, rows: host.querySelectorAll('li').length }))
   expect(host.querySelectorAll('.raavl-region').length).toBeLessThan(20)
+  expect(host.querySelectorAll('li')).toHaveLength(0)
+  const browse = host.querySelector<HTMLButtonElement>('.raavl-annotation-browse')!
+  expect(browse.textContent).toBe('Regions (10000)')
+  browse.click()
   expect(host.querySelectorAll('li')).toHaveLength(100)
   const firstRow = host.querySelector('li button')
   view.refreshTheme(); flush()
@@ -30,7 +34,18 @@ it('bounds zoomed annotation DOM and releases repeated mounts', () => {
   const nextPage = [...host.querySelectorAll('button')].find(button => button.textContent === 'Next annotations')!
   nextPage.click()
   expect(host.querySelector('li')?.textContent).toContain('r100 ')
+  const search = host.querySelector<HTMLInputElement>('input[type="search"]')!
+  search.value = 'R9999'
+  search.dispatchEvent(new Event('input', { bubbles: true }))
+  expect(host.querySelectorAll('li')).toHaveLength(1)
+  expect(host.querySelector('li button')?.getAttribute('data-row-id')).toBe('r9999')
+  search.value = '1:12'
+  search.dispatchEvent(new Event('input', { bubbles: true }))
+  expect(host.querySelectorAll('li')).toHaveLength(1)
+  expect(host.querySelector('li button')?.getAttribute('data-row-id')).toBe('r100')
   host.querySelector<HTMLButtonElement>('li button')!.click(); flush()
+  expect(host.querySelectorAll('li')).toHaveLength(0)
+  expect(browse.getAttribute('aria-expanded')).toBe('false')
   expect(host.querySelector('[data-raavl-annotation="r100"]')).not.toBeNull()
   expect(document.activeElement?.getAttribute('data-raavl-annotation')).toBe('r100')
   view.update({ annotations: null })
