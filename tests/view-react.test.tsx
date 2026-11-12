@@ -2196,7 +2196,8 @@ it("waits for drag completion before opening a modal and supports switching back
   expect(host.querySelector('button[aria-label="Cancel selection"] svg')).not.toBeNull();
   test.view.update({ annotationEditor: 'modal' });
   expect(dialog.open).toBe(true);
-  expect(dialog.querySelector('button[aria-label="Cancel selection"] svg')).not.toBeNull();
+  expect(dialog.querySelector('button[aria-label="Cancel selection"]')).toBeNull();
+  expect(dialog.querySelector('button[aria-label="Close"] svg')).not.toBeNull();
   test.cleanup();
   expect(dialog.open).toBe(false);
   expect(host.querySelector('dialog')).toBeNull();

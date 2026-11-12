@@ -407,9 +407,13 @@ export function createAnnotationEditor(
       if (dialog.open) dialog.close();
       mode = next;
       if (mode === "modal") {
+        cancelRegion.remove();
+        cancel.remove();
         dialog.append(creation, editor, error, closeDialog);
         element.append(dialog);
       } else {
+        creationActions.prepend(cancelRegion);
+        remove.after(cancel);
         element.append(creation, editor, error);
         dialog.remove();
       }

@@ -771,7 +771,7 @@ it("opens a region draft at the playhead and commits only on confirmation", asyn
   expect(button('Create region at playhead').disabled).toBe(true);
 });
 
-it.each(['Close', 'Cancel', 'Escape'])("dismisses modal creation and editing with %s", async (action) => {
+it.each(['Close', 'Escape'])("dismisses modal creation and editing with %s", async (action) => {
   const commit = vi.fn();
   const active = await render({ waveform: {
     annotationEditor: 'modal',
@@ -790,15 +790,13 @@ it.each(['Close', 'Cancel', 'Escape'])("dismisses modal creation and editing wit
   dialog.showModal = vi.fn(() => { dialog.open = true; });
   dialog.close = vi.fn(() => { dialog.open = false; });
   const dismiss = async () => {
-    const form = dialog.querySelector('[role="group"]:not([hidden])')!;
-    const cancel = form.querySelector<HTMLButtonElement>('button[aria-label^="Cancel "]')!;
     const close = button('Close');
+    expect([...dialog.querySelectorAll('.raavl-annotation-action-cancel')]).toEqual([close]);
+    expect(close.classList.contains('raavl-annotation-dialog-close')).toBe(true);
     expect(close.querySelector('svg')).not.toBeNull();
-    expect(cancel.querySelector('svg')).not.toBeNull();
-    expect(cancel.textContent).toBe('');
     await act(async () => {
       if (action === 'Escape') dialog.dispatchEvent(new Event('cancel', { cancelable: true }));
-      else (action === 'Close' ? close : cancel).click();
+      else close.click();
     });
   };
   expect(dialog.open).toBe(false);

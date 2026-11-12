@@ -326,6 +326,9 @@ test.describe("touch waveform", () => {
       .tap();
 
     const dialog = player.getByRole("dialog", { name: "Edit Intro" });
+    const editClose = dialog.getByRole("button", { name: /^(Close|Cancel edit)$/ });
+    await expect(editClose).toHaveCount(1);
+    await expect(editClose).toHaveAccessibleName("Close");
     const playRegion = dialog.getByRole("button", {
       name: "Play region",
       exact: true,
@@ -353,6 +356,16 @@ test.describe("touch waveform", () => {
       )
       .toBeCloseTo(0.65);
     await expect(dialog).toBeVisible();
+    await editClose.tap();
+    await expect(dialog).toBeHidden();
+
+    await player.getByRole("button", { name: "Create region at playhead" }).tap();
+    const draft = player.getByRole("dialog", { name: "New region" });
+    const draftClose = draft.getByRole("button", { name: /^(Close|Cancel selection)$/ });
+    await expect(draftClose).toHaveCount(1);
+    await expect(draftClose).toHaveAccessibleName("Close");
+    await draftClose.tap();
+    await expect(draft).toBeHidden();
   });
 
   test("truncates badge text at 200px and collapses the row when badges no longer fit", async ({
