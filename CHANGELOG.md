@@ -1,5 +1,24 @@
 # Changelog
 
+## 0.1.2
+
+### Added
+
+- Search annotations by label, ID, or time in a scrollable picker. Overlap chips open the picker with just the regions at that spot. Choosing a region brings it into view and raises it above its neighbors. While editing, the other regions are dimmed.
+- Use **Play region** in the editor to preview the current range, including unsaved start and end changes. On touch screens, use the **−** and **+** buttons to adjust either time by 0.1 seconds.
+
+### Changed
+
+- Annotation badges stay on one row. When more than four badges are present or they do not fit, the row shows a count button that opens the picker, plus the selected badge when available.
+- Touch swipes scroll the waveform or page. To create a region on touch screens, tap to place the playhead, then use **Create region at playhead** and adjust the draft with the editor fields or inline resize handles. Dragging to create a range or move a region or marker uses a mouse or pen. Region resize handles still support touch.
+- Lock and unlock annotations through the store. The built-in editors still allow relabeling locked annotations.
+- Post-publish npm verification waits longer between retries to allow time for registry propagation.
+
+### Fixed
+
+- Adding a second finger during a touch resize cancels the edit without saving it. Resizing works again after both fingers are lifted.
+- Restore annotation badges when the inline editor is disabled during region creation.
+
 ## 0.1.1
 
 ### Added
