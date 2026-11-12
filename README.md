@@ -4,6 +4,7 @@
 for JavaScript and React, with reliable playback and customizable waveforms.
 The name is inspired by Maurice **Ravel**.
 
+[![npm version](https://img.shields.io/npm/v/raavl.svg)](https://www.npmjs.com/package/raavl)
 [![Node.js](https://img.shields.io/badge/node-%3E%3D22.22.0-brightgreen.svg)](https://nodejs.org/)
 
 ## Install
