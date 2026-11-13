@@ -1,5 +1,22 @@
 # Changelog
 
+## 0.1.3
+
+### Added
+
+- Add `mountMuteButton` and `mountLoopButton` for JavaScript players. Both are available from `raavl` and `raavl/dom` and provide accessible controls for muting and looping the full recording.
+
+### Changed
+
+- `AudioPlayer` puts playback and region actions in one toolbar when annotation editing is enabled. Set `controls={false}` to hide standard playback controls or `actions={false}` to hide region buttons. If you customize slots, `slots.controls` now receives the seek slider and toolbar, including enabled region actions. `slots.actions` receives the region buttons.
+- React mute and full-track loop buttons now use icons that reflect their state. Pass custom `children` to display text.
+- Waveforms now use the playground defaults with normalized, rounded sage bars, a height of 150 px, a transparent background, and an amber playhead. With `raavl/styles.css`, the colors follow the page’s CSS `color-scheme`. To keep the previous line shape and scaling, set `appearance` to `{ style: "line", height: 160, normalize: false }` and set the background and playhead with `--raavl-background` and `--raavl-cursor-color`.
+- The README shows the current npm version and links to the package page.
+
+### Fixed
+
+- Region creation and editing modals show a single close button in the top-right corner. Click it or press Escape to discard the draft.
+
 ## 0.1.2
 
 ### Added
